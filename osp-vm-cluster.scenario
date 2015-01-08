@@ -1,0 +1,347 @@
+# Configure node 1 as bind/dhcp/nfs-server/haproxy for virtnet0
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+#nodes: east-01 east-02 east-03
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+  named:
+    forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
+  nic:
+    base: 54:52:00
+
+vm:
+  vcpu: 1
+  ram: 2048
+  disk: 25G
+  base: /srv/rhos5-rhel7-vms/rhos5-rhel7-base.img
+  key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
+
+rpm:
+  rhel: 7.1
+  osp: 6.0
+    beta: -Beta
+  download: download.devel.redhat.com
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 9
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=$PHD_ENV_nodes7 $PHD_ENV_nodes8 $PHD_ENV_nodes9
+....
+yum install -y fence-virtd fence-virtd-multicast fence-virtd-libvirt
+lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
+
+cat > /etc/fence_virt.conf << EOF
+fence_virtd {
+        listener = "multicast";
+        backend = "libvirt";
+}
+listeners {
+        multicast {
+                # key_file = "/etc/cluster/fence_xvm.key";
+                address = "225.0.0.$lastoct";
+                # Needed on Fedora systems
+                interface = "vmnet0";
+        }
+}
+backends {
+        libvirt { 
+                uri = "qemu:///system";
+        }
+}
+EOF
+
+# XXX remember to file a bug
+chkconfig --add fence_virtd
+chkconfig  fence_virtd on
+service fence_virtd start
+....
+
+
+target=$PHD_ENV_nodes1
+....
+
+distro=${PHD_VAR_rpm_rhel}
+distro_major=$(echo ${PHD_VAR_rpm_rhel} | awk -F. '{print $1}')
+
+case ${distro_major} in
+    7) addons="addons/"; zstream="rhel-${distro}-z-build";;
+    *) addons=""; zstream="RHEL-${distro}-Z-build";;
+esac
+
+# headless - do not bork if we specify --noautoconsole
+# reboot
+
+# Do not specify  --hostname= for network
+# If prevents assinging by DHCP 
+
+cat << EOF > virt-base.ks
+install
+text
+reboot
+rootpw redhat
+lang en_US.UTF-8
+keyboard us
+network --bootproto dhcp
+firewall --enabled --ssh
+selinux --permissive
+timezone --utc Australia/Melbourne
+bootloader --location=mbr --append="console=tty0 console=ttyS0,115200 rd_NO_PLYMOUTH serial text headless"
+zerombr
+clearpart --all --initlabel
+autopart --type=lvm
+skipx
+
+%packages
+@core
+grep
+gawk
+bind-utils
+vi
+%end
+
+%post
+
+# ethX will do nicely thankyou
+rm -f /lib/udev/rules.d/75-persistent-net-generator.rules
+rm -f /etc/udev/rules.d/70-persistent-net.rules
+
+# Need PEERDNS=no on the external interface to make sure all lookups
+# go to our gateway (otherwise setting setting hostname via dhcp wont
+# work)
+#
+# MUST add 'DEVICE=ethX' when deleting 'HWADDR', otherwise you end up
+# with crazy things like:
+#
+# [root@localhost ~]# ifdown eth0
+# Device 'eth1' successfully disconnected.
+#
+# Let eth0 come up, but don't let it connect to avoid conflicting dhcp
+# and naming issues
+#
+# /usr/share/doc/initscripts/sysconfig.txt
+
+cat > /etc/sysconfig/network-scripts/ifcfg-eth0 << EOT
+NAME="eth0"
+DEVICE="eth0"
+ONBOOT=yes
+BOOTPROTO=none
+TYPE=Ethernet
+IPV4_FAILURE_FATAL=no
+EOT
+
+cat > /etc/sysconfig/network-scripts/ifcfg-eth1 << EOT
+NAME="eth1"
+DEVICE="eth1"
+ONBOOT=yes
+BOOTPROTO=dhcp
+TYPE=Ethernet
+EOT
+
+# Prevent DHCPNAK by removing stale leases
+# Occurs if we clone the guest and change NICs
+rm -f /var/lib/NetworkManager/dhclient-*.lease
+
+cat > /etc/yum.repos.d/rhel-${distro}.repo << EOT
+[rhel-${distro}]
+name=rhel-${distro}
+baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/\\\$basearch/os/
+gpgcheck=0
+enabled=1
+[rhel-ha]
+name=rhel-${distro}-ha
+baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/\\\$basearch/os/${addons}HighAvailability/
+gpgcheck=0
+enabled=1
+[rhel-z]
+name=rhel-${distro}-z
+baseurl=http://${PHD_VAR_rpm_download}/brewroot/repos/${zstream}/latest/\\\$basearch/
+gpgcheck=0
+enabled=0
+EOT
+
+cat > /etc/yum.repos.d/osp-${PHD_VAR_rpm_osp}.repo << EOT
+[OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle]
+name=OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle
+baseurl=http://${PHD_VAR_rpm_download}/rel-eng/OpenStack/${PHD_VAR_rpm_osp}-RHEL-${distro_major}${PHD_VAR_rpm_osp_beta}/latest/RH${distro_major}-RHOS-${PHD_VAR_rpm_osp}/\\\$basearch/os
+gpgcheck=0
+enabled=1
+EOT
+
+mkdir /root/.ssh
+cat <<__EOT__ >> /root/.ssh/authorized_keys
+ssh-rsa ${PHD_VAR_vm_key} admin
+__EOT__
+
+chmod 600 /root/.ssh/authorized_keys
+
+%end
+EOF
+
+
+yum install -y virt-install 
+virsh destroy rhos5-rhel${distro_major}-base  &>/dev/null
+virsh undefine rhos5-rhel${distro_major}-base &>/dev/null
+
+#Create the qcow2 disk image with preallocation and 'facllocate'(which pre-allocates all the blocks to a file) it for max. performance
+echo "Creating qcow2 disk image.."
+rm -f ${PHD_VAR_vm_base}
+qemu-img create -f qcow2 -o preallocation=metadata ${PHD_VAR_vm_base} ${PHD_VAR_vm_disk}
+ls -lash ${PHD_VAR_vm_base}
+#fallocate -l $(ls -al ${PHD_VAR_vm_base} | awk '{print $5}') ${PHD_VAR_vm_base}
+#ls -lash ${PHD_VAR_vm_base}
+
+# Turn off install logs
+opts="--noautoconsole"
+opts=""
+
+#    --console pty,target_type=virtio 
+#Create the regular-guest
+virt-install --connect=qemu:///system \
+    --network=bridge:ext0,mac=${PHD_VAR_network_nic_base}:00:00:02 \
+    --initrd-inject=./virt-base.ks \
+    --extra-args="ks=file:/virt-base.ks console=tty0 console=ttyS0,115200 serial rd_NO_PLYMOUTH" \
+    --name=rhos5-rhel${distro_major}-base \
+    --disk path=${PHD_VAR_vm_base},format=qcow2,cache=none \
+    --ram ${PHD_VAR_vm_ram} \
+    --vcpus=${PHD_VAR_vm_vcpu} \
+    --check-cpu \
+    --accelerate \
+    --os-type linux \
+    --os-variant rhel${distro_major} \
+    --cpuset auto \
+    --hvm \
+    --location=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/ \
+    --nographics $opts
+
+....
+
+#target=$PHD_ENV_nodes1
+#....
+#virsh define /srv/vms/rhos4-base.xml
+#virsh define /srv/rhos5-rhel7-vms/rhos5-rhel7-base.xml
+#....
+
+target=$PHD_ENV_nodes7 $PHD_ENV_nodes8 $PHD_ENV_nodes9
+....
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+fi
+
+mount -a
+mkdir -p /localvms
+mkdir -p /allinone
+
+# cp /srv/vms/rhos4-base.img /localvms/
+vm_base=$(basename ${PHD_VAR_vm_base})
+rsync -avz --progress ${PHD_VAR_vm_base} /localvms/
+....
+
+
+
+target=$PHD_ENV_nodes7 $PHD_ENV_nodes8 $PHD_ENV_nodes9
+....
+
+# The internal network must go first so that hostname can be set by
+# DHCP and it will generally be the preferred network
+#
+# Random factoid, setting ONBOOT=no for eth0 will prevent eth1 from
+# being started, even if eth1 has ONBOOT=yes
+
+cat<<-EOF > /localvms/template.xml
+<domain type='kvm'>
+  <name>VM_NAME</name>
+  <memory>${PHD_VAR_vm_ram}000</memory>
+  <currentMemory>${PHD_VAR_vm_ram}000</currentMemory>
+  <vcpu>${PHD_VAR_vm_cpus}</vcpu>
+  <os>
+    <type arch='x86_64' machine='pc'>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <pae/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/srv/rhos5-rhel7-vms/rhos5-rhel7-base.img'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <interface type='bridge'>
+      <mac address='EXTERNAL_MAC'/>
+      <source bridge='ext0'/>
+      <model type='virtio'/>
+    </interface>
+    <interface type='bridge'>
+      <mac address='INTERNAL_MAC'/>
+      <source bridge='vmnet0'/>
+      <model type='virtio'/>
+    </interface>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <input type='tablet' bus='usb'/>
+    <input type='mouse' bus='ps2'/>
+    <graphics type='vnc' port='-1' autoport='yes'/>
+  </devices>
+</domain>
+EOF
+
+sequence=16
+lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
+for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node keystone; do
+    cd /localvms/
+
+    target=rhos5-${section}$(( ${lastoct} - 6 ))
+    virsh destroy  $target > /dev/null 2>&1
+    virsh undefine $target > /dev/null 2>&1
+
+    cp template.xml ${target}.xml
+
+    sed -i.sed s#VM_NAME#${target}#g ${target}.xml
+    sed -i.sed s#EXTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:00:${sequence}#g ${target}.xml
+    sed -i.sed s#INTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:01:${sequence}#g ${target}.xml
+    sed -i.sed s:source\ file.*\/:source\ file=\'/localvms/${target}.cow\'\/:g ${target}.xml
+    diff -u template.xml ${target}.xml
+
+    rm -f /localvms/${target}.cow
+    qemu-img create -b /localvms/$(basename ${PHD_VAR_vm_base}) -f qcow2 /localvms/${target}.cow
+
+    virsh define ${target}.xml
+    if [ $? != 0 ]; then exit 1; fi
+    virsh start ${target}
+    if [ $? != 0 ]; then exit 1; fi
+
+    rm ${target}.xml.sed ${target}.xml
+    sequence=$((sequence + 1))
+done
+
+#truncate --size=10G /localvms/rhos5-swift-brick1_data.img
+#truncate --size=10G /allinone/rhos5-node1_data.img
+#truncate --size=10G /allinone/rhos5-mbayer1_data.img
+....

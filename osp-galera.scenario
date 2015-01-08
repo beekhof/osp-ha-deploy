@@ -1,0 +1,178 @@
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 5.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+# rhos5-lb1 rhos5-lb2 rhos5-lb3
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=$PHD_ENV_nodes1
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos5-galera ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+yum install -y mariadb-galera-server xinetd rsync
+
+cat > /etc/sysconfig/clustercheck << EOF
+MYSQL_USERNAME="clustercheck"
+MYSQL_PASSWORD="${PHD_VAR_env_password}"
+MYSQL_HOST="localhost"
+MYSQL_PORT="3306"
+EOF
+
+systemctl start mysqld
+
+# required for clustercheck to work
+mysql -e "CREATE USER 'clustercheck'@'localhost' IDENTIFIED BY '${PHD_VAR_env_password}';"
+systemctl stop mysqld
+
+# Configure galera cluster
+# NOTE: I am skipping wsrep ssl encryption to save my soul, but it _must_ be enabled
+#             also check the bind_address! i am using shell expansion but it needs to 
+#             match the internal IP address of the node.
+
+cat > /etc/my.cnf.d/galera.cnf << EOF
+[mysqld]
+skip-name-resolve=1
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+innodb_locks_unsafe_for_binlog=1
+query_cache_size=0
+query_cache_type=0
+bind_address=$(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+
+wsrep_provider=/usr/lib64/galera/libgalera_smm.so
+wsrep_cluster_name="galera_cluster"
+wsrep_slave_threads=1
+wsrep_certify_nonPK=1
+wsrep_max_ws_rows=131072
+wsrep_max_ws_size=1073741824
+wsrep_debug=0
+wsrep_convert_LOCK_to_trx=0
+wsrep_retry_autocommit=1
+wsrep_auto_increment_control=1
+wsrep_drupal_282555_workaround=0
+wsrep_causal_reads=0
+wsrep_notify_cmd=
+wsrep_sst_method=rsync
+EOF
+
+cat > /etc/xinetd.d/galera-monitor << EOF
+service galera-monitor
+{
+        port            = 9200
+        disable         = no
+        socket_type     = stream
+        protocol        = tcp
+        wait            = no
+        user            = root
+        group           = root
+        groups          = yes
+        server          = /usr/bin/clustercheck
+        type            = UNLISTED
+        per_source      = UNLIMITED
+        log_on_success = 
+        log_on_failure = HOST
+        flags           = REUSE
+}
+EOF
+
+systemctl enable xinetd
+systemctl start xinetd
+
+....
+
+target=$PHD_ENV_nodes1
+....
+sleep 30
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+
+# node_list must be of the form node1,node2,node3
+#
+# node names must be in the form that the cluster knows them as
+# (ie. no domains) and there can't be a trailing comma (hence the
+# extra weird sed command)
+node_list=$(echo $PHD_ENV_nodes | sed -e s/.vmnet.${PHD_VAR_network_domain}\ /,/g -e s/.vmnet.${PHD_VAR_network_domain}//)
+pcs resource create galera galera enable_creation=true wsrep_cluster_address="gcomm://${node_list}" meta master-max=3 ordered=true op promote timeout=300s on-fail=block --master
+....
+
+target=$PHD_ENV_nodes1
+....
+
+galera_script=galera.setup
+echo "" > $galera_script
+
+#for node in $PHD_ENV_nodes; do
+#    cat<<EOF >> $galera_script
+#drop user ''@'${node}';
+#drop user 'root'@'${node}';
+#EOF
+#done
+
+echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED by 'mysqltest' WITH GRANT OPTION;" >> $galera_script
+
+for db in keystone glance cinder neutron nova heat; do
+    cat<<EOF >> $galera_script
+CREATE DATABASE ${db};
+GRANT ALL ON ${db}.* TO '${db}'@'%' IDENTIFIED BY '${db}test';
+EOF
+done
+
+echo "FLUSH PRIVILEGES;" >> $galera_script
+#echo "quit" >> $galera_script
+
+mysql mysql < $galera_script
+mysqladmin flush-hosts
+....

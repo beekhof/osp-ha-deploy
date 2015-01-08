@@ -1,0 +1,145 @@
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 6.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+# rhos5-lb1 rhos5-lb2 rhos5-lb3
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=$PHD_ENV_nodes1
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos5-rabbitmq ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+# You may need to reboot after installing nfs-utils
+yum install -y rabbitmq-server nfs-utils
+
+# NOTE: we need to bind the service to the internal IP address
+
+cat > /etc/rabbitmq/rabbitmq-env.conf << EOF
+NODE_IP_ADDRESS=$(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+EOF
+
+# required to generate the cookies
+systemctl start rabbitmq-server
+systemctl stop rabbitmq-server
+....
+
+target=$PHD_ENV_nodes1
+....
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+mkdir -p /srv/rhos-${PHD_VAR_rpm_osp}/configs/
+cp /var/lib/rabbitmq/.erlang.cookie /srv/rhos-${PHD_VAR_rpm_osp}/configs/rabbitmq_erlang_cookie
+....
+
+target=all
+....
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+
+# the cookie has to be the same across all nodes. Copy around as preferred, I am 
+# using my NFS commodity storage. Also check for file permission/ownership. I 
+# workaround that step by using 'cat' vs cp.
+cat /srv/rhos-${PHD_VAR_rpm_osp}/configs/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.cookie
+....
+
+
+target=$PHD_ENV_nodes1
+....
+sleep 30
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+
+pcs resource create rabbitmq-server systemd:rabbitmq-server --clone
+....
+
+target=all
+....
+# all nodes except the first must be stopped
+if [ $PHD_ENV_nodes1 != $(uname -n).${PHD_VAR_network_domain} ]; then
+    rabbitmqctl stop_app
+fi
+....
+
+target=all
+....
+# make all nodes except node1 join in series
+if [ $PHD_ENV_nodes1 != $(uname -n).${PHD_VAR_network_domain} ]; then
+    short=$(echo $PHD_ENV_nodes1 | awk -F. '{print $1}')
+    rabbitmqctl join_cluster rabbit@$short
+fi
+....
+
+target=all
+....
+# everyone has joined, now they can be restarted 
+if [ $PHD_ENV_nodes1 != $(uname -n).${PHD_VAR_network_domain} ]; then
+    rabbitmqctl start_app
+fi
+....
+
+target=$PHD_ENV_nodes1
+....
+rabbitmqctl set_policy HA '^(?!amq\.).*' '{"ha-mode": "all"}'
+....

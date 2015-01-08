@@ -1,0 +1,189 @@
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 6.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+# rhos5-lb1 rhos5-lb2 rhos5-lb3
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+
+configdir=/srv/rhos-${PHD_VAR_rpm_osp}/configs
+mkdir -p $configdir
+if [ ! -e $configdir/ks_admin_token ]; then
+   openssl rand -hex 10 > $configdir/ks_admin_token
+fi
+
+export SERVICE_TOKEN=$(cat $configdir/ks_admin_token)
+
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
+
+# Use this entry to configure keystone to use RabbitMQ
+# vip-rabbitmq should resolve to the IP address configured above in pacemaker
+# or in haproxy. Alternatively use the IP address itself.
+ 
+openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_host vip-rabbitmq
+
+# Define the API endpoints. Be careful with replacing vip-keystone and shell escapes.
+
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_endpoint 'http://vip-keystone:%(admin_port)s/'
+openstack-config --set /etc/keystone/keystone.conf DEFAULT public_endpoint 'http://vip-keystone:%(public_port)s/'
+
+# Configure access to galera. Note that several entries in here are dependent on
+# what has been configured before. 'keystone' user, 'keystonetest' password, 
+# vip-mysql.
+
+openstack-config --set /etc/keystone/keystone.conf database connection mysql://keystone:keystonetest@vip-mysql/keystone
+
+# Mare sure to retry connection to the DB if the DB is not available immediately at 
+# service startup.
+
+openstack-config --set /etc/keystone/keystone.conf database max_retries -1
+
+# Make sure the API service is listening on the internal IP addresses only.
+# Once again those shell expansions only work for my specific environment.
+
+openstack-config --set /etc/keystone/keystone.conf DEFAULT public_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+
+if [ ! -e $configdir/keystone_ssl.tar ]; then
+    keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+    cd /etc/keystone/ssl
+    tar cvp -f $configdir/keystone_ssl.tar *
+fi
+
+mkdir -p /etc/keystone/ssl
+cd /etc/keystone/ssl
+tar xvp -f ${configdir}/keystone_ssl.tar
+chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
+....
+
+target=$PHD_ENV_nodes1
+....
+su keystone -s /bin/sh -c "keystone-manage db_sync"
+
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+
+pcs resource create keystone systemd:openstack-keystone --clone
+....
+
+
+target=$PHD_ENV_nodes1
+....
+configdir=/srv/rhos-${PHD_VAR_rpm_osp}/configs
+export SERVICE_TOKEN=$(cat ${configdir}/ks_admin_token)
+export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
+
+keystone service-create --name=keystone --type=identity --description="Keystone Identity Service"
+
+keystone endpoint-create --service keystone --publicurl 'http://vip-keystone:5000/v2.0' --adminurl 'http://vip-keystone:35357/v2.0' --internalurl 'http://vip-keystone:5000/v2.0'
+
+keystone user-create --name admin --pass keystonetest
+keystone role-create --name admin
+keystone tenant-create --name admin
+keystone user-role-add --user admin --role admin --tenant admin
+
+# Save admin credential in a file. This will be useful many times over the how-to!
+
+cat >  ${configdir}/keystonerc_admin << EOF
+export OS_USERNAME=admin 
+export OS_TENANT_NAME=admin
+export OS_PASSWORD=keystonetest
+export OS_AUTH_URL=http://vip-keystone:35357/v2.0/
+export PS1='[\u@\h \W(keystone_admin)]\$ '
+EOF
+
+keystone user-create --name foo --pass footest
+keystone role-create --name Member
+keystone tenant-create --name TENANT
+keystone user-role-add --user foo --role Member --tenant TENANT
+
+# Save user credential in a file for testing purposes.
+
+cat > ${configdir}/keystonerc_user << EOF
+export OS_USERNAME=foo
+export OS_TENANT_NAME=TENANT
+export OS_PASSWORD=footest
+export OS_AUTH_URL=http://vip-keystone:5000/v2.0/
+export PS1='[\u@\h \W(keystone_user)]\$ '
+EOF
+keystone tenant-create --name services --description "Services Tenant"
+
+# glance
+keystone user-create --name glance --pass glancetest
+keystone user-role-add --user glance --role admin --tenant services
+keystone service-create --name glance --type image --description "Glance Image Service"
+keystone endpoint-create --service glance --publicurl "http://vip-glance:9292" --adminurl "http://vip-glance:9292" --internalurl "http://vip-glance:9292"
+
+# cinder
+keystone user-create --name cinder --pass cindertest
+keystone user-role-add --user cinder --role admin --tenant services
+keystone service-create --name cinder --type volume --description "Cinder Volume Service"
+keystone endpoint-create --service cinder --publicurl "http://vip-cinder:8776/v1/\$(tenant_id)s" --adminurl "http://vip-cinder:8776/v1/\$(tenant_id)s" --internalurl "http://vip-cinder:8776/v1/\$(tenant_id)s"
+
+# swift
+keystone user-create --name swift --pass swifttest
+keystone user-role-add --user swift --role admin --tenant services
+keystone service-create --name swift --type object-store --description "Swift Storage Service"
+keystone endpoint-create --service swift --publicurl "http://vip-swift:8080/v1/AUTH_\$(tenant_id)s" --adminurl "http://vip-swift:8080/v1" --internalurl "http://vip-swift:8080/v1/AUTH_\$(tenant_id)s"
+
+# neutron
+keystone user-create --name neutron --pass neutrontest
+keystone user-role-add --user neutron --role admin --tenant services
+keystone service-create --name neutron --type network --description "OpenStack Networking Service"
+keystone endpoint-create --service neutron --publicurl "http://vip-neutron:9696" --adminurl "http://vip-neutron:9696" --internalurl "http://vip-neutron:9696"
+
+# nova
+keystone user-create --name compute --pass novatest
+keystone user-role-add --user compute --role admin --tenant services
+keystone service-create --name compute --type compute --description "OpenStack Compute Service"
+keystone endpoint-create  --service compute --publicurl "http://vip-nova:8774/v2/\$(tenant_id)s" --adminurl "http://vip-nova:8774/v2/\$(tenant_id)s" --internalurl "http://vip-nova:8774/v2/\$(tenant_id)s"
+
+# heat
+keystone user-create --name=heat --pass=heattest
+keystone user-role-add --user heat --role admin --tenant services
+keystone service-create --name heat --type orchestration
+keystone endpoint-create --service heat --publicurl "http://vip-heat:8004/v1/%(tenant_id)s" --adminurl "http://vip-heat:8004/v1/%(tenant_id)s" --internalurl "http://vip-heat:8004/v1/%(tenant_id)s"
+keystone service-create --name heat-cfn --type cloudformation
+keystone endpoint-create --service heat-cfn --publicurl "http://vip-heat:8000/v1" --adminurl "http://vip-heat:8000/v1" --internalurl "http://vip-heat:8000/v1"
+
+# ceilometer
+keystone user-create --name ceilometer --pass ceilometertest --email fdinitto@redhat.com
+keystone user-role-add --user ceilometer --role admin --tenant services
+keystone role-create --name ResellerAdmin
+keystone user-role-add --user ceilometer --role ResellerAdmin --tenant services
+keystone service-create --name ceilometer --type metering --description="OpenStack Telemetry Service"
+keystone endpoint-create --service ceilometer --publicurl "http://vip-ceilometer:8777" --adminurl "http://vip-ceilometer:8777" --internalurl "http://vip-ceilometer:8777"
+....

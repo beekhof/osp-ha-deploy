@@ -1,0 +1,215 @@
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 5.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+# rhos5-lb1 rhos5-lb2 rhos5-lb3
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=all
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+echo $short_nodes
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos5-lb ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+yum install -y haproxy
+echo net.ipv4.ip_nonlocal_bind=1 >> /etc/sysctl.d/haproxy.conf
+echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind
+# the keepalive settings must be set in *ALL* hosts interacting with rabbitmq.
+cat >/etc/sysctl.d/tcp_keepalive.conf << EOF
+net.ipv4.tcp_keepalive_intvl = 1
+net.ipv4.tcp_keepalive_probes = 5
+net.ipv4.tcp_keepalive_time = 5
+EOF
+sysctl net.ipv4.tcp_keepalive_intvl=1
+sysctl net.ipv4.tcp_keepalive_probes=5
+sysctl net.ipv4.tcp_keepalive_time=5
+
+# HA Proxy defaults
+
+cat > /etc/haproxy/haproxy.cfg << EOF
+global
+    daemon
+defaults
+    mode tcp
+    maxconn 10000
+    timeout connect 2s
+    timeout client 10s
+    timeout server 10s
+EOF
+
+# Special case front-ends
+
+cat >> /etc/haproxy/haproxy.cfg << EOF
+frontend vip-db
+    bind ${PHD_VAR_network_internal}.200:3306
+    timeout client 90s
+    default_backend db-vms-galera
+
+frontend vip-qpid
+    bind ${PHD_VAR_network_internal}.201:5672
+    timeout client 120s
+    default_backend qpid-vms
+
+frontend vip-horizon
+    bind ${PHD_VAR_network_internal}.208:80
+    timeout client 180s
+    cookie SERVERID insert indirect nocache
+    default_backend horizon-vms
+
+frontend vip-ceilometer
+    bind ${PHD_VAR_network_internal}.211:8777
+    timeout client 90s
+    default_backend ceilometer-vms
+
+frontend vip-rabbitmq
+    option clitcpka
+    bind ${PHD_VAR_network_internal}.213:5672
+    timeout client 900m
+    default_backend rabbitmq-vms
+EOF
+
+# nova-metadata needs "balance roundrobin" for frontend?
+#db-vms-mariadb:58:3306:90s
+mappings="
+keystone-admin:202:64:35357
+keystone-public:202:64:5000
+glance-api:203:70:9191
+glance-registry:203:70:9292
+cinder:204:73:8776
+swift:205:79:8080
+neutron:206:82:9696
+nova-vnc-novncproxy:207:88:6080
+nova-vnc-xvpvncproxy:207:88:6081
+nova-metadata:207:88:8775
+nova-api:207:88:8774
+horizon:x:91:80:108s
+heat-cfn:209:94:8000
+heat-cloudw:209:94:8004
+heat-srv:209:94:8004
+ceilometer:x:100:8777
+"
+
+for mapping in $mappings; do 
+    server=$(echo $mapping | awk -F: '{print $1}' | awk -F- '{print $1}')
+    service=$(echo $mapping | awk -F: '{print $1}')
+    src=$(echo $mapping | awk -F: '{print $2}')
+    target=$(echo $mapping | awk -F: '{print $3}')
+    port=$(echo $mapping | awk -F: '{print $4}')
+    timeout=$(echo $mapping | awk -F: '{print $5}')
+
+    echo "Creating mapping for ${server} ${service}"
+
+    if [ ${src} != x ]; then
+	echo "frontend vip-${service}" >> /etc/haproxy/haproxy.cfg
+	echo "    bind ${PHD_VAR_network_internal}.${src}:${port}" >> /etc/haproxy/haproxy.cfg
+	echo "    default_backend ${service}-vms" >> /etc/haproxy/haproxy.cfg
+    fi
+
+    echo "backend ${service}-vms" >> /etc/haproxy/haproxy.cfg
+    echo "    balance roundrobin" >> /etc/haproxy/haproxy.cfg
+    if [ ! -z $timeout ]; then
+	echo "    timeout server ${timeout}" >> /etc/haproxy/haproxy.cfg
+    fi
+    for count in 1 2 3; do
+	echo "    server rhos5-${server}${count} ${PHD_VAR_network_internal}.$(( ${target} + ${count} - 1)):${port} check inter 1s" >> /etc/haproxy/haproxy.cfg
+    done
+done
+
+# Special case back-ends
+
+cat >> /etc/haproxy/haproxy.cfg << EOF
+backend qpid-vms
+# comment out 'stick-table' and add 'balance roundrobin' for A/A cluster mode in qpid
+    stick-table type ip size 2
+    stick on dst
+    timeout server 120s
+    server rhos5-qpid1 ${PHD_VAR_network_internal}.103:5672 check inter 1s
+    server rhos5-qpid2 ${PHD_VAR_network_internal}.104:5672 check inter 1s
+    server rhos5-qpid3 ${PHD_VAR_network_internal}.105:5672 check inter 1s
+
+backend db-vms-galera
+    option httpchk
+    stick-table type ip size 2
+    stick on dst
+    timeout server 90s
+    server rhos5-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200
+    server rhos5-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200
+    server rhos5-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200
+
+backend rabbitmq-vms
+    option srvtcpka
+    balance roundrobin
+    timeout server 900m
+    server rhos5-rabbitmq1 ${PHD_VAR_network_internal}.61:5672 check inter 1s
+    server rhos5-rabbitmq2 ${PHD_VAR_network_internal}.62:5672 check inter 1s
+    server rhos5-rabbitmq3 ${PHD_VAR_network_internal}.63:5672 check inter 1s
+EOF
+....
+
+target=$PHD_ENV_nodes1
+....
+sleep 30
+pcs stonith create lb1-fence fence_xvm multicast_address=225.0.0.7 pcmk_host_list=rhos5-lb1
+pcs stonith create lb2-fence fence_xvm multicast_address=225.0.0.8 pcmk_host_list=rhos5-lb2
+pcs stonith create lb3-fence fence_xvm multicast_address=225.0.0.9 pcmk_host_list=rhos5-lb3
+
+pcs resource create lb-haproxy systemd:haproxy op monitor start-delay=10s --clone
+
+offset=200
+for section in db qpid keystone glance cinder swift neutron nova horizon heat x ceilometer x rabbitmq; do
+    if [ $section != x ]; then 
+	pcs resource create vip-${section} IPaddr2 ip=${PHD_VAR_network_internal}.${offset} nic=eth1
+    fi
+    offset=$(( $offset + 1 ))
+done
+....

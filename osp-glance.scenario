@@ -1,0 +1,135 @@
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 6.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+# rhos5-lb1 rhos5-lb2 rhos5-lb3
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=$PHD_ENV_nodes1
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos5-glance ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+# You may need to reboot after installing nfs-utils
+yum install -y openstack-glance openstack-utils nfs-utils
+....
+
+
+target=all
+....
+# Configure the API service
+
+openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:glancetest@vip-mysql/glance
+openstack-config --set /etc/glance/glance-api.conf database max_retries -1
+
+openstack-config --set /etc/glance/glance-api.conf paste_deploy flavor keystone
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_host vip-keystone
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_port 35357
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_protocol http
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_user glance
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_password glancetest
+
+openstack-config --set /etc/glance/glance-api.conf DEFAULT notification_driver messaging
+openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_host vip-rabbitmq
+
+openstack-config --set /etc/glance/glance-api.conf DEFAULT registry_host vip-glance
+openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+
+# Configure the registry service
+
+openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@vip-mysql/glance
+openstack-config --set /etc/glance/glance-registry.conf database max_retries -1
+openstack-config --set /etc/glance/glance-registry.conf DEFAULT registry_host vip-glance
+openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_host vip-keystone
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_port 35357
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_protocol http
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_user glance
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_password glancetest
+openstack-config --set /etc/glance/glance-registry.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+....
+
+
+target=$PHD_ENV_nodes1
+....
+configdir=/srv/rhos-${PHD_VAR_rpm_osp}/glance
+su keystone -s /bin/sh -c "keystone-manage db_sync"
+
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+
+# populate the glance db entries
+
+su glance -s /bin/sh -c "glance-manage db_sync"
+
+# create the NFS share mountpoint on the nfs server
+echo mkdir -p $configdir
+
+# make pacemaker handle the NFS share as service.
+pcs resource create glance-fs Filesystem  device="${PHD_VAR_network_internal}.1:$configdir"   directory="/var/lib/glance"  fstype="nfs" options="v3" --clone
+
+# wait for glance-fs to be started and running
+chown glance:nobody /var/lib/glance
+
+pcs resource create glance-registry systemd:openstack-glance-registry --clone
+pcs resource create glance-api systemd:openstack-glance-api --clone
+
+pcs constraint order start glance-fs-clone then glance-registry-clone
+pcs constraint colocation add glance-registry-clone with glance-fs-clone
+pcs constraint order start glance-registry-clone then glance-api-clone
+pcs constraint colocation add glance-api-clone with glance-registry-clone
+....
+

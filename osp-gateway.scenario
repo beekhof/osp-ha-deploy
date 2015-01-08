@@ -1,0 +1,239 @@
+# Configure node 1 as bind/dhcp/nfs-server/haproxy for virtnet0
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+#nodes: east-01 east-02 east-03
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+  named:
+    forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
+  nic:
+    base: 54:52:00
+
+rpm:
+  osp: 5.0
+  download: download.devel.redhat.com
+
+vm:
+  vcpu: 1
+  ram: 2048
+  disk: 25G
+  base: /srv/rhos5-rhel7-vms/rhos5-rhel7-base.img
+  key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+packages=yum
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=$PHD_ENV_nodes1
+....
+yum install -y nfs-utils
+echo "/srv ${PHD_VAR_network_internal}.0/255.255.255.0(rw,sync,no_root_squash,subtree_check,fsid=10)" > /etc/exports
+chkconfig nfs on
+chkconfig nfslock on
+....
+
+target=$PHD_ENV_nodes1
+....
+ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
+echo "ext: $ext_ip"
+service iptables stop
+iptables -t nat -A POSTROUTING -s ${PHD_VAR_network_internal}.0/24 -o ext0 -j SNAT --to-source ${ext_ip}
+service iptables save
+chkconfig iptables on
+service iptables start
+
+yum install -y haproxy
+chkconfig haproxy on
+cat <<-EOF > /etc/haproxy/haproxy.cfg 
+global
+    daemon
+defaults
+    mode tcp
+    maxconn 10000
+    timeout connect 180s
+    timeout client 180s
+    timeout server 180s
+frontend vip-horizon-ext
+    bind ${ext_ip}:80
+    default_backend vip-horizon-int
+backend vip-horizon-int
+    balance roundrobin
+    server vip-horizon ${PHD_VAR_network_internal}.208:80 check inter 10s
+frontend vip-nova-ext
+    bind ${ext_ip}:6080
+    default_backend vip-nova-int
+backend vip-nova-int
+    balance roundrobin
+    server vip-nova ${PHD_VAR_network_internal}.207:6080 check inter 10s
+EOF
+service haproxy start
+....
+
+target=$PHD_ENV_nodes1
+....
+yum install -y bind
+sed -i -e 's#127.0.0.1#any#g' -e 's#::1#any#g' -e 's#allow-query#//allow-query#g' /etc/named.conf 
+sed -i -e 's#recursion yes;#recursion yes;\n\n\tforwarders  {\n\t\t10.16.36.29;\n\t\t10.11.5.19;\n\t\t10.5.30.160;\n\t};\n#g'  /etc/named.conf 
+sed -i -e 's#dnssec-enable yes;#dnssec-enable no;#g' -e 's#dnssec-validation yes;#dnssec-validation no;#g' /etc/named.conf 
+echo 'include "/etc/named/lab.zones";' >> /etc/named.conf
+
+reverse_dns_net=$(echo ${PHD_VAR_network_internal} | awk -F. '{print $3}').$(echo ${PHD_VAR_network_internal} | awk -F. '{print $2}').$(echo ${PHD_VAR_network_internal} | awk -F. '{print $1}')
+
+cat <<-EOF > /etc/named/lab.zones
+zone "vmnet.${PHD_VAR_network_domain}" {
+        type master;
+        file "/etc/named/vmnet.${PHD_VAR_network_domain}";
+};
+zone "${reverse_dns_net}.in-addr.arpa" {
+        type master;
+        file "/etc/named/${reverse_dns_net}.arpa";
+};
+EOF
+
+cat <<-EOF > /etc/named/${reverse_dns_net}.arpa 
+\$TTL    86400
+@       IN      SOA     mrg-01. fdinitto.redhat.com.  (
+                                      2014103001 ; Serial
+                                      21600      ; Refresh
+                                      10800      ; Retry
+                                      1209600    ; Expire
+                                      3600 )     ; Minimum
+              IN      NS      mrg-01.
+EOF
+
+cat <<-EOF > /etc/named/vmnet.${PHD_VAR_network_domain}
+\$TTL    86400
+@       IN      SOA     mrg-01. fdinitto.redhat.com. (
+                                2014103001 ; serial
+                                21600      ; refresh (24 hours)
+                                10800      ; retry (2 hours)
+                                1209600    ; expire (1000 hours)
+                                3600       ; minimum (2 days)
+                                )
+                        IN      NS      mrg-01.
+ipv6-localhost          IN      A       127.0.0.1
+                        IN      AAAA    ::1
+localhost               IN      A       127.0.0.1
+                        IN      AAAA    ::1
+EOF
+
+lpc=0
+# definition_nodes evaluates to all the bare metal nodes
+for h in ${definition_nodes}; do
+    lpc=$((lpc + 1))
+    echo "$lpc       IN      PTR     ${h}.vmnet.${PHD_VAR_network_domain}." >>  /etc/named/${reverse_dns_net}.arpa
+    echo "$h         IN      A       ${PHD_VAR_network_internal}.${lpc}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
+done
+
+cat <<-EOF >> /etc/named/${reverse_dns_net}.arpa 
+53      IN      PTR     rhos5-rhel7-base.vmnet.${PHD_VAR_network_domain}.
+54      IN      PTR     rhos5-rhel6-base.vmnet.${PHD_VAR_network_domain}.
+EOF
+
+cat <<-EOF >> /etc/named/vmnet.${PHD_VAR_network_domain}
+rhos5-rhel7-base        IN      A       ${PHD_VAR_network_internal}.53
+rhos5-rhel6-base        IN      A       ${PHD_VAR_network_internal}.54
+EOF
+
+oct=55
+for section in lb db rabbitmq keystone memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node; do
+    for count in 1 2 3; do
+    	echo "${oct}      IN      PTR     rhos5-${section}${count}.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa
+	echo "rhos5-${section}${count}               IN      A       ${PHD_VAR_network_internal}.${oct}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
+	oct=$((oct + 1))
+    done
+done
+
+oct=200
+for section in mysql qpid keystone glance cinder swift neutron nova horizon heat mongo ceilometer nagios rabbitmq; do
+    echo "${oct}         IN      PTR     vip-${section}.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa
+    echo "vip-${section} IN      A       ${PHD_VAR_network_internal}.${oct}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
+    oct=$((oct + 1))
+done
+
+oct=240
+while [ $oct -lt 254 ]; do
+    echo "${oct}         IN      PTR     dhcp${oct}.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa
+    echo "dhcp${oct}     IN      A       ${PHD_VAR_network_internal}.${oct}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
+    oct=$((oct + 1))
+done
+
+chown root:named /etc/named -R
+chmod 750 /etc/named
+chmod 640 /etc/named/*
+chkconfig named on
+service named start
+....
+
+target=$PHD_ENV_nodes1
+....
+yum install -y dhcp
+
+echo "DHCDPARGS=vmnet0" > /etc/sysconfig/dhcpd
+cat <<-EOF > /etc/dhcp/dhcpd.conf 
+default-lease-time 600;
+max-lease-time 7200;
+authoritative;
+log-facility local7;
+subnet ${PHD_VAR_network_internal}.0 netmask 255.255.255.0 {
+        range ${PHD_VAR_network_internal}.240 ${PHD_VAR_network_internal}.253;
+        option domain-name "vmnet.${PHD_VAR_network_domain}";
+        option domain-search  vmnet.${PHD_VAR_network_domain}",  "${PHD_VAR_network_domain}";
+        option domain-name-servers ${PHD_VAR_network_internal}.1;
+        option routers ${PHD_VAR_network_internal}.1;
+}
+# 54:52:00: <- BASE
+# 00 <- base 01..09 <- run on mrg-XX
+# 00 eth0 (ext0), 01 eth1 (vmnet0), 02 for nodeX ??
+# 01 <- sequence num for the VM on that host
+
+host rhos5-rhel7-base {
+  hardware ethernet ${PHD_VAR_network_nic_base}:00:01:02;
+  fixed-address rhos5-rhel7-base.vmnet.${PHD_VAR_network_domain};
+}
+EOF
+
+sequence=16
+for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node keystone; do
+    for count in 1 2 3; do
+    offset=$(($count + 6))
+
+    cat <<-EOF >> /etc/dhcp/dhcpd.conf 
+host rhos5-${section}${count} {
+  hardware ethernet ${PHD_VAR_network_nic_base}:0${offset}:01:${sequence};
+  fixed-address rhos5-${section}${count}.vmnet.${PHD_VAR_network_domain};
+}
+EOF
+    done
+    sequence=$((sequence + 1))
+done
+
+chkconfig dhcpd on
+service dhcpd start
+....
+
+target=all
+....
+ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
+
+# Turn off auto-generation of resolv.conf so we can override it 
+echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
+echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
+echo nameserver ${ext_ip} >> /etc/resolv.conf
+ifdown ext0 && ifup ext0
+....

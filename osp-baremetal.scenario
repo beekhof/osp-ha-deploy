@@ -1,0 +1,172 @@
+# Example baremetal remote-node scenario
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+# Expands to $PHD_network_domain, $PHD_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+  external_nic: enp1s0 eth0
+  internal_nic: enp2s0 eth1
+  named:
+    forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
+
+rpm:
+  osp: 5.0
+  download: download.devel.redhat.com
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 9
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+distro=$(cat /etc/redhat-release | sed s/.*release\ // | awk '{print $1}')
+distro_major=$(cat /etc/redhat-release | sed s/.*release\ // | awk -F. '{print $1}')
+echo "Installing repos for $distro"
+
+cat > /etc/yum.repos.d/rhel-${distro}.repo << EOF
+[rhel-${distro}]
+name=rhel-${distro}
+baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/
+gpgcheck=0
+enabled=1
+[rhel-ha]
+name=rhel-${distro}-ha
+baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/HighAvailability/
+gpgcheck=0
+enabled=1
+[rhel-z]
+name=rhel-${distro}-z
+baseurl=http://${PHD_VAR_rpm_download}/brewroot/repos/RHEL-${distro}-Z-build/latest/\$basearch
+gpgcheck=0
+enabled=1
+EOF
+
+cat > /etc/yum.repos.d/osp-${PHD_VAR_rpm_osp}.repo << EOF
+[OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle]
+name=OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle
+baseurl=http://${PHD_VAR_rpm_download}/rel-eng/OpenStack/${PHD_VAR_rpm_osp}-RHEL-${distro_major}/latest/RH${distro_major}-RHOS-${PHD_VAR_rpm_osp}/\$basearch/os
+gpgcheck=0
+enabled=1
+EOF
+
+yum clean all
+yum update -y
+yum install -y pacemaker fence-agents resource-agents pcs cman ccs libvirt qemu-kvm bind-utils
+sed -i -e 's/=enforcing/=disabled/g' /etc/sysconfig/selinux
+sed -i -e 's/=enforcing/=disabled/g' /etc/selinux/config
+
+[ -f /etc/cron.d/rhn-virtualization.cron ] && sed -i -e 's/^0/#0/g' /etc/cron.d/rhn-virtualization.cron
+chkconfig acpid off
+chkconfig iptables off
+chkconfig ip6tables off
+chkconfig libvirtd on
+service libvirtd start
+....
+
+target=all
+....
+lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
+
+virsh net-destroy default
+virsh net-undefine default
+
+cat > /etc/sysconfig/network-scripts/ifcfg-ext0 << EOF
+DEVICE=ext0
+NAME=ext0
+TYPE=Bridge
+BOOTPROTO=dhcp
+ONBOOT=yes
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+EOF
+
+cat > /etc/sysconfig/network-scripts/ifcfg-vmnet0 << EOF
+DEVICE=vmnet0
+NAME=vmnet0
+TYPE=Bridge
+BOOTPROTO=static
+ONBOOT=yes
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPADDR=${PHD_VAR_network_internal}.$lastoct
+NETMASK=255.255.255.0
+NETWORK=${PHD_VAR_network_internal}.0
+EOF
+
+
+for device in `ls -1 /sys/class/net`; do
+    case ${PHD_VAR_network_external_nic} in
+    	 *${device}*) 
+	 cat > /etc/sysconfig/network-scripts/ifcfg-${device} << EOF
+DEVICE=${device}
+BOOTPROTO=none
+ONBOOT=yes
+BRIDGE=ext0
+NAME=${device}
+EOF
+	;;
+    esac
+    case ${PHD_VAR_network_internal_nic} in
+    	 *${device}*) 
+	 cat > /etc/sysconfig/network-scripts/ifcfg-${device} << EOF
+DEVICE=${device}
+BOOTPROTO=none
+ONBOOT=yes
+BRIDGE=vmnet0
+NAME=${device}
+EOF
+	;;
+    esac
+done
+
+if grep -q ip_forward /etc/sysctl.conf; then
+    sed -i -e 's#ip_forward.*#ip_forward = 1#g' /etc/sysctl.conf
+else
+   echo "ip_forward = 1" >> /etc/sysctl.conf
+fi
+
+echo "echo 1 > /sys/class/net/ext0/bridge/multicast_querier" >> /etc/rc.d/rc.local
+echo "echo 1 > /sys/class/net/vmnet0/bridge/multicast_querier" >> /etc/rc.d/rc.local
+chmod +x /etc/rc.d/rc.local
+....
+
+# Optional if /home is huge and /root is tiny
+
+target=all
+....
+umount /home
+sed -i -e 's#.*home.*##g' /etc/fstab 
+lvremove -f /dev/mapper/*home
+lvresize -f -l+100%FREE /dev/mapper/*root
+resize2fs /dev/mapper/*root || xfs_growfs /dev/mapper/*-root
+....
+
+# Implied by the reboot below
+#target=all
+#....
+#service network restart
+#/etc/rc.local
+#....
+
+target=local
+....
+# Reboot each node and wait for it to return
+for node in $(echo $PHD_ENV_nodes); do
+    phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
+    phd_wait_connection 300 $node
+    phd_cmd_exec "uptime" "$node"
+done
+....
