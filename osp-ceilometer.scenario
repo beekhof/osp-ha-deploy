@@ -1,0 +1,121 @@
+#################################
+# Scenario Requirements Section #
+#################################
+
+# Create 3 single-node clusters
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 6.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+sed -i s/6.0-RHEL-7-Beta/6.0-RHEL-7/ /etc/yum.repos.d/osp-6.0.repo 
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=$PHD_ENV_nodes1
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos6-ceilometer ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+yum install -y openstack-ceilometer-api openstack-ceilometer-central   openstack-ceilometer-collector openstack-ceilometer-common  openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
+....
+
+target=all
+....
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_host vip-keystone
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_port 35357
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_protocol http
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
+
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_host vip-rabbitmq
+
+openstack-config --set /etc/ceilometer/ceilometer.conf publisher_rpc metering_secret ceilometersecret
+
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_auth_url http://vip-keystone:5000/v2.0
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_username ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ceilometertest
+
+openstack-config  --set /etc/ceilometer/ceilometer.conf database connection     mongodb://rhos6-mongodb1,rhos6-mongodb2,rhos6-mongodb3:27017/ceilometer?replicaSet=ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf database max_retries -1
+
+# keep last 5 days data only (value is in secs). DonÂ´t set to retain all data indefinetely.
+openstack-config --set  /etc/ceilometer/ceilometer.conf database time_to_live 432000
+
+openstack-config --set  /etc/ceilometer/ceilometer.conf api host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+....
+
+target=$PHD_ENV_nodes1
+....
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
+
+pcs resource create ceilometer-central systemd:openstack-ceilometer-central 
+pcs resource create ceilometer-collector systemd:openstack-ceilometer-collector --clone interleave=true
+pcs resource create ceilometer-api systemd:openstack-ceilometer-api --clone interleave=true
+pcs resource create ceilometer-delay Delay startdelay=10 --clone interleave=true
+pcs resource create ceilometer-alarm-evaluator systemd:openstack-ceilometer-alarm-evaluator --clone interleave=true
+pcs resource create ceilometer-alarm-notifier systemd:openstack-ceilometer-alarm-notifier --clone interleave=true
+pcs resource create ceilometer-notification systemd:openstack-ceilometer-notification  --clone interleave=true
+
+pcs constraint order start ceilometer-central then ceilometer-collector-clone
+pcs constraint order start ceilometer-collector-clone then ceilometer-api-clone
+pcs constraint colocation add ceilometer-api-clone with ceilometer-collector-clone 
+pcs constraint order start ceilometer-api-clone then ceilometer-delay-clone
+pcs constraint colocation add ceilometer-delay-clone with ceilometer-api-clone
+pcs constraint order start ceilometer-delay-clone then ceilometer-alarm-evaluator-clone
+pcs constraint colocation add ceilometer-alarm-evaluator-clone with ceilometer-delay-clone
+pcs constraint order start ceilometer-alarm-evaluator-clone then ceilometer-alarm-notifier-clone
+pcs constraint colocation add ceilometer-alarm-notifier-clone with ceilometer-alarm-evaluator-clone
+pcs constraint order start ceilometer-alarm-notifier-clone then ceilometer-notification-clone
+pcs constraint colocation add ceilometer-notification-clone with ceilometer-alarm-notifier-clone
+....

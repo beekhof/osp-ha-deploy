@@ -1,0 +1,148 @@
+#################################
+# Scenario Requirements Section #
+#################################
+
+# Create 3 single-node clusters
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 6.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=$PHD_ENV_nodes1
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos6-swift ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+yum install -y openstack-swift-proxy openstack-utils python-swiftclient openstack-swift-container
+....
+
+target=all
+....
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host vip-keystone
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
+openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
+openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
+openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
+
+# ceilometer hook
+cat >> /etc/swift/swift.conf << EOF
+[filter:ceilometer]
+use = egg:ceilometer#swift
+[pipeline:main]
+pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
+EOF
+
+# NOTE: you MUST refer to the swift-ring-builder documentation in order to 
+#             configure prope data redundancy and set those values properly.
+#             This is just a generic example that will store 3 copies of the same data for
+#              proof-of-concept purposes.
+
+swift-ring-builder /etc/swift/object.builder create 16 3 24
+swift-ring-builder /etc/swift/container.builder create 16 3 24
+swift-ring-builder /etc/swift/account.builder create 16 3 24
+
+# .76,.77 and .78 are the addresses of rhos6-swift-brick{1,2,3}
+# 'target' here comes from the swift-fs resource created on the proxy
+# pcs resource create swift-fs Filesystem device="/local/swiftsource" directory="/local/swiftstorage/target" fstype="none" options="bind"
+
+swift-ring-builder /etc/swift/account.builder add z1-${PHD_VAR_network_internal}.76:6202/target 10
+swift-ring-builder /etc/swift/container.builder add z1-${PHD_VAR_network_internal}.76:6201/target 10
+swift-ring-builder /etc/swift/object.builder add z1-${PHD_VAR_network_internal}.76:6200/target 10
+
+swift-ring-builder /etc/swift/account.builder add z2-${PHD_VAR_network_internal}.77:6202/target 10
+swift-ring-builder /etc/swift/container.builder add z2-${PHD_VAR_network_internal}.77:6201/target 10
+swift-ring-builder /etc/swift/object.builder add z2-${PHD_VAR_network_internal}.77:6200/target 10
+
+swift-ring-builder /etc/swift/account.builder add z3-${PHD_VAR_network_internal}.78:6202/target 10
+swift-ring-builder /etc/swift/container.builder add z3-${PHD_VAR_network_internal}.78:6201/target 10
+swift-ring-builder /etc/swift/object.builder add z3-${PHD_VAR_network_internal}.78:6200/target 10
+
+swift-ring-builder /etc/swift/account.builder rebalance
+swift-ring-builder /etc/swift/container.builder rebalance
+swift-ring-builder /etc/swift/object.builder rebalance
+
+chown -R root:swift /etc/swift
+chown -R swift:swift /tmp/keystone-signing-swift
+chown -R swift:swift /local
+
+# is this still requierd?
+mkdir -p /tmp/keystone-signing-swift
+chown -R swift:swift /tmp/keystone-signing-swift
+chmod 700 /tmp/keystone-signing-swift
+....
+
+target=local
+....
+pathprefix=$(openssl rand -hex 10)
+pathsuffix=$(openssl rand -hex 10)
+
+for node in $PHD_ENV_nodes; do
+    ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_prefix ${pathprefix};
+    ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix ${pathsuffix};
+    ssh $node -- chown -R root:swift /etc/swift;
+done
+....
+
+target=$PHD_ENV_nodes1
+....
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
+
+pcs resource create swift-proxy systemd:openstack-swift-proxy --clone interleave=true
+pcs resource create swift-object-expirer systemd:openstack-swift-object-expirer
+
+pcs constraint order start swift-account-clone then swift-proxy-clone
+pcs constraint order start swift-proxy-clone then swift-object-expirer
+....

@@ -1,0 +1,125 @@
+#################################
+# Scenario Requirements Section #
+#################################
+
+# Create 3 single-node clusters
+= VARIABLES =
+
+# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+
+rpm:
+  osp: 6.0
+  download: download.devel.redhat.com
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+sed -i s/6.0-RHEL-7-Beta/6.0-RHEL-7/ /etc/yum.repos.d/osp-6.0.repo 
+# install the packages
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents
+
+# enable pcsd
+systemctl enable pcsd
+systemctl start pcsd
+
+systemctl disable firewalld
+systemctl stop firewalld
+
+# set a password for hacluster user. password should be the same on all nodes
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+....
+
+target=$PHD_ENV_nodes1
+....
+short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
+# autheticate nodes, requires all nodes to have pcsd up and running 
+# the -p option is used to give the password on command line and make it easier to script
+pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
+
+# Construct the cluster
+pcs cluster setup --force --name rhos6-nova ${short_nodes}
+pcs cluster enable --all
+pcs cluster start --all
+....
+
+target=all
+....
+yum install -y openstack-nova-console openstack-nova-novncproxy openstack-utils openstack-nova-api openstack-nova-conductor openstack-nova-scheduler python-cinderclient python-memcached
+....
+
+target=all
+....
+openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(host $(hostname -s) | awk '{print $4}')
+openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
+openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://east-01.mpc.lab.eng.bos.redhat.com:6080/vnc_auto.html
+openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-mysql/nova
+openstack-config --set /etc/nova/nova.conf database max_retries -1
+openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host vip-rabbitmq
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen 0.0.0.0
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 8775
+openstack-config --set /etc/nova/nova.conf DEFAULT service_neutron_metadata_proxy True
+openstack-config --set /etc/nova/nova.conf DEFAULT neutron_metadata_proxy_shared_secret metatest
+openstack-config --set /etc/nova/nova.conf DEFAULT glance_host vip-glance
+openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+openstack-config --set /etc/nova/nova.conf DEFAULT neutron_url http://vip-neutron:9696/
+openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name services
+openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_username neutron
+openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_password neutrontest
+openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://vip-keystone:35357/v2.0
+openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver
+openstack-config --set /etc/nova/nova.conf conductor use_local false
+# REQUIRED FOR A/A scheduler
+openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_host_subset_size 30
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_host vip-keystone
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_tenant_name services
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_user compute
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_password novatest
+....
+
+target=$PHD_ENV_nodes1
+....
+su nova -s /bin/sh -c "nova-manage db sync"
+....
+
+target=$PHD_ENV_nodes1
+....
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
+
+pcs resource create nova-consoleauth systemd:openstack-nova-consoleauth  op monitor start-delay=10s --clone
+pcs resource create nova-novncproxy systemd:openstack-nova-novncproxy op monitor start-delay=10s --clone
+pcs resource create nova-api systemd:openstack-nova-api op monitor start-delay=10s --clone
+pcs resource create nova-scheduler systemd:openstack-nova-scheduler op monitor start-delay=10s --clone
+pcs resource create nova-conductor systemd:openstack-nova-conductor op monitor start-delay=10s --clone
+
+pcs constraint order start nova-consoleauth-clone then nova-novncproxy-clone
+pcs constraint colocation add nova-novncproxy-clone with nova-consoleauth-clone
+pcs constraint order start nova-novncproxy-clone then nova-api-clone
+pcs constraint colocation add nova-api-clone with nova-novncproxy-clone
+pcs constraint order start nova-api-clone then nova-scheduler-clone
+pcs constraint colocation add nova-scheduler-clone with nova-api-clone
+pcs constraint order start nova-scheduler-clone then nova-conductor-clone
+pcs constraint colocation add nova-conductor-clone with nova-scheduler-clone
+....
