@@ -15,7 +15,7 @@ network:
     forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
 
 rpm:
-  osp: 5.0
+  osp: 6.0
   download: download.devel.redhat.com
 
 #################################
@@ -50,14 +50,6 @@ enabled=1
 [rhel-z]
 name=rhel-${distro}-z
 baseurl=http://${PHD_VAR_rpm_download}/brewroot/repos/RHEL-${distro}-Z-build/latest/\$basearch
-gpgcheck=0
-enabled=1
-EOF
-
-cat > /etc/yum.repos.d/osp-${PHD_VAR_rpm_osp}.repo << EOF
-[OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle]
-name=OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/OpenStack/${PHD_VAR_rpm_osp}-RHEL-${distro_major}/latest/RH${distro_major}-RHOS-${PHD_VAR_rpm_osp}/\$basearch/os
 gpgcheck=0
 enabled=1
 EOF
