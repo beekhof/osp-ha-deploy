@@ -2,30 +2,12 @@
 
 onlyone=$1
 
-export PHDCONST_ROOT="/home/beekhof/phd_state/phd_scenario"
-. /home/beekhof/phd_state/phd_scenario/lib/phd_rsc_api.sh
-. /home/beekhof/phd_state/phd_scenario/lib/phd_utils_api.sh
-. /home/beekhof/phd_state/phd_scenario/lib/definition.sh
-export PHD_ENV_nodes2="rhos5-db2.vmnet.lab.bos.redhat.com"
-export PHD_ENV_nodes3="rhos5-db3.vmnet.lab.bos.redhat.com"
-export PHD_ENV_nodes1="rhos5-db1.vmnet.lab.bos.redhat.com"
-export PHD_ENV_floating_ips1="192.168.122.200"
-export PHD_ENV_nodes="rhos5-db1.vmnet.lab.bos.redhat.com rhos5-db2.vmnet.lab.bos.redhat.com rhos5-db3.vmnet.lab.bos.redhat.com"
-export PHD_ENV_floating_ips="192.168.122.200"
-export PHD_ENV_cluster_name="phd"
-export PHD_VAR_vm_key="AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ"
-export PHD_VAR_vm_base="/srv/rhos5-rhel7-vms/rhos5-rhel7-base.img"
-export PHD_VAR_rpm_download="download.devel.redhat.com"
-export PHD_VAR_rpm_osp_beta="-Beta"
-export PHD_VAR_network_domain="lab.bos.redhat.com"
 export PHD_VAR_network_nic_base="54:52:00"
+export PHD_VAR_vm_base="/srv/rhos6-rhel7-vms/rhos6-rhel7-base.img"
 export PHD_VAR_vm_vcpu="1"
 export PHD_VAR_vm_ram="2048"
-export PHD_VAR_vm_disk="25G"
-export PHD_VAR_network_internal="192.168.124"
-export PHD_VAR_rpm_osp="6.0"
-export PHD_VAR_rpm_rhel="7.1"
-export PHD_VAR_network_named_forwarders="10.16.36.29 10.11.5.19 10.5.30.160"
+export PHD_ENV_nodes1=east-01.lab.bos.redhat.com
+
 cat<<-EOF > /localvms/template.xml
 <domain type='kvm'>
   <name>VM_NAME</name>
@@ -49,7 +31,7 @@ cat<<-EOF > /localvms/template.xml
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='/srv/rhos5-rhel7-vms/rhos5-rhel7-base.img'/>
+      <source file='/srv/rhos6-rhel7-vms/rhos6-rhel7-base.img'/>
       <target dev='vda' bus='virtio'/>
     </disk>
     <interface type='bridge'>
@@ -73,6 +55,7 @@ cat<<-EOF > /localvms/template.xml
 EOF
 sequence=16
 lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
+offset="$(echo ${PHD_ENV_nodes1} | sed -e 's#^[a-z]*-##g' -e 's#^0*##g' -e 's#\..*##')"
 for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node keystone; do
 
   dobuild=0
@@ -84,7 +67,7 @@ for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron n
     
   if [ $dobuild = 1 ]; then
     cd /localvms/
-    target=rhos5-${section}$(( ${lastoct} - 6 ))
+    target=rhos6-${section}$(( ${lastoct} - ${offset} ))
     virsh destroy  $target > /dev/null 2>&1
     virsh undefine $target > /dev/null 2>&1
     cp template.xml ${target}.xml
