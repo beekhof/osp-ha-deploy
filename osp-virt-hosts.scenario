@@ -20,7 +20,7 @@ vm:
   vcpu: 1
   ram: 2048
   disk: 25G
-  base: /srv/rhos5-rhel7-vms/rhos5-rhel7-base.img
+  base: /srv/rhos6-rhel7-vms/rhos6-rhel7-base.img
   key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
 
 rpm:
@@ -33,14 +33,25 @@ rpm:
 # Scenario Requirements Section #
 #################################
 = REQUIREMENTS =
-nodes: 9
+nodes: 4
 
 ######################
 # Deployment Scripts #
 ######################
 = SCRIPTS =
 
-target=$PHD_ENV_nodes7 $PHD_ENV_nodes8 $PHD_ENV_nodes9
+target=all
+....
+ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
+
+# Turn off auto-generation of resolv.conf so we can override it 
+echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
+echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
+echo nameserver ${ext_ip} >> /etc/resolv.conf
+ifdown ext0 && ifup ext0
+....
+
+target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
 ....
 yum install -y fence-virtd fence-virtd-multicast fence-virtd-libvirt
 lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
@@ -194,12 +205,13 @@ EOF
 
 
 yum install -y virt-install 
-virsh destroy rhos5-rhel${distro_major}-base  &>/dev/null
-virsh undefine rhos5-rhel${distro_major}-base &>/dev/null
+virsh destroy rhos6-rhel${distro_major}-base  &>/dev/null
+virsh undefine rhos6-rhel${distro_major}-base &>/dev/null
 
 #Create the qcow2 disk image with preallocation and 'facllocate'(which pre-allocates all the blocks to a file) it for max. performance
 echo "Creating qcow2 disk image.."
 rm -f ${PHD_VAR_vm_base}
+mkdir -p $(dirname ${PHD_VAR_vm_base})
 qemu-img create -f qcow2 -o preallocation=metadata ${PHD_VAR_vm_base} ${PHD_VAR_vm_disk}
 ls -lash ${PHD_VAR_vm_base}
 #fallocate -l $(ls -al ${PHD_VAR_vm_base} | awk '{print $5}') ${PHD_VAR_vm_base}
@@ -215,7 +227,7 @@ virt-install --connect=qemu:///system \
     --network=bridge:ext0,mac=${PHD_VAR_network_nic_base}:00:00:02 \
     --initrd-inject=./virt-base.ks \
     --extra-args="ks=file:/virt-base.ks console=tty0 console=ttyS0,115200 serial rd_NO_PLYMOUTH" \
-    --name=rhos5-rhel${distro_major}-base \
+    --name=rhos6-rhel${distro_major}-base \
     --disk path=${PHD_VAR_vm_base},format=qcow2,cache=none \
     --ram ${PHD_VAR_vm_ram} \
     --vcpus=${PHD_VAR_vm_vcpu} \
@@ -230,17 +242,23 @@ virt-install --connect=qemu:///system \
 
 ....
 
+target=local
+....
+# Wait for the node to be built
+sleep 600
+....
+
 #target=$PHD_ENV_nodes1
 #....
 #virsh define /srv/vms/rhos4-base.xml
-#virsh define /srv/rhos5-rhel7-vms/rhos5-rhel7-base.xml
+#virsh define /srv/rhos6-rhel7-vms/rhos6-rhel7-base.xml
 #....
 
-target=$PHD_ENV_nodes7 $PHD_ENV_nodes8 $PHD_ENV_nodes9
+target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
 ....
 
 if grep -q srv /etc/fstab; then 
-    echo /srv is already mounted; 
+    echo /srv is already defined; 
 else
     mkdir -p /srv
     echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
@@ -257,7 +275,7 @@ rsync -avz --progress ${PHD_VAR_vm_base} /localvms/
 
 
 
-target=$PHD_ENV_nodes7 $PHD_ENV_nodes8 $PHD_ENV_nodes9
+target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
 ....
 
 # The internal network must go first so that hostname can be set by
@@ -289,7 +307,7 @@ cat<<-EOF > /localvms/template.xml
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='/srv/rhos5-rhel7-vms/rhos5-rhel7-base.img'/>
+      <source file='/srv/rhos6-rhel7-vms/rhos6-rhel7-base.img'/>
       <target dev='vda' bus='virtio'/>
     </disk>
     <interface type='bridge'>
@@ -314,10 +332,11 @@ EOF
 
 sequence=16
 lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
+offset="$(echo ${PHD_ENV_nodes1} | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
 for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node keystone; do
     cd /localvms/
 
-    target=rhos5-${section}$(( ${lastoct} - 6 ))
+    target=rhos6-${section}$(( ${lastoct} - ${offset} ))
     virsh destroy  $target > /dev/null 2>&1
     virsh undefine $target > /dev/null 2>&1
 
@@ -341,7 +360,7 @@ for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron n
     sequence=$((sequence + 1))
 done
 
-#truncate --size=10G /localvms/rhos5-swift-brick1_data.img
-#truncate --size=10G /allinone/rhos5-node1_data.img
-#truncate --size=10G /allinone/rhos5-mbayer1_data.img
+#truncate --size=10G /localvms/rhos6-swift-brick1_data.img
+#truncate --size=10G /allinone/rhos6-node1_data.img
+#truncate --size=10G /allinone/rhos6-mbayer1_data.img
 ....
