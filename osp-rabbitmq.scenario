@@ -20,7 +20,7 @@ env:
 # Scenario Requirements Section #
 #################################
 = REQUIREMENTS =
-# rhos5-lb1 rhos5-lb2 rhos5-lb3
+# rhos6-lb1 rhos6-lb2 rhos6-lb3
 nodes: 3
 
 ######################
@@ -53,7 +53,7 @@ short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
 pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
 
 # Construct the cluster
-pcs cluster setup --force --name rhos5-rabbitmq ${short_nodes}
+pcs cluster setup --force --name rhos6-rabbitmq ${short_nodes}
 pcs cluster enable --all
 pcs cluster start --all
 ....
@@ -107,9 +107,9 @@ cat /srv/rhos-${PHD_VAR_rpm_osp}/configs/rabbitmq_erlang_cookie > /var/lib/rabbi
 target=$PHD_ENV_nodes1
 ....
 sleep 30
-pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
-pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
-pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
 
 pcs resource create rabbitmq-server systemd:rabbitmq-server --clone
 ....
@@ -117,7 +117,7 @@ pcs resource create rabbitmq-server systemd:rabbitmq-server --clone
 target=all
 ....
 # all nodes except the first must be stopped
-if [ $PHD_ENV_nodes1 != $(uname -n).${PHD_VAR_network_domain} ]; then
+if [ $PHD_ENV_nodes1 == $(uname -n).vmnet.${PHD_VAR_network_domain} ]; then
     rabbitmqctl stop_app
 fi
 ....
@@ -125,7 +125,7 @@ fi
 target=all
 ....
 # make all nodes except node1 join in series
-if [ $PHD_ENV_nodes1 != $(uname -n).${PHD_VAR_network_domain} ]; then
+if [ $PHD_ENV_nodes1 != $(uname -n).vmnet.${PHD_VAR_network_domain} ]; then
     short=$(echo $PHD_ENV_nodes1 | awk -F. '{print $1}')
     rabbitmqctl join_cluster rabbit@$short
 fi
@@ -134,7 +134,7 @@ fi
 target=all
 ....
 # everyone has joined, now they can be restarted 
-if [ $PHD_ENV_nodes1 != $(uname -n).${PHD_VAR_network_domain} ]; then
+if [ $PHD_ENV_nodes1 != $(uname -n).vmnet.${PHD_VAR_network_domain} ]; then
     rabbitmqctl start_app
 fi
 ....
