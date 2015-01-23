@@ -20,7 +20,7 @@ env:
 # Scenario Requirements Section #
 #################################
 = REQUIREMENTS =
-# rhos5-lb1 rhos5-lb2 rhos5-lb3
+# rhos6-lb1 rhos6-lb2 rhos6-lb3
 nodes: 3
 
 ######################
@@ -54,7 +54,7 @@ echo $short_nodes
 pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
 
 # Construct the cluster
-pcs cluster setup --force --name rhos5-lb ${short_nodes}
+pcs cluster setup --force --name rhos6-lb ${short_nodes}
 pcs cluster enable --all
 pcs cluster start --all
 ....
@@ -128,15 +128,15 @@ glance-registry:203:70:9292
 cinder:204:73:8776
 swift:205:79:8080
 neutron:206:82:9696
-nova-vnc-novncproxy:207:88:6080
-nova-vnc-xvpvncproxy:207:88:6081
-nova-metadata:207:88:8775
-nova-api:207:88:8774
-horizon:x:91:80:108s
-heat-cfn:209:94:8000
-heat-cloudw:209:94:8004
-heat-srv:209:94:8004
-ceilometer:x:100:8777
+nova-vnc-novncproxy:207:85:6080
+nova-vnc-xvpvncproxy:207:85:6081
+nova-metadata:207:85:8775
+nova-api:207:85:8774
+horizon:x:85:80:108s
+heat-cfn:209:91:8000
+heat-cloudw:209:91:8004
+heat-srv:209:91:8004
+ceilometer:x:97:8777
 "
 
 for mapping in $mappings; do 
@@ -161,7 +161,7 @@ for mapping in $mappings; do
 	echo "    timeout server ${timeout}" >> /etc/haproxy/haproxy.cfg
     fi
     for count in 1 2 3; do
-	echo "    server rhos5-${server}${count} ${PHD_VAR_network_internal}.$(( ${target} + ${count} - 1)):${port} check inter 1s" >> /etc/haproxy/haproxy.cfg
+	echo "    server rhos6-${server}${count} ${PHD_VAR_network_internal}.$(( ${target} + ${count} - 1)):${port} check inter 1s" >> /etc/haproxy/haproxy.cfg
     done
 done
 
@@ -173,35 +173,35 @@ backend qpid-vms
     stick-table type ip size 2
     stick on dst
     timeout server 120s
-    server rhos5-qpid1 ${PHD_VAR_network_internal}.103:5672 check inter 1s
-    server rhos5-qpid2 ${PHD_VAR_network_internal}.104:5672 check inter 1s
-    server rhos5-qpid3 ${PHD_VAR_network_internal}.105:5672 check inter 1s
+    server rhos6-qpid1 ${PHD_VAR_network_internal}.103:5672 check inter 1s
+    server rhos6-qpid2 ${PHD_VAR_network_internal}.104:5672 check inter 1s
+    server rhos6-qpid3 ${PHD_VAR_network_internal}.105:5672 check inter 1s
 
 backend db-vms-galera
     option httpchk
     stick-table type ip size 2
     stick on dst
     timeout server 90s
-    server rhos5-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200
-    server rhos5-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200
-    server rhos5-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200
+    server rhos6-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200
+    server rhos6-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200
+    server rhos6-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200
 
 backend rabbitmq-vms
     option srvtcpka
     balance roundrobin
     timeout server 900m
-    server rhos5-rabbitmq1 ${PHD_VAR_network_internal}.61:5672 check inter 1s
-    server rhos5-rabbitmq2 ${PHD_VAR_network_internal}.62:5672 check inter 1s
-    server rhos5-rabbitmq3 ${PHD_VAR_network_internal}.63:5672 check inter 1s
+    server rhos6-rabbitmq1 ${PHD_VAR_network_internal}.61:5672 check inter 1s
+    server rhos6-rabbitmq2 ${PHD_VAR_network_internal}.62:5672 check inter 1s
+    server rhos6-rabbitmq3 ${PHD_VAR_network_internal}.63:5672 check inter 1s
 EOF
 ....
 
 target=$PHD_ENV_nodes1
 ....
 sleep 30
-pcs stonith create lb1-fence fence_xvm multicast_address=225.0.0.7 pcmk_host_list=rhos5-lb1
-pcs stonith create lb2-fence fence_xvm multicast_address=225.0.0.8 pcmk_host_list=rhos5-lb2
-pcs stonith create lb3-fence fence_xvm multicast_address=225.0.0.9 pcmk_host_list=rhos5-lb3
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
 
 pcs resource create lb-haproxy systemd:haproxy op monitor start-delay=10s --clone
 
