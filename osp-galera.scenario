@@ -20,7 +20,7 @@ env:
 # Scenario Requirements Section #
 #################################
 = REQUIREMENTS =
-# rhos5-lb1 rhos5-lb2 rhos5-lb3
+# rhos6-lb1 rhos6-lb2 rhos6-lb3
 nodes: 3
 
 ######################
@@ -53,7 +53,7 @@ short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
 pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
 
 # Construct the cluster
-pcs cluster setup --force --name rhos5-galera ${short_nodes}
+pcs cluster setup --force --name rhos6-galera ${short_nodes}
 pcs cluster enable --all
 pcs cluster start --all
 ....
@@ -121,8 +121,8 @@ service galera-monitor
         server          = /usr/bin/clustercheck
         type            = UNLISTED
         per_source      = UNLIMITED
-        log_on_success = 
-        log_on_failure = HOST
+        log_on_success  = 
+        log_on_failure  = HOST
         flags           = REUSE
 }
 EOF
@@ -135,9 +135,9 @@ systemctl start xinetd
 target=$PHD_ENV_nodes1
 ....
 sleep 30
-pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
-pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
-pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
 
 # node_list must be of the form node1,node2,node3
 #
@@ -150,7 +150,6 @@ pcs resource create galera galera enable_creation=true wsrep_cluster_address="gc
 
 target=$PHD_ENV_nodes1
 ....
-
 galera_script=galera.setup
 echo "" > $galera_script
 
@@ -172,6 +171,9 @@ done
 
 echo "FLUSH PRIVILEGES;" >> $galera_script
 #echo "quit" >> $galera_script
+
+# wait for galera to start and become promoted
+sleep 30
 
 mysql mysql < $galera_script
 mysqladmin flush-hosts

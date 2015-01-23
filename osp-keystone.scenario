@@ -20,7 +20,7 @@ env:
 # Scenario Requirements Section #
 #################################
 = REQUIREMENTS =
-# rhos5-lb1 rhos5-lb2 rhos5-lb3
+# rhos6-lb1 rhos6-lb2 rhos6-lb3
 nodes: 3
 
 ######################
@@ -53,7 +53,7 @@ short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
 pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
 
 # Construct the cluster
-pcs cluster setup --force --name rhos5-keystone ${short_nodes}
+pcs cluster setup --force --name rhos6-keystone ${short_nodes}
 pcs cluster enable --all
 pcs cluster start --all
 ....
@@ -140,9 +140,9 @@ target=$PHD_ENV_nodes1
 ....
 su keystone -s /bin/sh -c "keystone-manage db_sync"
 
-pcs stonith create fence1 fence_xvm multicast_address=225.0.0.7
-pcs stonith create fence2 fence_xvm multicast_address=225.0.0.8
-pcs stonith create fence3 fence_xvm multicast_address=225.0.0.9
+pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
+pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
+pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
 
 pcs resource create keystone systemd:openstack-keystone --clone
 ....

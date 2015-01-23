@@ -17,14 +17,13 @@ network:
     base: 54:52:00
 
 rpm:
-  osp: 5.0
   download: download.devel.redhat.com
 
 vm:
   vcpu: 1
   ram: 2048
   disk: 25G
-  base: /srv/rhos5-rhel7-vms/rhos5-rhel7-base.img
+  base: /srv/rhos6-rhel7-vms/rhos6-rhel7-base.img
   key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
 
 #################################
@@ -45,6 +44,7 @@ yum install -y nfs-utils
 echo "/srv ${PHD_VAR_network_internal}.0/255.255.255.0(rw,sync,no_root_squash,subtree_check,fsid=10)" > /etc/exports
 chkconfig nfs on
 chkconfig nfslock on
+service nfs start
 ....
 
 target=$PHD_ENV_nodes1
@@ -141,20 +141,20 @@ for h in ${definition_nodes}; do
 done
 
 cat <<-EOF >> /etc/named/${reverse_dns_net}.arpa 
-53      IN      PTR     rhos5-rhel7-base.vmnet.${PHD_VAR_network_domain}.
-54      IN      PTR     rhos5-rhel6-base.vmnet.${PHD_VAR_network_domain}.
+53      IN      PTR     rhos6-rhel7-base.vmnet.${PHD_VAR_network_domain}.
+54      IN      PTR     rhos6-rhel6-base.vmnet.${PHD_VAR_network_domain}.
 EOF
 
 cat <<-EOF >> /etc/named/vmnet.${PHD_VAR_network_domain}
-rhos5-rhel7-base        IN      A       ${PHD_VAR_network_internal}.53
-rhos5-rhel6-base        IN      A       ${PHD_VAR_network_internal}.54
+rhos6-rhel7-base        IN      A       ${PHD_VAR_network_internal}.53
+rhos6-rhel6-base        IN      A       ${PHD_VAR_network_internal}.54
 EOF
 
 oct=55
 for section in lb db rabbitmq keystone memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node; do
     for count in 1 2 3; do
-    	echo "${oct}      IN      PTR     rhos5-${section}${count}.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa
-	echo "rhos5-${section}${count}               IN      A       ${PHD_VAR_network_internal}.${oct}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
+    	echo "${oct}      IN      PTR     rhos6-${section}${count}.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa
+	echo "rhos6-${section}${count}               IN      A       ${PHD_VAR_network_internal}.${oct}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
 	oct=$((oct + 1))
     done
 done
@@ -193,7 +193,7 @@ log-facility local7;
 subnet ${PHD_VAR_network_internal}.0 netmask 255.255.255.0 {
         range ${PHD_VAR_network_internal}.240 ${PHD_VAR_network_internal}.253;
         option domain-name "vmnet.${PHD_VAR_network_domain}";
-        option domain-search  vmnet.${PHD_VAR_network_domain}",  "${PHD_VAR_network_domain}";
+        option domain-search  "vmnet.${PHD_VAR_network_domain}",  "${PHD_VAR_network_domain}";
         option domain-name-servers ${PHD_VAR_network_internal}.1;
         option routers ${PHD_VAR_network_internal}.1;
 }
@@ -202,21 +202,21 @@ subnet ${PHD_VAR_network_internal}.0 netmask 255.255.255.0 {
 # 00 eth0 (ext0), 01 eth1 (vmnet0), 02 for nodeX ??
 # 01 <- sequence num for the VM on that host
 
-host rhos5-rhel7-base {
+host rhos6-rhel7-base {
   hardware ethernet ${PHD_VAR_network_nic_base}:00:01:02;
-  fixed-address rhos5-rhel7-base.vmnet.${PHD_VAR_network_domain};
+  fixed-address rhos6-rhel7-base.vmnet.${PHD_VAR_network_domain};
 }
 EOF
 
 sequence=16
 for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node keystone; do
     for count in 1 2 3; do
-    offset=$(($count + 6))
+    offset=$(($count + 1))
 
     cat <<-EOF >> /etc/dhcp/dhcpd.conf 
-host rhos5-${section}${count} {
+host rhos6-${section}${count} {
   hardware ethernet ${PHD_VAR_network_nic_base}:0${offset}:01:${sequence};
-  fixed-address rhos5-${section}${count}.vmnet.${PHD_VAR_network_domain};
+  fixed-address rhos6-${section}${count}.vmnet.${PHD_VAR_network_domain};
 }
 EOF
     done
