@@ -1,63 +1,13 @@
 #################################
 # Scenario Requirements Section #
 #################################
-
-# Create 3 single-node clusters
-= VARIABLES =
-
-# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
-network:
-  domain: lab.bos.redhat.com
-  internal: 192.168.124
-
-rpm:
-  osp: 6.0
-  download: download.devel.redhat.com
-
-# I set the password to 'cluster', USE A SAFER ONE
-env:
-  password: cluster
-
-#################################
-# Scenario Requirements Section #
-#################################
 = REQUIREMENTS =
-nodes: 3
+nodes: 1
 
 ######################
 # Deployment Scripts #
 ######################
 = SCRIPTS =
-
-target=all
-....
-sed -i s/6.0-RHEL-7-Beta/6.0-RHEL-7/ /etc/yum.repos.d/osp-6.0.repo 
-# install the packages
-yum install -y pcs pacemaker corosync fence-agents-all resource-agents
-
-# enable pcsd
-systemctl enable pcsd
-systemctl start pcsd
-
-systemctl disable firewalld
-systemctl stop firewalld
-
-# set a password for hacluster user. password should be the same on all nodes
-echo ${PHD_VAR_env_password} | passwd --stdin hacluster
-....
-
-target=$PHD_ENV_nodes1
-....
-short_nodes=$(echo $PHD_ENV_nodes | sed s/.vmnet.${PHD_VAR_network_domain}//g)
-# autheticate nodes, requires all nodes to have pcsd up and running 
-# the -p option is used to give the password on command line and make it easier to script
-pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
-
-# Construct the cluster
-pcs cluster setup --force --name rhos6-ceilometer ${short_nodes}
-pcs cluster enable --all
-pcs cluster start --all
-....
 
 target=all
 ....
@@ -95,10 +45,6 @@ openstack-config --set  /etc/ceilometer/ceilometer.conf api host $(ip addr show 
 
 target=$PHD_ENV_nodes1
 ....
-pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
-pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
-pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
-
 pcs resource create ceilometer-central systemd:openstack-ceilometer-central 
 pcs resource create ceilometer-collector systemd:openstack-ceilometer-collector --clone interleave=true
 pcs resource create ceilometer-api systemd:openstack-ceilometer-api --clone interleave=true
