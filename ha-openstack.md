@@ -108,11 +108,45 @@ Current version of the how-to uses pacemaker to drive all services.
 
 ### Install pacemaker
 
-Link to [basic cluster setup](basic-cluster.scenario)
+The [basic cluster setup](basic-cluster.scenario) instructions are required for every cluster.
+Tasks to be performed at this step include:
+
+- installing the cluster software
+- enabling the pcs daemon to allow remote management
+- setting a password for the hacluster user for use with pcs
+- authenticating to pcs on the other hosts with the hacluster user and password
+- creating and starting the cluster
+- configuring fencing using the multicast addresses specified for fence_virt on the bare metal hosts 
+
+When performing an All-in-One deployment, there is only one cluster and now is the time to perform it.
+When performing an One-Cluster-per-Service deployment, this should be performed before configuring each component.
 
 ### Install haproxy
 
-Link to [basic cluster setup](basic-cluster.scenario)
+Using a proxy allows:
+
+- simplified process for adding/removing of nodes
+- enhanced failure detection
+- API isolation
+- load distribution
+
+If you are performing a One-Cluster-per-Service deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions.
+
+Once you have a functional cluster, you can then deploy the [load balancer](osp-lb.scenario).
+Tasks to be performed at this step include:
+
+*   Tweaking the IP stack to allow nonlocal binding and adjusting keepalive timings
+*   Configuring haproxy
+
+    Generally we use round-robin to distriute load, however Qpid and RabbitMQ use the stick-table option.
+    TODO: Why?
+
+    The check interval is 1 second however the timeouts vary by service.
+
+    Galera requires the httpchk option because [TODO]
+
+*   Adding the virtual IPs to the cluster
+*   Putting haproxy under the cluster's control
 
 ### Install galera
 ### Install RabbitMQ
