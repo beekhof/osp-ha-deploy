@@ -108,6 +108,15 @@ Current version of the how-to uses pacemaker to drive all services.
 
 ### Install pacemaker
 
+Even when a service can survive one or more node failures, there is still a need for a cluster manager to 
+
+1. co-ordinate the startup/shutdown of other services on the same host
+1. co-ordinate the startup/shutdown of other services on _other_ hosts
+1. co-ordinate the startup/shutdown of other instances of a service on _other_ hosts
+1. integrate with quorum and provide fencing capabilities
+
+Item 3. is of particular relevance to services like galera and rabbitmq that have complicated boot-up sequences.
+
 The [basic cluster setup](basic-cluster.scenario) instructions are required for every cluster.
 Tasks to be performed at this step include:
 
