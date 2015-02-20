@@ -55,37 +55,40 @@ As noted before, this setup uses:
 
 # Hardware / VM deployment
 
-Start by creating a minimal CentOS installation on at least four nodes.
+Start by creating a minimal CentOS installation on at least three nodes.
 No OpenStack services or HA will be running here.
 
-The first of the four will become a public gateway (see later) and the rest will host one member of each virtual cluster.
-Each virtual cluster must contain at least three nodes because [TODO].
+For each service we create a virtual cluster, with one member running on each of the physical hosts.
+Each virtual cluster must contain at least three members because [TODO: quorum, fencing, etc].
 
-You can have up to 16 (this is currently limited by corosync's ability to scale higher).
-In extreme cases, 32 and even up to 64 nodes could be possible however this is not well tested. 
-
-Once the machines have been installed, [prepare them](basic-baremetal.scenario) for hosting OpenStack.
-
-NOTE: The following step may not be necessary in your environment.
+You can have up to 16 cluster members (this is currently limited by corosync's ability
+to scale higher).  In extreme cases, 32 and even up to 64 nodes could
+be possible however this is not well tested.
 
 In some environments, the available IP address range of the public LAN
-is limited. To avoid overlapping in such scenarios, we set up a
-[gateway](osp-gateway.scenario) on the first node to provide DNS and
-DHCP for the guests containing the OpenStack services and exposes the
-required nova and horizon APIs to the external network.
+is limited. I this applies to you, you will need one additional node
+to set up as a [gateway](osp-gateway.scenario) that will provide DNS
+and DHCP for the guests containing the OpenStack services and expose
+the required nova and horizon APIs to the external network.
 
+Once the machines have been installed, [prepare them](basic-baremetal.scenario) 
+for hosting OpenStack.
 
-Next we must [create the image](osp-virt-hosts.scenario) for the guests that will host the OpenStack services and clone it.
-Once the image has been created, we can prepare the hosting nodes and [clone](osp-virt-hosts.scenario) it.
+Next we must [create the image](osp-virt-hosts.scenario) for the
+guests that will host the OpenStack services and clone it.  Once the
+image has been created, we can prepare the hosting nodes and
+[clone](osp-virt-hosts.scenario) it.
 
 # Deploy OpenStack HA controllers
-In this example rhos6-node1, rhos6-node2, rhos6-node3 are deployed as controller. 
 It is possible to deploy up to 16 nodes to act as controllers but not less than 3 without special casing of some services.
 
 ## Installing core non-Openstack services
-This how-to is divided in 2 sections. The first section is used to deploy all core non-OpenStack services, the second section all OpenStack services.
 
-Current version of the how-to uses pacemaker to drive all services.
+This how-to is divided in 2 sections. The first section is used to
+deploy all core non-OpenStack services, the second section all
+OpenStack services.
+
+Pacemaker is used to drive all services.
 
 ### Install Pacemaker
 
@@ -114,37 +117,135 @@ Using a proxy allows:
 
 If you are performing a One-Cluster-per-Service deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions.
 
-Once you have a functional cluster, you can then deploy the [load balancer](osp-lb.scenario).
-Tasks to be performed at this step include:
+Once you have a functional cluster, you can then deploy the [load balancer](osp-lb.scenario) to the previously created guests.
 
-*   Tweaking the IP stack to allow nonlocal binding and adjusting keepalive timings
-*   Configuring haproxy
+Generally we use round-robin to distriute load, however Qpid and RabbitMQ use the stick-table option.
+TODO: Why?
 
-    Generally we use round-robin to distriute load, however Qpid and RabbitMQ use the stick-table option.
-    TODO: Why?
-
-    The check interval is 1 second however the timeouts vary by service.
-
-    Galera requires the httpchk option because [TODO]
-
-*   Adding the virtual IPs to the cluster
-*   Putting haproxy under the cluster's control
+The check interval is 1 second however the timeouts vary by service.
+Galera requires the httpchk option because [TODO]
 
 ### Install galera
-### Install RabbitMQ
-### Install Qpid
+
+We use galaera as our replicated database so the [TODO]
+
+### Install Message Bus
+
+An AMQP compliant message bus is required for [TODO].
+Both RabbitMQ and Qpid are common deployment options.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid .
+Once you have a functional cluster, you can then [deploy rabbitmq](osp-rabbitmq.scenario) into it.
+
 ### Install memcached
+
+Memcached is a general-purpose distributed memory caching system. It
+is used to speed up dynamic database-driven websites by caching data
+and objects in RAM to reduce the number of times an external data
+source must be read.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain memcached.
+Once you have a functional cluster, you can then [deploy memcached](osp-memcached.scenario) into it.
+
 ### Install mongodb (optional)
+
+If you plan to install ceilometer, you will need a NoSQL database such as mongodb.
+
+MongoDB is a cross-platform document-oriented database. Classified as
+a NoSQL database, MongoDB eschews the traditional table-based
+relational database structure in favor of JSON-like documents with
+dynamic schemas, making the integration of data in certain types of
+applications easier and faster.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain mongodb.
+Once you have a functional cluster, you can then [deploy mongodb](osp-mongodb.scenario) into it.
+
 ## Installing Openstack services
-### Install keystone
-### Install glance
-### Install cinder
-### Install swift AOC (optional)
-### Install swift proxy (optional)
-### Install neutron server (optional)
-### Install neutron agents (optional)
-### Install nova (non-compute)
-### Install ceilometer (optional)
-### Install heat (optional)
+### Keystone
+
+Keystone is an OpenStack project that provides Identity, Token,
+Catalog and Policy services for use specifically by projects in the
+OpenStack family. It implements OpenStack's Identity API.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain keystone.
+Once you have a functional cluster, you can then [deploy keystone](osp-keystone.scenario) into it.
+
+### Glance
+
+The Glance project provides a service where users can upload and
+discover data assets that are meant to be used with other
+services. This currently includes images and metadata definitions.
+
+Glance image services include discovering, registering, and retrieving
+virtual machine images.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain glance.
+Once you have a functional cluster, you can then [deploy glance](osp-glance.scenario) into it.
+
+### Cinder
+
+Cinder provides 'block storage as a service'.
+
+In theory cinder can be run as A/A but there are currently sufficient concerns that cause us to recommend A/P only.
+[TODO: expand and summarize bugzilla]
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain cinder.
+Once you have a functional cluster, you can then [deploy cinder](osp-cinder.scenario) into it.
+
+### Swift AOC (optional)
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain swift AOCs.
+Once you have a functional cluster, you can then [deploy swift AOCs](osp-swift-aoc.scenario) into it.
+
+### Swift proxy (optional)
+
+The Proxy Server is responsible for tying together the rest of the
+Swift architecture. For each request, it will look up the location of
+the account, container, or object in the ring (see below) and route
+the request accordingly.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain the swift proxy.
+Once you have a functional cluster, you can then [deploy swift](osp-swift.scenario) into it.
+
+### Networking
+
+Neutron and Nova are two commonly deployed projects that can provide 'network connectivity as a service' between interface devices (e.g., vNICs) managed by other OpenStack services (e.g., nova).
+
+Neutron is preferred when [TODO].
+Nova is preferred when [TODO].
+
+#### Installing Neutron
+Server:
+
+Agents:
+
+#### Installing Nova (non-compute)
+
+For nova, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain nova.
+Once you have a functional cluster, you can then [deploy nova](osp-nova.scenario) into it.
+
+### Ceilometer (optional)
+
+The Ceilometer project aims to deliver a unique point of contact for
+billing systems to acquire all of the measurements they need to
+establish customer billing, across all current OpenStack core
+components with work underway to support future OpenStack components.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain ceilometer.
+Once you have a functional cluster, you can then [deploy ceilometer](osp-ceilometer.scenario) into it.
+
+### Heat (optional)
+
+Heat is a service to orchestrate multiple composite cloud applications
+using the AWS CloudFormation template format, through both an
+OpenStack-native ReST API and a CloudFormation-compatible Query API.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain heat.
+Once you have a functional cluster, you can then [deploy heat](osp-heat.scenario) into it.
+
 ### Install horizon
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain horizon.
+Once you have a functional cluster, you can then [deploy horizon](osp-horizon.scenario) into it.
+
 ### Install compute nodes (standalone)

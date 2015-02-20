@@ -18,7 +18,6 @@
 #   For example, to run on only the first node would be target=$PHD_ENV_nodes1
 #
 # Tasks to be performed at this step include:
-# 
 # - installing the cluster software
 # - enabling the pcs daemon to allow remote management
 # - setting a password for the hacluster user for use with pcs
