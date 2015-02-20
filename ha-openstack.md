@@ -53,49 +53,30 @@ As noted before, this setup uses:
 - public facing LAN (10.x.y.z). All mrg-0x nodes are connected here. To keep interface naming standard across all nodes (instead of using ethX or emX or some random generated names), we will use ext0 to identify the network interface (bridge) connected to the public lan. The VMs are connected to the public LAN via eth0.
 - internal LAN (192.168.16.x). All mrg-0x nodes and all VMs (rhos6-nodeX) are connected here. Similar as above we will use vmnet0 to identify interfaces connected here. The VMs are connected to the private LAN via eth1
 
-# Hardware / VM deployment base OS deployments
+# Hardware / VM deployment
 
-Start by creating a minimal installation RHEL6 on mrg-01|mrg-02|mrg-03|mrg-04.
+Start by creating a minimal CentOS installation on at least four nodes.
 No OpenStack services or HA will be running here.
 
-You can now follow the [setup instructions](basic-baremetal.scenario) for preparing the nodes to host OpenStack.
-Tasks to be performed include:
+The first of the four will become a public gateway (see later) and the rest will host one member of each virtual cluster.
+Each virtual cluster must contain at least three nodes because [TODO].
 
-- setting up the required repositories from which to download Openstack and the HA-Addon
-- disabling firewalls and SElinux. This is a necessary evil until the proper policies can be written.
-- creating network bridges for use by VMs hosting OpenStack services
-- normalizing network interface names
-- fixing multicast
-- removing /home and making the root partition as large as possible to make the maximum amount of space available to openstack
+You can have up to 16 (this is currently limited by corosync's ability to scale higher).
+In extreme cases, 32 and even up to 64 nodes could be possible however this is not well tested. 
 
-Once this step is complete, we set up a [gateway](osp-gateway.scenario) on the first node.
-The gateway is needed due to the limited amount of IP on the public LAN and may not be necessary in any other environment.
-It provides DNS and DHCP for the guests containing the OpenStack services and exposes the required nova and horizon APIs to the external network.
+Once the machines have been installed, [prepare them](basic-baremetal.scenario) for hosting OpenStack.
 
-Tasks to be performed at this step include:
+NOTE: The following step may not be necessary in your environment.
 
-- Setting up haproxy to expose nova and horizon
-- Installing and configuring bind for DNS
-- Installing and configuring DHCP.  For your own sanity, define rules that allow you to predictably calculate MAC addresses for the guests.   
-- Turning off auto-generation of resolv.conf so we can point to our local DNS server
+In some environments, the available IP address range of the public LAN
+is limited. To avoid overlapping in such scenarios, we set up a
+[gateway](osp-gateway.scenario) on the first node to provide DNS and
+DHCP for the guests containing the OpenStack services and exposes the
+required nova and horizon APIs to the external network.
 
-Finally, we must [create the image](osp-virt-hosts.scenario) for the guests that will host the OpenStack services and clone it.
 
-Tasks to be performed when creating the image include:
-
-- Installing RHEL7 
-- Pointing to the OpenStack, HA-Addon and Updates repositories
-- Ensuring cloned guests can obtain a DHCP lease
-- Ensuring consistent network interface names
-- Adding SSH keys if necessary
-- Configuring guests to obtain their hostname from DHCP
-
-Once the image has been created, we can prepare the hosting nodes and clone it:
-
-- Install fence_virt so that the guests can be reset by other members of the virtualized clusters
-- Turning off auto-generation of resolv.conf so we can point to our gateway DNS server
-- Obtain the golden image from the first host
-- Clone the golden image for each service, inserting MAC addresses using the same rules as in the [gateway](osp-gateway.scenario)
+Next we must [create the image](osp-virt-hosts.scenario) for the guests that will host the OpenStack services and clone it.
+Once the image has been created, we can prepare the hosting nodes and [clone](osp-virt-hosts.scenario) it.
 
 # Deploy OpenStack HA controllers
 In this example rhos6-node1, rhos6-node2, rhos6-node3 are deployed as controller. 
@@ -106,7 +87,7 @@ This how-to is divided in 2 sections. The first section is used to deploy all co
 
 Current version of the how-to uses pacemaker to drive all services.
 
-### Install pacemaker
+### Install Pacemaker
 
 Even when a service can survive one or more node failures, there is still a need for a cluster manager to 
 
@@ -118,14 +99,6 @@ Even when a service can survive one or more node failures, there is still a need
 Item 3. is of particular relevance to services like galera and rabbitmq that have complicated boot-up sequences.
 
 The [basic cluster setup](basic-cluster.scenario) instructions are required for every cluster.
-Tasks to be performed at this step include:
-
-- installing the cluster software
-- enabling the pcs daemon to allow remote management
-- setting a password for the hacluster user for use with pcs
-- authenticating to pcs on the other hosts with the hacluster user and password
-- creating and starting the cluster
-- configuring fencing using the multicast addresses specified for fence_virt on the bare metal hosts 
 
 When performing an All-in-One deployment, there is only one cluster and now is the time to perform it.
 When performing an One-Cluster-per-Service deployment, this should be performed before configuring each component.

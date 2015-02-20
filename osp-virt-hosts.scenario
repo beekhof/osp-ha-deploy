@@ -1,11 +1,40 @@
-# Configure node 1 as bind/dhcp/nfs-server/haproxy for virtnet0
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed for the hosts include:
+# - Install fence_virt so that the guests can be reset by other members of the virtualized clusters
+# - Turning off auto-generation of resolv.conf so we can point to our gateway DNS server
+# - Obtain the golden image from the first host
+# - Clone the golden image for each service, inserting MAC addresses using the same rules as in the 
+#
+# Tasks to be performed when creating the image include:
+# - Installing CentOS 7 
+# - Pointing to the OpenStack, HA-Addon and Updates repositories
+# - Ensuring cloned guests can obtain a DHCP lease
+# - Ensuring consistent network interface names
+# - Adding SSH keys if necessary
+# - Configuring guests to obtain their hostname from DHCP
 
 #################################
 # Scenario Requirements Section #
 #################################
 = VARIABLES =
-
-#nodes: east-01 east-02 east-03
 
 # Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
 network:
@@ -230,7 +259,7 @@ virt-install --connect=qemu:///system \
     --name=rhos6-rhel${distro_major}-base \
     --disk path=${PHD_VAR_vm_base},format=qcow2,cache=none \
     --ram ${PHD_VAR_vm_ram} \
-    --vcpus=${PHD_VAR_vm_vcpu} \
+    --vcpus=${PHD_VAR_vm_cpus} \
     --check-cpu \
     --accelerate \
     --os-type linux \

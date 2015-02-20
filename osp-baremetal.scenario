@@ -1,4 +1,31 @@
-# Example baremetal remote-node scenario
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# We start with 3 (or more, up to 16) nodes running a minimal CentOS 6
+#
+# Tasks to be performed include:
+# - setting up the required repositories from which to download Openstack and the HA-Addon
+# - disabling firewalls and SElinux. This is a necessary evil until the proper policies can be written.
+# - creating network bridges for use by VMs hosting OpenStack services
+# - normalizing network interface names
+# - fixing multicast
+# - removing /home and making the root partition as large as possible to maximumize the amount of space available to openstack
 
 #################################
 # Scenario Requirements Section #
