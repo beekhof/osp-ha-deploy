@@ -106,7 +106,7 @@ The [basic cluster setup](basic-cluster.scenario) instructions are required for 
 When performing an All-in-One deployment, there is only one cluster and now is the time to perform it.
 When performing an One-Cluster-per-Service deployment, this should be performed before configuring each component.
 
-### Install haproxy
+### Proxy server
 
 Using a proxy allows:
 
@@ -125,19 +125,16 @@ TODO: Why?
 The check interval is 1 second however the timeouts vary by service.
 Galera requires the httpchk option because [TODO]
 
-### Install galera
+### Replicated Database
 
-We use galaera as our replicated database so the [TODO]
+We use galaera as our replicated database so that [TODO]
 
-### Install Message Bus
+Although galera can in theory run as A/A, we recommend A/P (enforced by the load balancer) in order to avoid lock contention.
 
-An AMQP compliant message bus is required for [TODO].
-Both RabbitMQ and Qpid are common deployment options.
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain galera.
+Once you have a functional cluster, you can then [deploy galera](osp-galera.scenario) into it.
 
-First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid .
-Once you have a functional cluster, you can then [deploy rabbitmq](osp-rabbitmq.scenario) into it.
-
-### Install memcached
+### Database Cache
 
 Memcached is a general-purpose distributed memory caching system. It
 is used to speed up dynamic database-driven websites by caching data
@@ -146,6 +143,14 @@ source must be read.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain memcached.
 Once you have a functional cluster, you can then [deploy memcached](osp-memcached.scenario) into it.
+
+### Message Bus
+
+An AMQP compliant message bus is required for [TODO].
+Both RabbitMQ and Qpid are common deployment options.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid .
+Once you have a functional cluster, you can then [deploy rabbitmq](osp-rabbitmq.scenario) into it.
 
 ### Install mongodb (optional)
 
@@ -193,6 +198,8 @@ First follow the [basic cluster setup](basic-cluster.scenario) instructions to s
 Once you have a functional cluster, you can then [deploy cinder](osp-cinder.scenario) into it.
 
 ### Swift AOC (optional)
+
+We use single node cluster for swift AOCs because [TODO: corosync scaling]
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain swift AOCs.
 Once you have a functional cluster, you can then [deploy swift AOCs](osp-swift-aoc.scenario) into it.
@@ -243,9 +250,9 @@ OpenStack-native ReST API and a CloudFormation-compatible Query API.
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain heat.
 Once you have a functional cluster, you can then [deploy heat](osp-heat.scenario) into it.
 
-### Install horizon
+### Horizon
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain horizon.
 Once you have a functional cluster, you can then [deploy horizon](osp-horizon.scenario) into it.
 
-### Install compute nodes (standalone)
+### Compute nodes (standalone)
