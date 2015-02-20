@@ -22,26 +22,6 @@
 #################################
 # Scenario Requirements Section #
 #################################
-
-# Create 3 single-node clusters
-= VARIABLES =
-
-# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
-network:
-  domain: lab.bos.redhat.com
-  internal: 192.168.124
-
-rpm:
-  osp: 6.0
-  download: download.devel.redhat.com
-
-# I set the password to 'cluster', USE A SAFER ONE
-env:
-  password: cluster
-
-#################################
-# Scenario Requirements Section #
-#################################
 = REQUIREMENTS =
 nodes: 3
 
@@ -49,36 +29,6 @@ nodes: 3
 # Deployment Scripts #
 ######################
 = SCRIPTS =
-
-target=all
-....
-
-# install the packages
-yum install -y pcs pacemaker corosync fence-agents-all resource-agents
-
-# enable pcsd
-systemctl enable pcsd
-systemctl start pcsd
-
-systemctl disable firewalld
-systemctl stop firewalld
-
-# set a password for hacluster user. password should be the same on all nodes
-echo ${PHD_VAR_env_password} | passwd --stdin hacluster
-....
-
-target=all
-....
-short_nodes=$(hostname -s) 
-# autheticate nodes, requires all nodes to have pcsd up and running 
-# the -p option is used to give the password on command line and make it easier to script
-pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
-
-# Construct the cluster
-pcs cluster setup --force --name rhos6-swift-aoc ${short_nodes}
-pcs cluster enable --all
-pcs cluster start --all
-....
 
 target=all
 ....
