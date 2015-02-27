@@ -8,7 +8,7 @@ nodeMap["gateway"]="east-01"
 nodeMap["virt-hosts"]="east-01 east-02 east-03 east-04"
 nodeMap["galera"]="rhos6-db1.vmnet rhos6-db2.vmnet rhos6-db3.vmnet"
 nodeMap["memcached"]="rhos6-memcache1.vmnet rhos6-memcache2.vmnet rhos6-memcache3.vmnet"
-nodeMap["swift-aoc"]="rhos6-swift-brick1.vmnet rhos6-swift-brick2.vmnet rhos6-swift-brick3.vmnet"
+nodeMap["swift-aco"]="rhos6-swift-brick1.vmnet rhos6-swift-brick2.vmnet rhos6-swift-brick3.vmnet"
 
 variables["env_password"]="cluster"
 variables["network_domain"]="lab.bos.redhat.com"
@@ -64,7 +64,7 @@ if [ "x$1" = xstatus ]; then
     exit 0
 
 elif [ "x$*" = x ]; then
-    scenarios="baremetal gateway vm-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aoc swift nova ceilometer heat"
+    scenarios="baremetal gateway vm-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift nova ceilometer heat"
 else 
     scenarios="$*"
 fi

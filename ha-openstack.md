@@ -1,15 +1,39 @@
 # Highly Available Openstack Deployments
 
+## Purpose of this Document
+
+This document aims at defining a high level architecture for a highly
+available RHEL OSP setup with the [Pacemaker](http://clusterlabs.org)
+cluster manager which provides:
+
+- detection and recovery of machine and application-level failures
+- startup/shutdown ordering between applications
+- preferences for other applications that must/must-not run on the same machine
+- provably correct response to any failure or cluster state
+
+All components are currently modelled as active-active with the exception of:
+
+- openstack-ceilometer-central 
+- openstack-heat-engine 
+- cinder-volume
+
+Implementation details are contained in scripts linked to from the main document.
+Read them carefully before considering to run them in your own environment. 
+
+The current target for this document is RHEL OSP 6, based on the Juno
+OpenStack release.
+
 ## Disclaimer 
 
 - The referenced scripts contain many comments and warnings - READ THEM CAREFULLY.
 - There are probably 2^8 other ways to deploy this same scenario. This is only one of them.
 - Due to limited number of available physical LAN connections in the test setup, the instance IP traffic overlaps with the internal/management network.
 - Shared storage is provided via NFS from the commodity server due to lack of dedicated CEPH servers. Any other kind of storage supported by OpenStack would work just fine.
-- Some minor services within major are still A/P (for example swift garbage collector, part of swift proxy service is A/P while the major is A/A)
 - Bare metal could be used in place of any or all guests.
 - Most of the scripts contain shell expansion to automatically fill in some values.  Use your common sense when parsing data. Example:
+
   `openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(ip addr show dev vmnet0 scope global | grep inet | sed -e 's#.*inet ##g' -e    's#/.*##g')`
+
   means that we want the IP address from vmnet0 as vncserver_proxyclient_address.
 
 ## Bugs
@@ -304,7 +328,7 @@ for addressing the concerns upstream.
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain cinder.
 Once you have a functional cluster, you can then [deploy cinder](cinder.scenario) into it.
 
-### Swift AOC (optional)
+### Swift ACO (optional)
 
 Swift is a highly available, distributed, eventually consistent
 object/blob store. Organizations can use Swift to store lots of data
@@ -323,7 +347,7 @@ the 16 node limit while still making sure the individual Swift daemons
 are being monitored and recovered as necessary.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
-Once you have a set of functional single-node clusters, you can then [deploy swift AOCs](swift-aoc.scenario) into them.
+Once you have a set of functional single-node clusters, you can then [deploy swift ACOs](swift-aco.scenario) into them.
 
 ### Swift Proxy (optional)
 
