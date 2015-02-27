@@ -90,7 +90,7 @@ OpenStack services.
 
 Pacemaker is used to drive all services.
 
-### Install Pacemaker
+### Cluster Manager
 
 At its core, a cluster is a distributed finite state machine capable
 of co-ordinating the startup and recovery of inter-related services
@@ -219,15 +219,14 @@ RabbitMQ and Qpid are common deployment options. Both support:
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid.
 Once you have a functional cluster, you can then deploy [rabbitmq](osp-rabbitmq.scenario) or [qpid](osp-qpid.scenario)into it.
 
-### Install mongodb (optional)
+### NoSQL Database (optional)
 
 If you plan to install ceilometer, you will need a NoSQL database such as mongodb.
 
-MongoDB is a cross-platform document-oriented database. Classified as
-a NoSQL database, MongoDB eschews the traditional table-based
-relational database structure in favor of JSON-like documents with
-dynamic schemas, making the integration of data in certain types of
-applications easier and faster.
+MongoDB is a cross-platform document-oriented database that eschews
+the traditional table-based relational database structure in favor of
+JSON-like documents with dynamic schemas, making the integration of
+data in certain types of applications easier and faster.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain mongodb.
 Once you have a functional cluster, you can then [deploy mongodb](osp-mongodb.scenario) into it.
@@ -258,20 +257,74 @@ Once you have a functional cluster, you can then [deploy glance](osp-glance.scen
 
 Cinder provides 'block storage as a service'.
 
-In theory cinder can be run as A/A but there are currently sufficient concerns that cause us to recommend A/P only.
-[TODO: expand and summarize bugzilla]
+In theory cinder can be run as active-active however there are
+currently sufficient concerns that cause us to recommend running the
+volume component as active-passive only.
+
+Jon Bernard writes:
+
+> Requests are first seen by Cinder in the API service, and we have a
+> fundamental problem there - a standard test-and-set race condition
+> exists for many operations where the volume status is first checked
+> for an expected status and then (in a different operation) updated to
+> a pending status.  The pending status indicates to other incoming
+> requests that the volume is undergoing a current operation, however it
+> is possible for two simultaneous requests to race here, which
+> undefined results.
+> 
+> Later, the manager/driver will receive the message and carry out the
+> operation.  At this stage there is a question of the synchronization
+> techniques employed by the drivers and what guarantees they make.
+> 
+> If cinder-volume processes exist as different process, then the
+> 'synchronized' decorator from the lockutils package will not be
+> sufficient.  In this case the programmer can pass an argument to
+> synchronized() 'external=True'.  If external is enabled, then the
+> locking will take place on a file located on the filesystem.  By
+> default, this file is placed in Cinder's 'state directory' in
+> /var/lib/cinder so won't be visible to cinder-volume instances running
+> on different machines.
+> 
+> However, the location for file locking is configurable.  So an
+> operator could configure the state directory to reside on shared
+> storage.  If the shared storage in use implements unix file locking
+> semantics, then this could provide the requisite synchronization
+> needed for an active/active HA configuration.
+> 
+> The remaining issue is that not all drivers use the synchronization
+> methods, and even fewer of those use the external file locks.
+> A sub-concern would be whether they use them correctly.
+
+You can read more about these concerns on the [Red Hat
+Bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=1193229) and
+there is a [psuedo roadmap](https://etherpad.openstack.org/p/cinder-kilo-stabilisation-work)
+for addressing the concerns upstream.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain cinder.
 Once you have a functional cluster, you can then [deploy cinder](osp-cinder.scenario) into it.
 
 ### Swift AOC (optional)
 
-We use single node cluster for swift AOCs because [TODO: corosync scaling]
+Swift is a highly available, distributed, eventually consistent
+object/blob store. Organizations can use Swift to store lots of data
+efficiently, safely, and cheaply.
 
-First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain swift AOCs.
-Once you have a functional cluster, you can then [deploy swift AOCs](osp-swift-aoc.scenario) into it.
+As mentioned earlier, limitations in Corosync prevent us from
+combining more than 16 machines into a logic unit. In the case of
+Swift, although this is fune for the proxy, it is insufficient for the
+worker nodes.
 
-### Swift proxy (optional)
+There are plans to make use of something called `pacemaker-remote` to
+allow the cluster to manage more than 16 worker nodes, but until this
+is properly documented, the work-around is to create each Swift worker
+as an single node cluster - independant of all the others. This avoids
+the 16 node limit while still making sure the individual Swift daemons
+are being monitored and recovered as necessary.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
+Once you have a set of functional single-node clusters, you can then [deploy swift AOCs](osp-swift-aoc.scenario) into them.
+
+### Swift Proxy (optional)
 
 The Proxy Server is responsible for tying together the rest of the
 Swift architecture. For each request, it will look up the location of
@@ -323,3 +376,13 @@ First follow the [basic cluster setup](basic-cluster.scenario) instructions to s
 Once you have a functional cluster, you can then [deploy horizon](osp-horizon.scenario) into it.
 
 ### Compute nodes (standalone)
+
+Just like Swift, we will usually need more than 16 compute nodes which
+is beyond Corosync's ability to manage.  So again we use the
+work-around of create each compute node as a single node cluster -
+independant of all the others. This avoids the 16 node limit while
+still making sure the individual compute daemons are being monitored
+and recovered as necessary.
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
+Once you have a set of functional single-node clusters, you can then [deploy compute nodes](osp-compute.scenario) into them.
