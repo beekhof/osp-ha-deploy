@@ -60,6 +60,7 @@ OpenStack release.
 - neutron-agents are directly connected to the external LAN
 - nova and horizon are exposed to the external LAN via an extra haproxy instance
 - Compute nodes have a management connection to the external LAN but it is not used by OpenStack and hence not reproduced in the diagram. This will be used when adding nova network setup.
+- Here is a [list of variables](ha.variables) used when executing the referenced scripts.  Modify them to your needs.
 
 Each box below represents a cluster of three or more guests.
 
@@ -96,7 +97,7 @@ to set up as a [gateway](gateway.scenario) that will provide DNS
 and DHCP for the guests containing the OpenStack services and expose
 the required nova and horizon APIs to the external network.
 
-Once the machines have been installed, [prepare them](basic-baremetal.scenario) 
+Once the machines have been installed, [prepare them](baremetal.scenario) 
 for hosting OpenStack.
 
 Next we must [create the image](virt-hosts.scenario) for the

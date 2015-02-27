@@ -34,8 +34,8 @@
 
 PHD_VAR_network_domain
 PHD_VAR_network_internal
-PHD_VAR_network_external_nic
-PHD_VAR_network_internal_nic
+PHD_VAR_network_nic_external
+PHD_VAR_network_nic_internal
 PHD_VAR_network_named_forwarders
 PHD_VAR_rpm_osp
 PHD_VAR_rpm_download
@@ -122,7 +122,7 @@ EOF
 
 
 for device in `ls -1 /sys/class/net`; do
-    case ${PHD_VAR_network_external_nic} in
+    case ${PHD_VAR_network_nic_external} in
     	 *${device}*) 
 	 cat > /etc/sysconfig/network-scripts/ifcfg-${device} << EOF
 DEVICE=${device}
@@ -133,7 +133,7 @@ NAME=${device}
 EOF
 	;;
     esac
-    case ${PHD_VAR_network_internal_nic} in
+    case ${PHD_VAR_network_nic_internal} in
     	 *${device}*) 
 	 cat > /etc/sysconfig/network-scripts/ifcfg-${device} << EOF
 DEVICE=${device}

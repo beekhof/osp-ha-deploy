@@ -9,24 +9,7 @@ nodeMap["virt-hosts"]="east-01 east-02 east-03 east-04"
 nodeMap["galera"]="rhos6-db1.vmnet rhos6-db2.vmnet rhos6-db3.vmnet"
 nodeMap["memcached"]="rhos6-memcache1.vmnet rhos6-memcache2.vmnet rhos6-memcache3.vmnet"
 nodeMap["swift-aco"]="rhos6-swift-brick1.vmnet rhos6-swift-brick2.vmnet rhos6-swift-brick3.vmnet"
-
-variables["env_password"]="cluster"
 variables["network_domain"]="lab.bos.redhat.com"
-variables["network_nic_base"]="54:52:00"
-variables["network_internal_nic"]="enp2s0 eth1"
-variables["network_external_nic"]="enp1s0 eth0"
-variables["network_internal"]="192.168.124"
-
-variables["rpm_download"]="download.devel.redhat.com"
-variables["rpm_rhel"]="7.1"
-variables["rpm_osp"]="6.0"
-variables["rpm_osp_beta"]=""
-
-variables["vm_base"]="/srv/rhos6-rhel7-vms/rhos6-rhel7-base.img"
-variables["vm_cpus"]="1"
-variables["vm_disk"]="25G"
-variables["vm_ram"]="2048"
-variables["vm_key"]="AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ"
 
 function create_phd_definition() {
     scenario=$1

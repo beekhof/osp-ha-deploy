@@ -1,13 +1,14 @@
 # Expands to $PHD_network_domain, $PHD_network_internal, etc
+
 network:
   domain: lab.bos.redhat.com
   internal: 192.168.124
-  external_nic: enp1s0 eth0
-  internal_nic: enp2s0 eth1
   named:
     forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
   nic:
     base: 54:52:00
+    external: enp1s0 eth0
+    internal: enp2s0 eth1
 
 rpm:
   rhel: 7.1
