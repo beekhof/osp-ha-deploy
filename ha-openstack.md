@@ -23,6 +23,7 @@
 - nova network HA
 - Compute nodes managed by pacemaker_remoted
 - Remove all artificial sleep and use pcs --wait once 7.1 is out of the door
+- Copy in the test information from Fabio's document
 - Improve nova-compute test section with CLI commands
 - re-check keystone -> other services start order require-all=false option
 
