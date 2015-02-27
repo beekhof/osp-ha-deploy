@@ -36,7 +36,10 @@
 - nova and horizon are exposed to the external LAN via an extra haproxy instance
 - Compute nodes have a management connection to the external LAN but it is not used by OpenStack and hence not reproduced in the diagram. This will be used when adding nova network setup.
 
+Each box below represents a cluster of three or more guests.
+
 ![Deployment architecture](Cluster-of-clusters.png)
+
 
 ## Implementation
 
@@ -44,7 +47,19 @@ Start by creating a minimal CentOS installation on at least three nodes.
 No OpenStack services or HA will be running here.
 
 For each service we create a virtual cluster, with one member running on each of the physical hosts.
-Each virtual cluster must contain at least three members because [TODO: quorum, fencing, etc].
+Each virtual cluster must contain at least three members because quorum is not useful with fewer hosts.
+
+Quorum becomes important when a failure causes the cluster to split in
+two or more paritions.  In this situation, you want the majority to
+ensure the minority are truely dead (through fencing) and continue to
+host resources.  For a two-node cluster, no side has the majority and
+you can end up in a situations where both sides fence each other, or
+both sides are running the same services - leading to data corruption.
+
+Clusters with an even number of hosts suffer from similar issues - a
+single network failure could easily cause a N:N split where neither
+side retains a majority.  For this reason, we recommend an odd number
+of cluster members.
 
 You can have up to 16 cluster members (this is currently limited by
 corosync's ability to scale higher).  In extreme cases, 32 and even up
