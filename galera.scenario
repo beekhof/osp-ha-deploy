@@ -24,14 +24,8 @@
 #################################
 = VARIABLES =
 
-# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
-network:
-  domain: lab.bos.redhat.com
-  internal: 192.168.124
-
-# I set the password to 'cluster', USE A SAFER ONE
-env:
-  password: cluster
+PHD_VAR_env_password
+PHD_VAR_network_domain
 
 #################################
 # Scenario Requirements Section #
@@ -62,9 +56,10 @@ mysql -e "CREATE USER 'clustercheck'@'localhost' IDENTIFIED BY '${PHD_VAR_env_pa
 systemctl stop mysqld
 
 # Configure galera cluster
-# NOTE: I am skipping wsrep ssl encryption to save my soul, but it _must_ be enabled
-#             also check the bind_address! i am using shell expansion but it needs to 
-#             match the internal IP address of the node.
+# NOTE: wsrep ssl encryption is strongly recommended and should be enabled
+#             on all production deployments. This how-to does NOT display how to 
+#             configure ssl. The shell expansion points to the internal IP address of the  
+#             node.
 
 cat > /etc/my.cnf.d/galera.cnf << EOF
 [mysqld]

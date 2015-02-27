@@ -64,7 +64,7 @@ if [ "x$1" = xstatus ]; then
     exit 0
 
 elif [ "x$*" = x ]; then
-    scenarios="baremetal gateway vm-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift nova ceilometer heat"
+    scenarios="baremetal gateway virt-hosts lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift nova ceilometer heat"
 else 
     scenarios="$*"
 fi
@@ -74,9 +74,9 @@ for scenario in $scenarios; do
 
     case $scenario in 
 	lb|galera|rabbitmq|memcache|mongodb|keystone|glance|cinder|swift-brick|swift|nova|ceilometer|heat)
-	    phd_exec -s ./basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf
+	    phd_exec -s ./basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ha.variables
 	    ;;
     esac
 
-    phd_exec -s ./osp-${scenario}.scenario -d ${HOME}/phd.${scenario}.conf
+    phd_exec -s ./osp-${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ha.variables
 done

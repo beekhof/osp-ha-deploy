@@ -24,13 +24,9 @@
 #################################
 = VARIABLES =
 
-# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
-network:
-  domain: lab.bos.redhat.com
-  internal: 192.168.124
-
-rpm:
-  osp: 6.0
+PHD_VAR_network_domain
+PHD_VAR_network_internal
+PHD_VAR_rpm_osp
 
 #################################
 # Scenario Requirements Section #

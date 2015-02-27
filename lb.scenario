@@ -28,10 +28,7 @@
 #################################
 = VARIABLES =
 
-# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
-network:
-  domain: lab.bos.redhat.com
-  internal: 192.168.124
+PHD_VAR_network_internal
 
 #################################
 # Scenario Requirements Section #

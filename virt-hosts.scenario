@@ -36,27 +36,17 @@
 #################################
 = VARIABLES =
 
-# Expands to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc
-network:
-  domain: lab.bos.redhat.com
-  internal: 192.168.124
-  named:
-    forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
-  nic:
-    base: 54:52:00
-
-vm:
-  vcpu: 1
-  ram: 2048
-  disk: 25G
-  base: /srv/rhos6-rhel7-vms/rhos6-rhel7-base.img
-  key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
-
-rpm:
-  rhel: 7.1
-  osp: 6.0
-    beta: -Beta
-  download: download.devel.redhat.com
+PHD_VAR_network_domain
+PHD_VAR_network_internal
+PHD_VAR_network_nic_base
+PHD_VAR_rpm_download
+PHD_VAR_rpm_osp
+PHD_VAR_rpm_rhel
+PHD_VAR_vm_base
+PHD_VAR_vm_cpus
+PHD_VAR_vm_disk
+PHD_VAR_vm_key
+PHD_VAR_vm_ram
 
 #################################
 # Scenario Requirements Section #
