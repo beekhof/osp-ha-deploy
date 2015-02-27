@@ -66,7 +66,7 @@ to scale higher).  In extreme cases, 32 and even up to 64 nodes could
 be possible however this is not well tested.
 
 In some environments, the available IP address range of the public LAN
-is limited. I this applies to you, you will need one additional node
+is limited. If this applies to you, you will need one additional node
 to set up as a [gateway](osp-gateway.scenario) that will provide DNS
 and DHCP for the guests containing the OpenStack services and expose
 the required nova and horizon APIs to the external network.
@@ -92,16 +92,63 @@ Pacemaker is used to drive all services.
 
 ### Install Pacemaker
 
-Even when a service can survive one or more node failures, there is still a need for a cluster manager to 
+At its core, a cluster is a distributed finite state machine capable
+of co-ordinating the startup and recovery of inter-related services
+across a set of machines.
 
-1. co-ordinate the startup/shutdown of other services on the same host
-1. co-ordinate the startup/shutdown of other services on _other_ hosts
-1. co-ordinate the startup/shutdown of other instances of a service on _other_ hosts
-1. integrate with quorum and provide fencing capabilities
+Even a distributed and/or replicated application that is able to
+survive failures on one or more machines can benefit from a
+cluster manager:
 
-Item 3. is of particular relevance to services like galera and rabbitmq that have complicated boot-up sequences.
+1.  Awareness of other applications in the stack
+    
+    While SYS-V init replacements like systemd can provide
+    deterministic recovery of a complex stack of services, the
+    recovery is limited to one machine and lacks the context of what
+    is happening on other machines - context that is crucial to
+    determine the difference between a local failure, clean startup
+    and recovery after a total site failure.
 
-The [basic cluster setup](basic-cluster.scenario) instructions are required for every cluster.
+1.  Awareness of instances on other machines
+
+    Services like RabbitMQ and Galera have complicated boot-up
+    sequences that require co-ordination, and often serialization, of
+    startup operations across all machines in the cluster. This is
+    especially true after site-wide failure or shutdown where we must
+    first determine the last machine to be active.
+    
+1.  A shared implementation and calculation of [quorum](http://en.wikipedia.org/wiki/Quorum_%28Distributed_Systems%29)
+
+    It is very important that all members of the system share the same
+    view of who their peers are and whether or not they are in the
+    majority.  Failure to do this leads very quickly to an internal
+    [split-brain](https://en.wikipedia.org/wiki/Split-brain_(computing))
+    state - where different parts of the system are pulling in
+    different and incompatioble directions.
+
+1.  Data integrity through fencing (a non-responsive process does not imply it is not doing anything)
+
+    A single application does not have sufficient context to know the
+    difference between failure of a machine and failure of the
+    applcation on a machine.  The usual practice is to assume the
+    machine is dead and carry on, however this is highly risky - a
+    rogue process or machine could still be responding to requests and
+    generally causing havoc.  The safer approach is to make use of
+    remotely accessible power switches and/or network switches and SAN
+    controllers to fence (isolate) the machine before continuing.
+
+1.  Automated recovery of failed instances
+    
+    While the application can still run after the failure of several
+    instances, it may not have sufficient capacity to serve the
+    required volume of requests.  A cluster can automatically recover
+    failed instances to prevent additional load induced failures.
+
+
+For this reason, the use of a cluster manager like
+[Pacemaker](http://clusterlabs.org) is highly recommended.  The [basic
+cluster setup](basic-cluster.scenario) instructions are required for
+every cluster.
 
 When performing an All-in-One deployment, there is only one cluster and now is the time to perform it.
 When performing an One-Cluster-per-Service deployment, this should be performed before configuring each component.
@@ -127,11 +174,27 @@ Galera requires the httpchk option because [TODO]
 
 ### Replicated Database
 
-We use galaera as our replicated database so that [TODO]
+Most OpenStack components require access to a database.
+To avoid the database being a single point of failure, we require that it be replicated and the ability to support multiple masters can help when trying to scale other components.
 
-Although galera can in theory run as A/A, we recommend A/P (enforced by the load balancer) in order to avoid lock contention.
+One of the most popular database choices is Galera for MySQL, it supports:
 
-First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain galera.
+- Synchronous replication
+- Active-active multi-master topology
+- Automatic node joining
+- True parallel replication, on row level
+- Direct client connections, native MySQL look & feel
+
+and claims:
+
+- No slave lag
+- No lost transactions
+- Both read and write scalability
+- Smaller client latencies
+
+Although galera supports active-active configurations, we recommend active-passive (enforced by the load balancer) in order to avoid lock contention.
+
+To configure Galera, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain it.
 Once you have a functional cluster, you can then [deploy galera](osp-galera.scenario) into it.
 
 ### Database Cache
@@ -146,11 +209,15 @@ Once you have a functional cluster, you can then [deploy memcached](osp-memcache
 
 ### Message Bus
 
-An AMQP compliant message bus is required for [TODO].
-Both RabbitMQ and Qpid are common deployment options.
+An AMQP (Advanced Message Queuing Protocol) compliant message bus is required for most OpenStack components in order to co-ordinate the execution of jobs entered into the system.
+RabbitMQ and Qpid are common deployment options. Both support:
 
-First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid .
-Once you have a functional cluster, you can then [deploy rabbitmq](osp-rabbitmq.scenario) into it.
+- reliable message delivery
+- flexible routing options
+- replicated queues
+
+First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid.
+Once you have a functional cluster, you can then deploy [rabbitmq](osp-rabbitmq.scenario) or [qpid](osp-qpid.scenario)into it.
 
 ### Install mongodb (optional)
 
