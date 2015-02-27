@@ -68,17 +68,17 @@ to 64 nodes could be possible however this is not well tested.
 
 In some environments, the available IP address range of the public LAN
 is limited. If this applies to you, you will need one additional node
-to set up as a [gateway](osp-gateway.scenario) that will provide DNS
+to set up as a [gateway](gateway.scenario) that will provide DNS
 and DHCP for the guests containing the OpenStack services and expose
 the required nova and horizon APIs to the external network.
 
 Once the machines have been installed, [prepare them](basic-baremetal.scenario) 
 for hosting OpenStack.
 
-Next we must [create the image](osp-virt-hosts.scenario) for the
+Next we must [create the image](virt-hosts.scenario) for the
 guests that will host the OpenStack services and clone it.  Once the
 image has been created, we can prepare the hosting nodes and
-[clone](osp-virt-hosts.scenario) it.
+[clone](virt-hosts.scenario) it.
 
 # Deploy OpenStack HA controllers
 It is possible to deploy up to 16 nodes to act as controllers but not less than 3 without special casing of some services.
@@ -165,7 +165,7 @@ Using a proxy allows:
 
 If you are performing a One-Cluster-per-Service deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions.
 
-Once you have a functional cluster, you can then deploy the [load balancer](osp-lb.scenario) to the previously created guests.
+Once you have a functional cluster, you can then deploy the [load balancer](lb.scenario) to the previously created guests.
 
 Generally we use round-robin to distriute load, however Qpid and RabbitMQ use the stick-table option.
 TODO: Why?
@@ -196,7 +196,7 @@ and claims:
 Although galera supports active-active configurations, we recommend active-passive (enforced by the load balancer) in order to avoid lock contention.
 
 To configure Galera, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain it.
-Once you have a functional cluster, you can then [deploy galera](osp-galera.scenario) into it.
+Once you have a functional cluster, you can then [deploy galera](galera.scenario) into it.
 
 ### Database Cache
 
@@ -206,7 +206,7 @@ and objects in RAM to reduce the number of times an external data
 source must be read.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain memcached.
-Once you have a functional cluster, you can then [deploy memcached](osp-memcached.scenario) into it.
+Once you have a functional cluster, you can then [deploy memcached](memcached.scenario) into it.
 
 ### Message Bus
 
@@ -218,7 +218,7 @@ RabbitMQ and Qpid are common deployment options. Both support:
 - replicated queues
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid.
-Once you have a functional cluster, you can then deploy [rabbitmq](osp-rabbitmq.scenario) or [qpid](osp-qpid.scenario)into it.
+Once you have a functional cluster, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid](osp-qpid.scenario)into it.
 
 ### NoSQL Database (optional)
 
@@ -230,7 +230,7 @@ JSON-like documents with dynamic schemas, making the integration of
 data in certain types of applications easier and faster.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain mongodb.
-Once you have a functional cluster, you can then [deploy mongodb](osp-mongodb.scenario) into it.
+Once you have a functional cluster, you can then [deploy mongodb](mongodb.scenario) into it.
 
 ## Installing Openstack services
 ### Keystone
@@ -240,7 +240,7 @@ Catalog and Policy services for use specifically by projects in the
 OpenStack family. It implements OpenStack's Identity API.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain keystone.
-Once you have a functional cluster, you can then [deploy keystone](osp-keystone.scenario) into it.
+Once you have a functional cluster, you can then [deploy keystone](keystone.scenario) into it.
 
 ### Glance
 
@@ -252,7 +252,7 @@ Glance image services include discovering, registering, and retrieving
 virtual machine images.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain glance.
-Once you have a functional cluster, you can then [deploy glance](osp-glance.scenario) into it.
+Once you have a functional cluster, you can then [deploy glance](glance.scenario) into it.
 
 ### Cinder
 
@@ -302,7 +302,7 @@ there is a [psuedo roadmap](https://etherpad.openstack.org/p/cinder-kilo-stabili
 for addressing the concerns upstream.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain cinder.
-Once you have a functional cluster, you can then [deploy cinder](osp-cinder.scenario) into it.
+Once you have a functional cluster, you can then [deploy cinder](cinder.scenario) into it.
 
 ### Swift AOC (optional)
 
@@ -323,7 +323,7 @@ the 16 node limit while still making sure the individual Swift daemons
 are being monitored and recovered as necessary.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
-Once you have a set of functional single-node clusters, you can then [deploy swift AOCs](osp-swift-aoc.scenario) into them.
+Once you have a set of functional single-node clusters, you can then [deploy swift AOCs](swift-aoc.scenario) into them.
 
 ### Swift Proxy (optional)
 
@@ -333,7 +333,7 @@ the account, container, or object in the ring (see below) and route
 the request accordingly.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain the swift proxy.
-Once you have a functional cluster, you can then [deploy swift](osp-swift.scenario) into it.
+Once you have a functional cluster, you can then [deploy swift](swift.scenario) into it.
 
 ### Networking
 
@@ -350,7 +350,7 @@ Agents:
 #### Installing Nova (non-compute)
 
 For nova, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain nova.
-Once you have a functional cluster, you can then [deploy nova](osp-nova.scenario) into it.
+Once you have a functional cluster, you can then [deploy nova](nova.scenario) into it.
 
 ### Ceilometer (optional)
 
@@ -360,7 +360,7 @@ establish customer billing, across all current OpenStack core
 components with work underway to support future OpenStack components.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain ceilometer.
-Once you have a functional cluster, you can then [deploy ceilometer](osp-ceilometer.scenario) into it.
+Once you have a functional cluster, you can then [deploy ceilometer](ceilometer.scenario) into it.
 
 ### Heat (optional)
 
@@ -369,12 +369,12 @@ using the AWS CloudFormation template format, through both an
 OpenStack-native ReST API and a CloudFormation-compatible Query API.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain heat.
-Once you have a functional cluster, you can then [deploy heat](osp-heat.scenario) into it.
+Once you have a functional cluster, you can then [deploy heat](heat.scenario) into it.
 
 ### Horizon
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain horizon.
-Once you have a functional cluster, you can then [deploy horizon](osp-horizon.scenario) into it.
+Once you have a functional cluster, you can then [deploy horizon](horizon.scenario) into it.
 
 # Compute nodes (standalone)
 
@@ -386,4 +386,4 @@ still making sure the individual compute daemons are being monitored
 and recovered as necessary.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
-Once you have a set of functional single-node clusters, you can then [deploy compute nodes](osp-compute.scenario) into them.
+Once you have a set of functional single-node clusters, you can then [deploy compute nodes](compute.scenario) into them.
