@@ -73,8 +73,9 @@ Each box below represents a cluster of three or more guests.
 Start by creating a minimal CentOS installation on at least three nodes.
 No OpenStack services or HA will be running here.
 
-For each service we create a virtual cluster, with one member running on each of the physical hosts.
-Each virtual cluster must contain at least three members because quorum is not useful with fewer hosts.
+For each service we create a virtual cluster, with one member running
+on each of the physical hosts.  Each virtual cluster must contain at
+least three members because quorum is not useful with fewer hosts.
 
 Quorum becomes important when a failure causes the cluster to split in
 two or more paritions.  In this situation, you want the majority to
@@ -107,15 +108,14 @@ image has been created, we can prepare the hosting nodes and
 [clone](virt-hosts.scenario) it.
 
 # Deploy OpenStack HA controllers
-It is possible to deploy up to 16 nodes to act as controllers but not less than 3 without special casing of some services.
-
-## Installing core non-Openstack services
 
 This how-to is divided in 2 sections. The first section is used to
 deploy all core non-OpenStack services, the second section all
 OpenStack services.
 
 Pacemaker is used to drive all services.
+
+## Installing core non-Openstack services
 
 ### Cluster Manager
 
@@ -236,6 +236,8 @@ Although galera supports active/active configurations, we recommend active/passi
 To configure Galera, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain it.
 Once you have a functional cluster, you can then [deploy galera](galera.scenario) into it.
 
+To verify the installation was successful, perform the following [test actions](galera-test.sh) from one of the nodes.
+
 ### Database Cache
 
 Memcached is a general-purpose distributed memory caching system. It
@@ -258,9 +260,11 @@ RabbitMQ and Qpid are common deployment options. Both support:
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain RabbitMQ or Qpid.
 Once you have a functional cluster, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid](osp-qpid.scenario)into it.
 
+To verify the installation was successful, perform the following [test actions](rabbitmq-test.sh) from one of the nodes.
+
 ### NoSQL Database (optional)
 
-If you plan to install ceilometer, you will need a NoSQL database such as mongodb.
+If you plan to install `ceilometer`, you will need a NoSQL database such as mongodb.
 
 MongoDB is a cross-platform document-oriented database that eschews
 the traditional table-based relational database structure in favor of
@@ -280,6 +284,8 @@ OpenStack family. It implements OpenStack's Identity API.
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain keystone.
 Once you have a functional cluster, you can then [deploy keystone](keystone.scenario) into it.
 
+To verify the installation was successful, perform the following [test actions](keystone-test.sh) from one of the nodes.
+
 ### Glance
 
 The Glance project provides a service where users can upload and
@@ -291,6 +297,8 @@ virtual machine images.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain glance.
 Once you have a functional cluster, you can then [deploy glance](glance.scenario) into it.
+
+To verify the installation was successful, perform the following [test actions](glance-test.sh) from one of the nodes.
 
 ### Cinder
 
@@ -342,6 +350,8 @@ for addressing the concerns upstream.
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain cinder.
 Once you have a functional cluster, you can then [deploy cinder](cinder.scenario) into it.
 
+To verify the installation was successful, perform the following [test actions](cinder-test.sh) from one of the nodes.
+
 ### Swift ACO (optional)
 
 Swift is a highly available, distributed, eventually consistent
@@ -373,6 +383,8 @@ the request accordingly.
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain the swift proxy.
 Once you have a functional cluster, you can then [deploy swift](swift.scenario) into it.
 
+To verify the installation was successful, perform the following [test actions](swift-test.sh) from one of the nodes.
+
 ### Networking
 
 Neutron and Nova are two commonly deployed projects that can provide
@@ -402,6 +414,8 @@ Agents:
 For nova, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain nova.
 Once you have a functional cluster, you can then [deploy nova](nova.scenario) into it.
 
+To verify the installation was successful, perform the following [test actions](nova-test.sh) from one of the nodes.
+
 ### Ceilometer (optional)
 
 The Ceilometer project aims to deliver a unique point of contact for
@@ -411,6 +425,8 @@ components with work underway to support future OpenStack components.
 
 First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain ceilometer.
 Once you have a functional cluster, you can then [deploy ceilometer](ceilometer.scenario) into it.
+
+To verify the installation was successful, perform the following [test actions](ceilometer-test.sh) from one of the nodes.
 
 ### Heat (optional)
 

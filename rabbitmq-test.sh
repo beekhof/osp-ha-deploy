@@ -1,0 +1,2 @@
+rabbitmqctl cluster_status
+rabbitmqctl list_policies
