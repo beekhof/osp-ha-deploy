@@ -28,7 +28,7 @@ OpenStack release.
 - The referenced scripts contain many comments and warnings - READ THEM CAREFULLY.
 - There are probably 2^8 other ways to deploy this same scenario. This is only one of them.
 - Due to limited number of available physical LAN connections in the test setup, the instance IP traffic overlaps with the internal/management network.
-- Shared storage is provided via NFS from the commodity server due to lack of dedicated CEPH servers. Any other kind of storage supported by OpenStack would work just fine.
+- Distributed/Shared storage is provided via NFS from the commodity server due to lack of dedicated CEPH servers. Any other kind of storage supported by OpenStack would work just fine.
 - Bare metal could be used in place of any or all guests.
 - Most of the scripts contain shell expansion to automatically fill in some values.  Use your common sense when parsing data. Example:
 
@@ -38,7 +38,7 @@ OpenStack release.
 
 ## Bugs
 
-- openvswitch does NOT work properly in RHEL7.1. DO NOT USE! https://bugzilla.redhat.com/show_bug.cgi?id=1185521
+- N/A
 
 ### TODO
 
@@ -362,17 +362,29 @@ Once you have a functional cluster, you can then [deploy swift](swift.scenario) 
 
 ### Networking
 
-Neutron and Nova are two commonly deployed projects that can provide 'network connectivity as a service' between interface devices (e.g., vNICs) managed by other OpenStack services (e.g., nova).
+Neutron and Nova are two commonly deployed projects that can provide
+'network connectivity as a service' between interface devices (e.g.,
+vNICs) managed by other OpenStack services (e.g., nova).
 
-Neutron is preferred when [TODO].
-Nova is preferred when [TODO].
+`nova-network` is the legacy networking implementation that was
+limited in terms of functionality but has historically been more
+reliable but than Neutron.
 
-#### Installing Neutron
+Neutron has matured to the point that `nova-network` is now rarely
+chosen for new deployments.
+
+For completeness, we document the installation of both however Neutron
+is the recommended option unless you need `nova-network`'s multi-host
+mode which allows every compute node to be used as the gateway to an
+external network instead of having to route all traffic from every
+compute node through a single network node.
+
+#### Neutron
 Server:
 
 Agents:
 
-#### Installing Nova (non-compute)
+#### Nova-network (non-compute)
 
 For nova, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain nova.
 Once you have a functional cluster, you can then [deploy nova](nova.scenario) into it.
