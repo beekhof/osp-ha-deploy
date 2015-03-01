@@ -11,11 +11,12 @@ cluster manager which provides:
 - preferences for other applications that must/must-not run on the same machine
 - provably correct response to any failure or cluster state
 
-All components are currently modelled as active-active with the exception of:
+All components are currently modelled as active/active with the exception of:
 
 - openstack-ceilometer-central 
 - openstack-heat-engine 
 - cinder-volume
+- qpid (optional)
 
 Implementation details are contained in scripts linked to from the main document.
 Read them carefully before considering to run them in your own environment. 
@@ -192,21 +193,33 @@ If you are performing a One-Cluster-per-Service deployment, follow the [basic cl
 
 Once you have a functional cluster, you can then deploy the [load balancer](lb.scenario) to the previously created guests.
 
-Generally we use round-robin to distriute load, however Qpid and RabbitMQ use the stick-table option.
-TODO: Why?
-
 The check interval is 1 second however the timeouts vary by service.
-Galera requires the httpchk option because [TODO]
+
+Generally we use round-robin to distriute load, however Galera and
+Qpid use the `stick-table` options to ensure that incoming connections
+to the VIP should be directed to only one of the available backends.
+
+In Galera's case, although it can run active/active, this helps avoid
+lock contention and prevent deadlocks.  It is used in combination with
+the `httpchk` option that ensures only nodes that are in sync with its
+peers are allowed to handle requests.
+
+Qpid however operates in a active/passive configuration, no built-in
+clustering, so the `stick-table` option ensures that all requests go
+to the active instance.
 
 ### Replicated Database
 
 Most OpenStack components require access to a database.
-To avoid the database being a single point of failure, we require that it be replicated and the ability to support multiple masters can help when trying to scale other components.
+
+To avoid the database being a single point of failure, we require that
+it be replicated and the ability to support multiple masters can help
+when trying to scale other components.
 
 One of the most popular database choices is Galera for MySQL, it supports:
 
 - Synchronous replication
-- Active-active multi-master topology
+- active/active multi-master topology
 - Automatic node joining
 - True parallel replication, on row level
 - Direct client connections, native MySQL look & feel
@@ -218,7 +231,7 @@ and claims:
 - Both read and write scalability
 - Smaller client latencies
 
-Although galera supports active-active configurations, we recommend active-passive (enforced by the load balancer) in order to avoid lock contention.
+Although galera supports active/active configurations, we recommend active/passive (enforced by the load balancer) in order to avoid lock contention.
 
 To configure Galera, first follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain it.
 Once you have a functional cluster, you can then [deploy galera](galera.scenario) into it.
@@ -283,9 +296,9 @@ Once you have a functional cluster, you can then [deploy glance](glance.scenario
 
 Cinder provides 'block storage as a service'.
 
-In theory cinder can be run as active-active however there are
+In theory cinder can be run as active/active however there are
 currently sufficient concerns that cause us to recommend running the
-volume component as active-passive only.
+volume component as active/passive only.
 
 Jon Bernard writes:
 
