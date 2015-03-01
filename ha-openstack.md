@@ -11,7 +11,24 @@ cluster manager which provides:
 - preferences for other applications that must/must-not run on the same machine
 - provably correct response to any failure or cluster state
 
-All components are currently modelled as active/active with the exception of:
+It is important to understand the following definitions used to
+describe the operational mode of services in a cluster:
+
+- Active/active 
+
+  Traffic intended for the failed node is either passed onto an
+  existing node or load balanced across the remaining nodes. This is
+  usually only possible when the nodes use a homogeneous software
+  configuration.
+
+- Active/passive
+
+  Provides a fully redundant instance of each node, which is only
+  brought online when its associated primary node fails. This
+  configuration typically requires the most extra hardware.
+
+In this document, all components are currently modelled as
+active/active with the exception of:
 
 - openstack-ceilometer-central 
 - openstack-heat-engine 
@@ -182,22 +199,46 @@ When performing an One-Cluster-per-Service deployment, this should be performed 
 
 ### Proxy server
 
-Using a proxy allows:
+Using a proxy server provides:
 
-- simplified process for adding/removing of nodes
-- enhanced failure detection
-- API isolation
-- load distribution
+1.  Load distribution
+    
+    Many services can act in an active/active capacity, however they
+    usually require an external mechanism for distributing requests to
+    one of the available instances. The proxy server can serve this
+    role.
 
-If you are performing a One-Cluster-per-Service deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions.
+1.  API isolation
+    
+    By sending all API access through the proxy, we can clearly
+    identify service interdependancies.  We can also move them to
+    locations other than `localhost` to increase capacity if the need
+    arises.
 
-Once you have a functional cluster, you can then deploy the [load balancer](lb.scenario) to the previously created guests.
+1.  Simplified process for adding/removing of nodes
+    
+    Since all API access is directed to the proxy, adding or removing
+    nodes has no impact on the configuration of other services.  This
+    can be very useful in upgrade scenarios where an entirely new set
+    of machines can be configured and tested in isolation before
+    telling the proxy to direct traffic there instead.
 
-The check interval is 1 second however the timeouts vary by service.
+1.  Enhanced failure detection
 
-Generally we use round-robin to distriute load, however Galera and
-Qpid use the `stick-table` options to ensure that incoming connections
-to the VIP should be directed to only one of the available backends.
+    The proxy can be configured as a secondary mechanism for detecting
+    service failures.  It can even be configured to look for nodes in
+    a degraded state (such as being 'too far' behind in the
+    replication) and take them out of circulation.
+
+We recommend HAProxy as the load balancer, however there are many
+alternatives in the marketplace.
+
+We use a check interval of 1 second however the timeouts vary by service.
+
+Generally we use round-robin to distriute load amongst instances of
+active/active services, however Galera and Qpid use the `stick-table`
+options to ensure that incoming connections to the virtual IP (VIP)
+should be directed to only one of the available backends.
 
 In Galera's case, although it can run active/active, this helps avoid
 lock contention and prevent deadlocks.  It is used in combination with
@@ -207,6 +248,10 @@ peers are allowed to handle requests.
 Qpid however operates in a active/passive configuration, no built-in
 clustering, so the `stick-table` option ensures that all requests go
 to the active instance.
+
+If you are performing a One-Cluster-per-Service deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions.
+
+Once you have a functional cluster, you can then deploy the [load balancer](lb.scenario) to the previously created guests.
 
 ### Replicated Database
 
