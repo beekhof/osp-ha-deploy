@@ -162,7 +162,7 @@ Start by creating a minimal CentOS installation on at least three nodes.
 No OpenStack services or HA will be running here.
 
 We create a single virtual cluster, with one member running on each of
-the physical hosts.  Each virtual cluster must contain at least three
+the physical hosts.  The virtual cluster must contain at least three
 members, one per physical host, for the reasons stated above.
 
 Once the machines have been installed, [prepare them](baremetal.scenario) 
@@ -176,7 +176,6 @@ image has been created, we can prepare the hosting nodes and
 When performing an collapsed deployment, there is only one cluster
 and now is the time to follow the [basic cluster setup](basic-cluster.scenario)
 instructions.
-
 
 # Deploy OpenStack HA controllers
 
@@ -359,7 +358,11 @@ RabbitMQ and Qpid are common deployment options. Both support:
 
 If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `RabbitMQ` or `Qpid`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid](osp-qpid.scenario)into it.
+Currently there are issues integrating RabbitMQ with HAProxy, as a
+result the `vip-rabbitmq` IP is ignored and all clients make use of
+the native `rabbit_hosts` and `rabbit_ha_queues` options.
+
+After verifying the (collapsed or newly created) cluster is functional, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid (not yet implemented)](osp-qpid.scenario)into it.
 To verify the installation was successful, perform the following [test actions](rabbitmq-test.sh) from one of the nodes.
 
 ### NoSQL Database (optional)
