@@ -65,7 +65,6 @@ OpenStack release.
 - nova network HA
 - Compute nodes managed by pacemaker_remoted
 - Remove all artificial sleep and use pcs --wait once 7.1 is out of the door
-- Copy in the test information from Fabio's document
 - Improve nova-compute test section with CLI commands
 - re-check keystone -> other services start order require-all=false option
 
@@ -83,7 +82,7 @@ OpenStack release.
 
 In this document we describe two deployment extremes:
 
-1.  Segregated
+1.  __Segregated__
     
     In this configuration, each service runs in a dedicated cluster of
     3 or more nodes.
@@ -96,7 +95,7 @@ In this document we describe two deployment extremes:
     
     ![Segregated deployment architecture](Cluster-deployment-segregated.png)
 
-1.  Collapsed 
+1.  __Collapsed__ 
     
     In this configuration, there is one cluster of 3 or more nodes on
     which every component is running.
@@ -490,12 +489,16 @@ for the ACO nodes.
 There are plans to make use of something called `pacemaker-remote` to
 allow the cluster to manage more than 16 worker nodes, but until this
 is properly documented, the work-around is to create each Swift worker
-as an single node cluster - independant of all the others. This avoids
-the 16 node limit while still making sure the individual Swift daemons
-are being monitored and recovered as necessary.
+as an [single node cluster](basic-cluster.scenario) - independant of
+all the others. This avoids the 16 node limit while still making sure
+the individual Swift daemons are being monitored and recovered as
+necessary.
 
-First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
-Once you have a set of functional single-node clusters, you can then [deploy swift ACOs](swift-aco.scenario) into them.
+Once you have a set of functional single-node clusters, you can then
+[deploy swift ACOs](swift-aco.scenario) into them.
+
+Alternatively,[deploy swift ACOs](swift-aco.scenario) into the
+existing _collapsed_ cluster.
 
 ### Swift Proxy (optional)
 
@@ -570,12 +573,18 @@ After verifying the (collapsed or newly created) cluster is functional, you can 
 
 # Compute nodes (standalone)
 
-Just like Swift, we will usually need more than 16 compute nodes which
-is beyond Corosync's ability to manage.  So again we use the
-work-around of create each compute node as a single node cluster -
-independant of all the others. This avoids the 16 node limit while
-still making sure the individual compute daemons are being monitored
-and recovered as necessary.
+Just like Swift AOCs, we will usually need more than 16 compute nodes which
+is beyond Corosync's ability to manage.  
 
-First follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on every guest intended to contain Swift.
-Once you have a set of functional single-node clusters, you can then [deploy compute nodes](compute.scenario) into them.
+If you expect to have more than 16 compute nodes, once again use the
+work-around of creating each compute node as a [single node
+cluster](basic-cluster.scenario) - independant of all the others. This
+avoids the 16 node limit while still making sure the individual
+compute daemons are being monitored and recovered as necessary.
+
+Once you have a set of functional single-node clusters, you can then
+[deploy compute nodes](compute.scenario) into them.
+
+Alternatively, [deploy compute nodes](compute.scenario) into the
+existing _collapsed_ cluster.
+
