@@ -26,6 +26,7 @@
 
 PHD_VAR_env_password
 PHD_VAR_network_domain
+PHD_VAR_deployment
 
 #################################
 # Scenario Requirements Section #

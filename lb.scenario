@@ -29,6 +29,7 @@
 = VARIABLES =
 
 PHD_VAR_network_internal
+PHD_VAR_deployment
 
 #################################
 # Scenario Requirements Section #
@@ -189,4 +190,17 @@ for section in db qpid keystone glance cinder swift neutron nova horizon heat x 
     fi
     offset=$(( $offset + 1 ))
 done
+
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+
+    # In a collapsed environment, we can instruct the cluster to start
+    # things in a particular order and require services to be active
+    # on the same hosts.  We do this with constraints.
+
+    for section in db qpid keystone glance cinder swift neutron nova horizon heat ceilometer rabbitmq; do
+        pcs constraint order start vip-${section} then lb-haproxy-clone kind=Optional
+    	pcs constraint colocation add vip-${section} with lb-haproxy-clone
+    done
+fi
 ....
