@@ -61,7 +61,11 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host vip-rabbitmq
 
 openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host vip-glance
 
-openstack-config  --set /etc/cinder/cinder.conf DEFAULT memcache_servers  rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+if [ $PHD_VAR_deployment = collapsed ]; then
+    openstack-config  --set /etc/cinder/cinder.conf DEFAULT memcache_servers  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
+else
+    openstack-config  --set /etc/cinder/cinder.conf DEFAULT memcache_servers  rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+fi
 
 openstack-config --set /etc/cinder/cinder.conf DEFAULT host rhos6-cinder
 

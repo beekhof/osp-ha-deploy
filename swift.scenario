@@ -48,10 +48,17 @@ openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host v
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
-openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
 openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
-openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
+
 openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rhos6-node1:11211,rhos6-node1:11211,rhos6-node1:11211
+    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rhos6-node1:11211,rhos6-node1:11211,rhos6-node1:11211
+else
+    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
+    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
+fi
 
 # ceilometer hook
 cat >> /etc/swift/swift.conf << EOF
@@ -94,7 +101,7 @@ chown -R root:swift /etc/swift
 chown -R swift:swift /tmp/keystone-signing-swift
 chown -R swift:swift /local
 
-# is this still requierd?
+# is this still required?
 mkdir -p /tmp/keystone-signing-swift
 chown -R swift:swift /tmp/keystone-signing-swift
 chmod 700 /tmp/keystone-signing-swift
@@ -102,6 +109,9 @@ chmod 700 /tmp/keystone-signing-swift
 
 target=local
 ....
+# Invoke like this so that we can calculate the prefix and suffic once and set everywhere
+# TODO: Make this a variable
+
 pathprefix=$(openssl rand -hex 10)
 pathsuffix=$(openssl rand -hex 10)
 

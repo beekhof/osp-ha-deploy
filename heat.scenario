@@ -49,7 +49,11 @@ openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri http://vi
 openstack-config --set /etc/heat/heat.conf keystone_authtoken keystone_ec2_uri http://vip-keystone:35357/v2.0
 openstack-config --set /etc/heat/heat.conf ec2authtoken auth_uri http://vip-keystone:5000/v2.0
 
-openstack-config   --set /etc/heat/heat.conf DEFAULT memcache_servers   rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+if [ $PHD_VAR_deployment = collapsed ]; then
+    openstack-config   --set /etc/heat/heat.conf DEFAULT memcache_servers   rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
+else
+    openstack-config   --set /etc/heat/heat.conf DEFAULT memcache_servers   rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+fi
 
 openstack-config --set /etc/heat/heat.conf heat_api bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 openstack-config  --set /etc/heat/heat.conf heat_api_cfn bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')

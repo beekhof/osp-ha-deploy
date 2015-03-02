@@ -37,7 +37,13 @@ yum install -y openstack-nova-console openstack-nova-novncproxy openstack-utils 
 
 target=all
 ....
-openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
+else
+   openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
+fi
+
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(host $(hostname -s) | awk '{print $4}')
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://east-01.mpc.lab.eng.bos.redhat.com:6080/vnc_auto.html

@@ -177,6 +177,14 @@ backend rabbitmq-vms
     server rhos6-rabbitmq2 ${PHD_VAR_network_internal}.62:5672 check inter 1s
     server rhos6-rabbitmq3 ${PHD_VAR_network_internal}.63:5672 check inter 1s
 EOF
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    # In a collapsed environment everything is installed on rhos6-node{1,2,3}
+    # So rewite the proxy config to talk to those hosts instead
+    for section in db qpid keystone glance cinder swift neutron nova horizon heat ceilometer rabbitmq; do
+    	sed -i s/rhos6-${section}/rhos6-node/g
+    done
+fi
 ....
 
 target=$PHD_ENV_nodes1

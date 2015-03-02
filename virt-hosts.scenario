@@ -356,14 +356,28 @@ for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron n
     cd /localvms/
 
     target=rhos6-${section}$(( ${lastoct} - ${offset} ))
+    octet=${sequence}
+
+    sequence=$((sequence + 1))
+
     virsh destroy  $target > /dev/null 2>&1
     virsh undefine $target > /dev/null 2>&1
+
+    if [ $PHD_VAR_deployment = collapsed ]; then
+        case $section in 
+       	    node) ;;
+            *) 
+	         # We don't need any of the other instances
+		 # Its good to get rid of any old copies that might exist though
+	         continue;;
+        esac
+    fi
 
     cp template.xml ${target}.xml
 
     sed -i.sed s#VM_NAME#${target}#g ${target}.xml
-    sed -i.sed s#EXTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:00:${sequence}#g ${target}.xml
-    sed -i.sed s#INTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:01:${sequence}#g ${target}.xml
+    sed -i.sed s#EXTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:00:${octet}#g ${target}.xml
+    sed -i.sed s#INTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:01:${octet}#g ${target}.xml
     sed -i.sed s:source\ file.*\/:source\ file=\'/localvms/${target}.cow\'\/:g ${target}.xml
     diff -u template.xml ${target}.xml
 
@@ -376,7 +390,6 @@ for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron n
     if [ $? != 0 ]; then exit 1; fi
 
     rm ${target}.xml.sed ${target}.xml
-    sequence=$((sequence + 1))
 done
 
 #truncate --size=10G /localvms/rhos6-swift-brick1_data.img

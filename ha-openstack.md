@@ -173,10 +173,6 @@ guests that will host the OpenStack services and clone it.  Once the
 image has been created, we can prepare the hosting nodes and
 [clone](virt-hosts.scenario) it.
 
-When performing an collapsed deployment, there is only one cluster
-and now is the time to follow the [basic cluster setup](basic-cluster.scenario)
-instructions.
-
 # Deploy OpenStack HA controllers
 
 This how-to is divided in 2 sections. The first section is used to
@@ -247,11 +243,16 @@ For this reason, the use of a cluster manager like
 cluster setup](basic-cluster.scenario) instructions are required for
 every cluster.
 
-When performing an All-in-One deployment, there is only one cluster and now is the time to perform it.
-When performing an segregated deployment, this should be performed before configuring each component.
+When performing an collapsed deployment, there is only one cluster
+and now is the time to follow the [basic cluster setup](basic-cluster.scenario)
+instructions.
+
+When performing an segregated deployment, this step will need to be
+performed before configuring each component.
 
 ### Proxy server
 
+Almost all services in this stack are proxied.
 Using a proxy server provides:
 
 1.  Load distribution
@@ -282,6 +283,16 @@ Using a proxy server provides:
     service failures.  It can even be configured to look for nodes in
     a degraded state (such as being 'too far' behind in the
     replication) and take them out of circulation.
+
+The following components are currently unable to benefit from the use
+of a proxy server:
+
+- RabbitMQ
+- memcached
+- mongodb
+
+However the reasons vary and are discussed under each component's
+heading.
 
 We recommend HAProxy as the load balancer, however there are many
 alternatives in the marketplace.
@@ -343,6 +354,11 @@ is used to speed up dynamic database-driven websites by caching data
 and objects in RAM to reduce the number of times an external data
 source must be read.
 
+__Note__: Access to memcached is not handled by HAproxy because
+replicated access is currently only in an experimental state.  Instead
+consumers must be supplied with the full list of hosts running
+memcached.
+
 If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `memcached`.
 
 After verifying the (collapsed or newly created) cluster is functional, you can then [deploy memcached](memcached.scenario) into it.
@@ -358,9 +374,10 @@ RabbitMQ and Qpid are common deployment options. Both support:
 
 If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `RabbitMQ` or `Qpid`.
 
-Currently there are issues integrating RabbitMQ with HAProxy, as a
-result the `vip-rabbitmq` IP is ignored and all clients make use of
-the native `rabbit_hosts` and `rabbit_ha_queues` options.
+__Note__: Access to RabbitMQ is not handled by HAproxy there are
+issues integrating RabbitMQ with HAProxy.  Instead consumers must be
+supplied with the full list of hosts running RabbitMQ with
+`rabbit_hosts` and `rabbit_ha_queues` options.
 
 After verifying the (collapsed or newly created) cluster is functional, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid (not yet implemented)](osp-qpid.scenario)into it.
 To verify the installation was successful, perform the following [test actions](rabbitmq-test.sh) from one of the nodes.
@@ -373,6 +390,9 @@ MongoDB is a cross-platform document-oriented database that eschews
 the traditional table-based relational database structure in favor of
 JSON-like documents with dynamic schemas, making the integration of
 data in certain types of applications easier and faster.
+
+__Note__: Access to mongodb is not handled by HAproxy [because TODO].
+Instead ceilometer must be supplied with the full list of hosts running mongodb.
 
 If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `mongodb`.
 
@@ -464,8 +484,8 @@ efficiently, safely, and cheaply.
 
 As mentioned earlier, limitations in Corosync prevent us from
 combining more than 16 machines into a logic unit. In the case of
-Swift, although this is fune for the proxy, it is insufficient for the
-worker nodes.
+Swift, although this is fine for the proxy, it is often insufficient
+for the ACO nodes.
 
 There are plans to make use of something called `pacemaker-remote` to
 allow the cluster to manage more than 16 worker nodes, but until this
