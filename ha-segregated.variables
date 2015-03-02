@@ -1,0 +1,33 @@
+# Expanded to $PHD_network_domain, $PHD_network_internal, etc by PHD
+# Each scenario file will verify that values have been provided for the variables it requires.
+
+# Deployment types: collapsed | segregated
+deployment: segregated
+
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.124
+  named:
+    forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
+  nic:
+    base: 54:52:00
+    external: enp1s0 eth0
+    internal: enp2s0 eth1
+
+rpm:
+  download: download.devel.redhat.com
+  rhel: 7.1
+  osp: 6.0
+# Optional
+#    beta: -Beta
+
+vm:
+  cpus: 1
+  ram: 2048
+  disk: 25G
+  base: /srv/rhos6-rhel7-vms/rhos6-rhel7-base.img
+  key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
