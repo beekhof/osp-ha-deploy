@@ -87,35 +87,5 @@ cat /srv/rhos-${PHD_VAR_rpm_osp}/configs/rabbitmq_erlang_cookie > /var/lib/rabbi
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create rabbitmq-server systemd:rabbitmq-server --clone
-....
-
-target=all
-....
-# all nodes except the first must be stopped
-if [ $PHD_ENV_nodes1 == $(uname -n).vmnet.${PHD_VAR_network_domain} ]; then
-    rabbitmqctl stop_app
-fi
-....
-
-target=all
-....
-# make all nodes except node1 join in series
-if [ $PHD_ENV_nodes1 != $(uname -n).vmnet.${PHD_VAR_network_domain} ]; then
-    short=$(echo $PHD_ENV_nodes1 | awk -F. '{print $1}')
-    rabbitmqctl join_cluster rabbit@$short
-fi
-....
-
-target=all
-....
-# everyone has joined, now they can be restarted 
-if [ $PHD_ENV_nodes1 != $(uname -n).vmnet.${PHD_VAR_network_domain} ]; then
-    rabbitmqctl start_app
-fi
-....
-
-target=$PHD_ENV_nodes1
-....
-rabbitmqctl set_policy HA '^(?!amq\.).*' '{"ha-mode": "all"}'
+pcs resource create rabbitmq-server rabbitmq-cluster set_policy='HA ^(?!amq\.).* {"ha-mode":"all"}' clone ordered=true
 ....
