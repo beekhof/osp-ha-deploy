@@ -93,8 +93,8 @@ target=$PHD_ENV_nodes1
 su cinder -s /bin/sh -c "cinder-manage db sync"
 
 # create services in pacemaker
-pcs resource create cinder-api systemd:openstack-cinder-api --clone
-pcs resource create cinder-scheduler systemd:openstack-cinder-scheduler --clone
+pcs resource create cinder-api systemd:openstack-cinder-api --clone interleave=true
+pcs resource create cinder-scheduler systemd:openstack-cinder-scheduler --clone interleave=true
 
 # Volume must be A/P for now. See https://bugzilla.redhat.com/show_bug.cgi?id=1193229
 pcs resource create cinder-volume systemd:openstack-cinder-volume
@@ -103,5 +103,9 @@ pcs constraint order start cinder-api-clone then cinder-scheduler-clone
 pcs constraint colocation add cinder-scheduler-clone with cinder-api-clone
 pcs constraint order start cinder-scheduler-clone then cinder-volume
 pcs constraint colocation add cinder-volume with cinder-scheduler-clone
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    pcs constraint order start keystone-clone then cinder-api-clone
+fi
 ....
 

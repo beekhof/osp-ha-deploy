@@ -89,4 +89,9 @@ pcs constraint order start heat-api-cfn-clone then heat-api-cloudwatch-clone
 pcs constraint colocation add heat-api-cloudwatch-clone with heat-api-cfn-clone
 pcs constraint order start heat-api-cloudwatch-clone then heat-engine
 pcs constraint colocation add heat-engine with heat-api-cloudwatch-clone
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    pcs constraint order start ceilometer-notification-clone then heat-api-clone
+fi
 ....
+

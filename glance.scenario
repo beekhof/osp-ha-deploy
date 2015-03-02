@@ -117,5 +117,9 @@ pcs constraint order start glance-fs-clone then glance-registry-clone
 pcs constraint colocation add glance-registry-clone with glance-fs-clone
 pcs constraint order start glance-registry-clone then glance-api-clone
 pcs constraint colocation add glance-api-clone with glance-registry-clone
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   pcs constraint order start keystone-clone then glance-registry-clone
+fi
 ....
 

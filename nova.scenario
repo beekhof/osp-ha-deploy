@@ -89,4 +89,8 @@ pcs constraint order start nova-api-clone then nova-scheduler-clone
 pcs constraint colocation add nova-scheduler-clone with nova-api-clone
 pcs constraint order start nova-scheduler-clone then nova-conductor-clone
 pcs constraint colocation add nova-conductor-clone with nova-scheduler-clone
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    pcs constraint order start keystone-clone then nova-consoleauth-clone
+fi
 ....

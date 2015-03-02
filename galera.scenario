@@ -43,6 +43,11 @@ target=all
 ....
 yum install -y mariadb-galera-server xinetd rsync
 
+if [ $PHD_VAR_deployment = collapsed ]; then
+   # Allowing the proxy to perform health checks on galera while we're initializing it is... problematic. 
+   pcs resource disable lb-haproxy
+fi
+
 cat > /etc/sysconfig/clustercheck << EOF
 MYSQL_USERNAME="clustercheck"
 MYSQL_PASSWORD="${PHD_VAR_env_password}"
@@ -123,6 +128,11 @@ target=$PHD_ENV_nodes1
 # extra weird sed command)
 node_list=$(echo $PHD_ENV_nodes | sed -e s/.vmnet.${PHD_VAR_network_domain}\ /,/g -e s/.vmnet.${PHD_VAR_network_domain}//)
 pcs resource create galera galera enable_creation=true wsrep_cluster_address="gcomm://${node_list}" meta master-max=3 ordered=true op promote timeout=300s on-fail=block --master
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   # Now we can re-enable the proxy
+   pcs resource enable lb-haproxy
+fi
 ....
 
 target=$PHD_ENV_nodes1
@@ -154,4 +164,5 @@ sleep 30
 
 mysql mysql < $galera_script
 mysqladmin flush-hosts
+
 ....
