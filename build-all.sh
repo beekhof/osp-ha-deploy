@@ -12,8 +12,8 @@ nodeMap["swift-aco"]="rhos6-swift-brick1.vmnet rhos6-swift-brick2.vmnet rhos6-sw
 variables["network_domain"]="lab.bos.redhat.com"
 variables["deployment"]="collapsed"
 variables["status"]=0
-variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift nova ceilometer heat"
-variables["scenarios"]="baremetal gateway virt-hosts lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift nova ceilometer heat"
+variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
+variables["scenarios"]="baremetal gateway virt-hosts lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat"
 
 function create_phd_definition() {
     scenario=$1
@@ -49,7 +49,7 @@ while true ; do
 	--help|-h|-\?) 
 	    echo "$0 "
 	    exit 0;;
-	-c|--collapsed) variables["deployment"]="collapsed"; shift;;
+	-c|--collapsed) variables["deployment"]="collapsed"; variables["components"]="node"; shift;;
 	-s|--segregated) variables["deployment"]="segregated"; shift;;
 	-S|--status) variables["status"]=1; shift;;
 	-x) set -x ; shift;;
@@ -84,7 +84,7 @@ for scenario in $scenarios; do
 	    phd_exec -s ./basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ha-${variables["deployment"]}.variables
 	    ;;
 
-	galera|rabbitmq|memcache|mongodb|keystone|glance|cinder|swift-brick|swift|nova|ceilometer|heat)
+	*)
 	    if [ ${variables["deployment"]} != "collapsed" ]; then
 		phd_exec -s ./basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ha-${variables["deployment"]}.variables
 	    fi
