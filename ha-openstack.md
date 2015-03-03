@@ -411,7 +411,8 @@ actions](rabbitmq-test.sh) from one of the nodes.
 
 ### NoSQL Database (optional)
 
-If you plan to install `ceilometer`, you will need a NoSQL database such as mongodb.
+If you plan to install `ceilometer` or `heat`, you will need a NoSQL
+database such as mongodb.
 
 MongoDB is a cross-platform document-oriented database that eschews
 the traditional table-based relational database structure in favor of
