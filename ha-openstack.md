@@ -310,12 +310,15 @@ the `httpchk` option that ensures only nodes that are in sync with its
 peers are allowed to handle requests.
 
 Qpid however operates in a active/passive configuration, no built-in
-clustering, so the `stick-table` option ensures that all requests go
-to the active instance.
+clustering, so in it's case the `stick-table` option ensures that all
+requests go to the active instance.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then deploy the [load balancer](lb.scenario) to the previously created guests.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then deploy the [load balancer](lb.scenario) to
+the previously created guests.
 
 ### Replicated Database
 
@@ -340,12 +343,19 @@ and claims:
 - Both read and write scalability
 - Smaller client latencies
 
-Although galera supports active/active configurations, we recommend active/passive (enforced by the load balancer) in order to avoid lock contention.
+Although galera supports active/active configurations, we recommend
+active/passive (enforced by the load balancer) in order to avoid lock
+contention.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `Galera`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `Galera`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy galera](galera.scenario) into it.
-To verify the installation was successful, perform the following [test actions](galera-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy galera](galera.scenario) into it.
+
+To verify the installation was successful, perform the following [test
+actions](galera-test.sh) from one of the nodes.
 
 ### Database Cache
 
@@ -359,28 +369,45 @@ replicated access is currently only in an experimental state.  Instead
 consumers must be supplied with the full list of hosts running
 memcached.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `memcached`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `memcached`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy memcached](memcached.scenario) into it.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy memcached](memcached.scenario) into
+it.
 
 ### Message Bus
 
-An AMQP (Advanced Message Queuing Protocol) compliant message bus is required for most OpenStack components in order to co-ordinate the execution of jobs entered into the system.
+An AMQP (Advanced Message Queuing Protocol) compliant message bus is
+required for most OpenStack components in order to co-ordinate the
+execution of jobs entered into the system.
+
 RabbitMQ and Qpid are common deployment options. Both support:
 
 - reliable message delivery
 - flexible routing options
 - replicated queues
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `RabbitMQ` or `Qpid`.
+This guide assumes RabbitMQ is being deployed, however we also
+[document Qpid (TODO)](osp-qpid.scenario) for completeness.  Pay
+attention to the comments in that guide for how selecting `Qpid` affects
+the rest of the configuration.
+
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `RabbitMQ` or `Qpid`.
 
 __Note__: Access to RabbitMQ is not handled by HAproxy there are
 issues integrating RabbitMQ with HAProxy.  Instead consumers must be
 supplied with the full list of hosts running RabbitMQ with
 `rabbit_hosts` and `rabbit_ha_queues` options.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid (TODO)](osp-qpid.scenario)into it.
-To verify the installation was successful, perform the following [test actions](rabbitmq-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then deploy [rabbitmq](rabbitmq.scenario) into it.
+
+To verify the installation was successful, perform the following [test
+actions](rabbitmq-test.sh) from one of the nodes.
 
 ### NoSQL Database (optional)
 
@@ -394,9 +421,12 @@ data in certain types of applications easier and faster.
 __Note__: Access to mongodb is not handled by HAproxy [because TODO].
 Instead ceilometer must be supplied with the full list of hosts running mongodb.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `mongodb`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `mongodb`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy mongodb](mongodb.scenario) into it.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy mongodb](mongodb.scenario) into it.
 
 ## Installing Openstack services
 ### Keystone
@@ -405,10 +435,15 @@ Keystone is an OpenStack project that provides Identity, Token,
 Catalog and Policy services for use specifically by projects in the
 OpenStack family. It implements OpenStack's Identity API.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `keystone`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `keystone`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy keystone](keystone.scenario) into it.
-To verify the installation was successful, perform the following [test actions](keystone-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy keystone](keystone.scenario) into it.
+
+To verify the installation was successful, perform the following [test
+actions](keystone-test.sh) from one of the nodes.
 
 ### Glance
 
@@ -419,10 +454,15 @@ services. This currently includes images and metadata definitions.
 Glance image services include discovering, registering, and retrieving
 virtual machine images.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `glance`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `glance`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy glance](glance.scenario) into it.
-To verify the installation was successful, perform the following [test actions](glance-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy glance](glance.scenario) into it.
+
+To verify the installation was successful, perform the following [test
+actions](glance-test.sh) from one of the nodes.
 
 ### Cinder
 
@@ -469,12 +509,17 @@ Jon Bernard writes:
 You can read more about these concerns on the [Red Hat
 Bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=1193229) and
 there is a [psuedo roadmap](https://etherpad.openstack.org/p/cinder-kilo-stabilisation-work)
-for addressing the concerns upstream.
+for addressing them upstream.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `cinder`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `cinder`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy cinder](cinder.scenario) into it.
-To verify the installation was successful, perform the following [test actions](cinder-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy cinder](cinder.scenario) into it.  
+
+To verify the installation was successful, perform the following [test
+actions](cinder-test.sh) from one of the nodes.
 
 ### Swift ACO (optional)
 
@@ -489,16 +534,18 @@ for the ACO nodes.
 
 There are plans to make use of something called `pacemaker-remote` to
 allow the cluster to manage more than 16 worker nodes, but until this
-is properly documented, the work-around is to create each Swift worker
-as an [single node cluster](basic-cluster.scenario) - independant of
-all the others. This avoids the 16 node limit while still making sure
-the individual Swift daemons are being monitored and recovered as
+is properly documented we must make use of a work-around.
+
+If you expect to have more than 16 ACO nodes, creating each as a
+[single node cluster](basic-cluster.scenario) - independant of all the
+others. This avoids the 16 node limit while still making sure the
+individual `swift` daemons are being monitored and recovered as
 necessary.
 
 Once you have a set of functional single-node clusters, you can then
 [deploy swift ACOs](swift-aco.scenario) into them.
 
-Alternatively,[deploy swift ACOs](swift-aco.scenario) into the
+Alternatively, [deploy swift ACOs](swift-aco.scenario) into the
 existing _collapsed_ cluster.
 
 ### Swift Proxy (optional)
@@ -508,10 +555,15 @@ Swift architecture. For each request, it will look up the location of
 the account, container, or object in the ring (see below) and route
 the request accordingly.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain the swift proxy.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain the swift proxy.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy swift](swift.scenario) into it.
-To verify the installation was successful, perform the following [test actions](swift-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy swift](swift.scenario) into it.
+
+To verify the installation was successful, perform the following [test
+actions](swift-test.sh) from one of the nodes.
 
 ### Networking
 
@@ -536,8 +588,6 @@ It is also important to note that we do NOT document how to deploy
 `nova-network` in HA fashion.
 
 #### Neutron
-__Server__
-
 There are 2 methods to deploy neutron-agents:
 
 1. fully active/active where neutron-agents run on all 3 nodes
@@ -552,6 +602,8 @@ Additionally, we use the ML2 plugin. Other supported plugins can be
 used but please consult the OSP documentation on how to configure/deploy
 them.
 
+__Server__
+
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain the `neutron` server.
@@ -562,16 +614,25 @@ components into it.
 
 __Agents__
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain the `neutron` agent.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain the `neutron` agent.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then deploy the [neutron agent](neutron-agent.scenario) components into it.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then deploy the [neutron
+agent](neutron-agent.scenario) components into it.
 
 #### Nova-network (non-compute)
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `nova`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `nova`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy nova](nova.scenario) into it.
-To verify the installation was successful, perform the following [test actions](nova-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy nova](nova.scenario) into it.
+
+To verify the installation was successful, perform the following [test
+actions](nova-test.sh) from one of the nodes.
 
 ### Ceilometer (optional)
 
@@ -580,10 +641,16 @@ billing systems to acquire all of the measurements they need to
 establish customer billing, across all current OpenStack core
 components with work underway to support future OpenStack components.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `ceilometer`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `ceilometer`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy ceilometer](ceilometer.scenario) into it.
-To verify the installation was successful, perform the following [test actions](ceilometer-test.sh) from one of the nodes.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy ceilometer](ceilometer.scenario) into
+it.
+
+To verify the installation was successful, perform the following [test
+actions](ceilometer-test.sh) from one of the nodes.
 
 ### Heat (optional)
 
@@ -591,15 +658,21 @@ Heat is a service to orchestrate multiple composite cloud applications
 using the AWS CloudFormation template format, through both an
 OpenStack-native ReST API and a CloudFormation-compatible Query API.
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `heat`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `heat`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy heat](heat.scenario) into it.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy heat](heat.scenario) into it.
 
 ### Horizon
 
-If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain `horizon`.
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain `horizon`.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then [deploy horizon](horizon.scenario) into it.
+After verifying the (collapsed or newly created) cluster is
+functional, you can then [deploy horizon](horizon.scenario) into it.
 
 # Compute nodes (standalone)
 
