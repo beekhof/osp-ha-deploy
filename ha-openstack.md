@@ -622,6 +622,9 @@ After verifying the (collapsed or newly created) cluster is
 functional, you can then deploy the [neutron
 agent](neutron-agent.scenario) components into it.
 
+To verify the installation was successful, perform the following [test
+actions](neutron-test.sh) from one of the nodes.
+
 #### Nova-network (non-compute)
 
 If you are performing a segregated deployment, follow the [basic
