@@ -25,6 +25,10 @@
 = REQUIREMENTS =
 nodes: 3
 
+= VARIABLES =
+
+PHD_VAR_deployment
+
 ######################
 # Deployment Scripts #
 ######################
@@ -74,16 +78,28 @@ chown -R swift:swift /tmp/keystone-signing-swift
 
 target=all
 ....
-# local hack to determin where vm is running
-bricknum=$(echo $(hostname -s) | sed -e 's#.*brick##g')
-pcs stonith create fence fence_xvm multicast_address=225.0.0.$((1 + $bricknum))
+pcs resource show swift-fs > /dev/null 2>&1
+if [ $? != 0 ]; then
 
-pcs resource create swift-fs Filesystem device="/dev/loop0" directory="/local/swiftstorage/target" fstype="xfs"
-sleep 5
-pcs resource create swift-account systemd:openstack-swift-account
-pcs resource create swift-container systemd:openstack-swift-container
-pcs resource create swift-object systemd:openstack-swift-object
-pcs constraint order start swift-fs then swift-account
-pcs constraint order start swift-account then swift-container
-pcs constraint order start swift-container then swift-object
+    # We must be either the first node to run, or configuring
+    # single-node clusters for a segregated deployment
+
+    pcs resource create swift-fs Filesystem device="/dev/loop0" directory="/local/swiftstorage/target" fstype="xfs" --clone interleave=true
+
+    pcs resource create swift-account systemd:openstack-swift-account --clone interleave=true
+    pcs constraint colocation add swift-account-clone with swift-fs-clone
+    pcs constraint order start swift-fs-clone then swift-account-clone
+
+    pcs resource create swift-container systemd:openstack-swift-container --clone interleave=true
+    pcs constraint colocation add swift-container-clone with swift-account-clone
+    pcs constraint order start swift-account-clone then swift-container-clone
+
+    pcs resource create swift-object systemd:openstack-swift-object --clone interleave=true
+    pcs constraint colocation add swift-object-clone with swift-container-clone
+    pcs constraint order start swift-container-clone then swift-object-clone
+fi
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    pcs constraint order start keystone-clone then swift-account-clone
+fi
 ....

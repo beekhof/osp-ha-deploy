@@ -128,6 +128,9 @@ target=$PHD_ENV_nodes1
 pcs resource create swift-proxy systemd:openstack-swift-proxy --clone interleave=true
 pcs resource create swift-object-expirer systemd:openstack-swift-object-expirer
 
-pcs constraint order start swift-account-clone then swift-proxy-clone
 pcs constraint order start swift-proxy-clone then swift-object-expirer
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+    pcs constraint order start swift-account-clone then swift-proxy-clone
+fi
 ....
