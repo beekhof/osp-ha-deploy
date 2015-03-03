@@ -688,8 +688,8 @@ functional, you can then [deploy horizon](horizon.scenario) into it.
 
 # Compute nodes (standalone)
 
-Just like Swift AOCs, we will usually need more than 16 compute nodes which
-is beyond Corosync's ability to manage.  
+Just like Swift AOCs, we will usually need more than 16 compute nodes
+which is beyond Corosync's ability to manage.
 
 If you expect to have more than 16 compute nodes, once again use the
 work-around of creating each compute node as a [single node
@@ -700,6 +700,6 @@ compute daemons are being monitored and recovered as necessary.
 Once you have a set of functional single-node clusters, you can then
 [deploy compute nodes](compute.scenario) into them.
 
-Alternatively, [deploy compute nodes (TODO)](compute.scenario) into the
+Alternatively, [deploy compute nodes](compute.scenario) into an
 existing _collapsed_ cluster.
 
