@@ -1,3 +1,3 @@
-. /srv/rhos6/configs/keystonerc_admin
+. ${PHD_VAR_env_configdir}/keystonerc_admin
 nova usage
 nova usage-list

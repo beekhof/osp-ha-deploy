@@ -1,4 +1,4 @@
-. /srv/rhos6/configs/keystonerc_admin
+. ${PHD_VAR_env_configdir}/keystonerc_admin
 
 cinder list
 cinder create 10

@@ -36,6 +36,7 @@
 #################################
 = VARIABLES =
 
+PHD_VAR_deployment
 PHD_VAR_network_domain
 PHD_VAR_network_internal
 PHD_VAR_network_nic_base

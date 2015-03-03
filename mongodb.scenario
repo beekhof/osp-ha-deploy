@@ -32,7 +32,6 @@ nodes: 1
 
 target=all
 ....
-# You may need to reboot after installing nfs-utils
 yum install -y mongodb mongodb-server
 
 # set binding IP address and replica set

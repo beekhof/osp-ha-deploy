@@ -3,7 +3,7 @@
 
 unset SERVICE_TOKEN
 unset SERVICE_ENDPOINT
-. /srv/rhos6/configs/keystonerc_user
+. ${PHD_VAR_env_configdir}/keystonerc_user
 keystone token-get
-. /srv/rhos6/configs/keystonerc_admin
+. ${PHD_VAR_env_configdir}/keystonerc_admin
 keystone user-list

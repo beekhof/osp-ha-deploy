@@ -24,9 +24,10 @@
 #################################
 = VARIABLES =
 
+PHD_VAR_deployment
+PHD_VAR_env_configdir
 PHD_VAR_network_domain
 PHD_VAR_network_internal
-PHD_VAR_rpm_osp
 
 #################################
 # Scenario Requirements Section #
@@ -41,7 +42,6 @@ nodes: 1
 
 target=all
 ....
-# You may need to reboot after installing nfs-utils
 yum install -y rabbitmq-server nfs-utils
 
 # NOTE: we need to bind the service to the internal IP address
@@ -55,8 +55,20 @@ systemctl start rabbitmq-server
 systemctl stop rabbitmq-server
 ....
 
-target=$PHD_ENV_nodes1
+target=all
 ....
+if [ $PHD_VAR_deployment = segregated ]; then
+
+    # In the segregated case, we need to mount /srv for any scenario that needs to use it
+    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
+
+    systemctl daemon-reload
+    systemctl start rpcbind.service
+    systemctl start rpc-statd.service
+fi
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
 else
@@ -64,24 +76,20 @@ else
     echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
     mount /srv
 fi
-mkdir -p /srv/rhos-${PHD_VAR_rpm_osp}/configs/
-cp /var/lib/rabbitmq/.erlang.cookie /srv/rhos-${PHD_VAR_rpm_osp}/configs/rabbitmq_erlang_cookie
+....
+
+target=$PHD_ENV_nodes1
+....
+mkdir -p $PHD_VAR_env_configdir
+cp /var/lib/rabbitmq/.erlang.cookie $PHD_VAR_env_configdir/rabbitmq_erlang_cookie
 ....
 
 target=all
 ....
-if grep -q srv /etc/fstab; then 
-    echo /srv is already mounted; 
-else
-    mkdir -p /srv
-    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
-    mount /srv
-fi
-
 # the cookie has to be the same across all nodes. Copy around as preferred, I am 
 # using my NFS commodity storage. Also check for file permission/ownership. I 
 # workaround that step by using 'cat' vs cp.
-cat /srv/rhos-${PHD_VAR_rpm_osp}/configs/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.cookie
+cat $PHD_VAR_env_configdir/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.cookie
 ....
 
 

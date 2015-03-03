@@ -24,8 +24,9 @@
 #################################
 = VARIABLES =
 
+PHD_VAR_deployment
+PHD_VAR_env_configdir
 PHD_VAR_network_internal
-PHD_VAR_rpm_osp
 
 #################################
 # Scenario Requirements Section #
@@ -43,6 +44,28 @@ target=all
 yum install -y openstack-cinder openstack-utils python-memcached nfs-utils python-keystonemiddleware
 ....
 
+target=all
+....
+if [ $PHD_VAR_deployment = segregated ]; then
+
+    # In the segregated case, we need to mount /srv for any scenario that needs to use it
+    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
+
+    systemctl daemon-reload
+    systemctl start rpcbind.service
+    systemctl start rpc-statd.service
+fi
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+....
 
 target=all
 ....
@@ -68,27 +91,31 @@ else
 fi
 
 openstack-config --set /etc/cinder/cinder.conf DEFAULT host rhos6-cinder
-
 openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_listen $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
-
-# NOTE: this config section is to enable and configure the NFS cinder driver.
-
-configdir=/srv/rhos-${PHD_VAR_rpm_osp}/cinder
-# create the NFS share mountpoint on the nfs server
-echo ssh ${PHD_VAR_network_internal}.1 -- mkdir -p $configdir
-
-cat > /etc/cinder/nfs_exports << EOF
-${PHD_VAR_network_internal}.1:$configdir
-EOF
-
-chown root:cinder /etc/cinder/nfs_exports
-chmod 0640 /etc/cinder/nfs_exports
-
 openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_shares_config /etc/cinder/nfs_exports
 openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_sparsed_volumes true
 openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_mount_options v3
 
 openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volume.drivers.nfs.NfsDriver
+
+# NOTE: this config section is to enable and configure the NFS cinder driver.
+
+if [ $PHD_VAR_deployment = segregated ]; then
+    # Create the directory on the server, I hope you set up keyless logins :-)
+    ssh ${PHD_VAR_network_internal}.1 -- mkdir -p $PHD_VAR_env_configdir/cinder
+
+else
+    # In the collapsed case, $PHD_VAR_env_configdir will already be mounted so we can create it locally
+    mkdir -p $PHD_VAR_env_configdir/cinder
+fi
+
+cat > /etc/cinder/nfs_exports << EOF
+${PHD_VAR_network_internal}.1:$PHD_VAR_env_configdir/cinder
+EOF
+
+chown root:cinder /etc/cinder/nfs_exports
+chmod 0640 /etc/cinder/nfs_exports
+
 ....
 
 

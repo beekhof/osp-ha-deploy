@@ -1,4 +1,4 @@
-. /srv/rhos6/configs/keystonerc_admin
+. ${PHD_VAR_env_configdir}/keystonerc_admin
 
 swift list
 truncate --size=1M /tmp/foobar

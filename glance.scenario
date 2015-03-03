@@ -25,7 +25,8 @@
 = VARIABLES =
 
 PHD_VAR_network_internal
-PHD_VAR_rpm_osp
+PHD_VAR_env_configdir
+PHD_VAR_deployment
 
 #################################
 # Scenario Requirements Section #
@@ -41,18 +42,30 @@ nodes: 1
 
 target=all
 ....
-# You will need to reboot after installing nfs-utils
 yum install -y openstack-glance openstack-utils nfs-utils
 ....
 
-target=local
+target=all
 ....
-# Reboot each node and wait for it to return (nfs wont mount otherwise)
-for node in $(echo $PHD_ENV_nodes); do
-    phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
-    phd_wait_connection 300 $node
-    phd_cmd_exec "uptime" "$node"
-done
+if [ $PHD_VAR_deployment = segregated ]; then
+
+    # In the segregated case, we need to mount /srv for any scenario that needs to use it
+    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
+
+    systemctl daemon-reload
+    systemctl start rpcbind.service
+    systemctl start rpc-statd.service
+fi
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
 ....
 
 target=all
@@ -89,23 +102,21 @@ openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin
 openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_user glance
 openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_password glancetest
 openstack-config --set /etc/glance/glance-registry.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
-....
 
+# create the NFS share mountpoint on the nfs server
+mkdir -p $PHD_VAR_env_configdir/glance
+....
 
 target=$PHD_ENV_nodes1
 ....
-configdir=/srv/rhos-${PHD_VAR_rpm_osp}/glance
 su keystone -s /bin/sh -c "keystone-manage db_sync"
 
 # populate the glance db entries
 
 su glance -s /bin/sh -c "glance-manage db_sync"
 
-# create the NFS share mountpoint on the nfs server
-echo mkdir -p $configdir
-
-# make pacemaker handle the NFS share as service.
-pcs resource create glance-fs Filesystem  device="${PHD_VAR_network_internal}.1:$configdir"   directory="/var/lib/glance"  fstype="nfs" options="v3" --clone
+# Now have pacemaker mount the NFS share as service.
+pcs resource create glance-fs Filesystem  device="${PHD_VAR_network_internal}.1:$PHD_VAR_env_configdir/glance"   directory="/var/lib/glance"  fstype="nfs" options="v3" --clone
 
 # wait for glance-fs to be started and running
 chown glance:nobody /var/lib/glance

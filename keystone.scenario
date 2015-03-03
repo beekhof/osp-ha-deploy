@@ -26,7 +26,7 @@
 
 PHD_VAR_deployment
 PHD_VAR_network_internal
-PHD_VAR_rpm_osp
+PHD_VAR_env_configdir
 
 #################################
 # Scenario Requirements Section #
@@ -41,23 +41,23 @@ nodes: 1
 
 target=all
 ....
-# You may need to reboot after installing nfs-utils
 yum install -y openstack-keystone openstack-utils nfs-utils
 ....
 
-target=local
-....
-# Reboot each node and wait for it to return (nfs wont mount otherwise)
-for node in $(echo $PHD_ENV_nodes); do
-    phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
-    phd_wait_connection 300 $node
-    phd_cmd_exec "uptime" "$node"
-done
-....
-
-
 target=all
 ....
+if [ $PHD_VAR_deployment = segregated ]; then
+
+    # In the segregated case, we need to mount /srv for any scenario that needs to use it
+    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
+
+    systemctl daemon-reload
+    systemctl start rpcbind.service
+    systemctl start rpc-statd.service
+fi
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
 else
@@ -65,14 +65,17 @@ else
     echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
     mount /srv
 fi
+....
 
-configdir=/srv/rhos-${PHD_VAR_rpm_osp}/configs
-mkdir -p $configdir
-if [ ! -e $configdir/ks_admin_token ]; then
-   openssl rand -hex 10 > $configdir/ks_admin_token
+
+target=all
+....
+mkdir -p $PHD_VAR_env_configdir
+if [ ! -e $PHD_VAR_env_configdir/ks_admin_token ]; then
+   openssl rand -hex 10 > $PHD_VAR_env_configdir/ks_admin_token
 fi
 
-export SERVICE_TOKEN=$(cat $configdir/ks_admin_token)
+export SERVICE_TOKEN=$(cat $PHD_VAR_env_configdir/ks_admin_token)
 
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
@@ -104,15 +107,15 @@ openstack-config --set /etc/keystone/keystone.conf database max_retries -1
 openstack-config --set /etc/keystone/keystone.conf DEFAULT public_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
-if [ ! -e $configdir/keystone_ssl.tar ]; then
+if [ ! -e $PHD_VAR_env_configdir/keystone_ssl.tar ]; then
     keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
     cd /etc/keystone/ssl
-    tar cvp -f $configdir/keystone_ssl.tar *
+    tar cvp -f $PHD_VAR_env_configdir/keystone_ssl.tar *
 fi
 
 mkdir -p /etc/keystone/ssl
 cd /etc/keystone/ssl
-tar xvp -f ${configdir}/keystone_ssl.tar
+tar xvp -f ${PHD_VAR_env_configdir}/keystone_ssl.tar
 chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
 ....
 
@@ -139,8 +142,7 @@ fi
 
 target=$PHD_ENV_nodes1
 ....
-configdir=/srv/rhos-${PHD_VAR_rpm_osp}/configs
-export SERVICE_TOKEN=$(cat ${configdir}/ks_admin_token)
+export SERVICE_TOKEN=$(cat ${PHD_VAR_env_configdir}/ks_admin_token)
 export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
 
 keystone service-create --name=keystone --type=identity --description="Keystone Identity Service"
@@ -154,7 +156,7 @@ keystone user-role-add --user admin --role admin --tenant admin
 
 # Save admin credential in a file. This will be useful many times over the how-to!
 
-cat >  ${configdir}/keystonerc_admin << EOF
+cat >  ${PHD_VAR_env_configdir}/keystonerc_admin << EOF
 export OS_USERNAME=admin 
 export OS_TENANT_NAME=admin
 export OS_PASSWORD=keystonetest
@@ -169,7 +171,7 @@ keystone user-role-add --user foo --role Member --tenant TENANT
 
 # Save user credential in a file for testing purposes.
 
-cat >  ${configdir}/keystonerc_user << EOF
+cat >  ${PHD_VAR_env_configdir}/keystonerc_user << EOF
 export OS_USERNAME=foo
 export OS_TENANT_NAME=TENANT
 export OS_PASSWORD=footest
