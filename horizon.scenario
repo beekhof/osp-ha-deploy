@@ -1,0 +1,132 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_deployment
+PHD_VAR_env_configdir
+PHD_VAR_network_domain
+PHD_VAR_network_internal
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum install -y mod_wsgi httpd mod_ssl openstack-dashboard nfs-utils
+....
+
+target=all
+....
+if [ $PHD_VAR_deployment = segregated ]; then
+
+    # In the segregated case, we need to mount /srv for any scenario that needs to use it
+    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
+
+    systemctl daemon-reload
+    systemctl start rpcbind.service
+    systemctl start rpc-statd.service
+fi
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+....
+
+target=all
+....
+# NOTE this is a rather scary sed and replace operation to configure horizon
+#             in one shot, scriptable way.
+#             Keypoints:
+#             set ALLOWED_HOSTS to access the web service.
+#                   BE AWARE that this command will allow access from everywhere!
+#             connection CACHES to memcacehed
+#             connect with keystone for authentication
+#             fix a LOCAL_PATH to point to the correct location.
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rhos6-node1:11211', 'rhos6-node2:11211',  'rhos6-node3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
+else
+   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rhos6-memcache1:11211', 'rhos6-memcache2:11211',  'rhos6-memcache3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
+fi
+....
+
+target=$PHD_ENV_nodes1
+....
+
+# NOTE: horizon requires a secret key to be generated and distributed across all
+#              nodes. It does not matter how it is distributed, but generation process is 
+#              important.
+
+service httpd stop
+service httpd start
+wget http://localhost/dashboard -O /dev/null
+service httpd stop
+
+mkdir -p $PHD_VAR_env_configdir
+cp /var/lib/openstack-dashboard/.secret_key_store $PHD_VAR_env_configdir/horizon_secret_key_store 
+....
+
+target=all
+....
+# the cookie has to be the same across all nodes. Copy around as preferred, I am 
+# using my NFS commodity storage. Also check for file permission/ownership. I 
+# workaround that step by using 'cat' vs cp.
+cat $PHD_VAR_env_configdir/horizon_secret_key_store > /var/lib/openstack-dashboard/.secret_key_store
+chown apache:apache /var/lib/openstack-dashboard/.secret_key_store
+
+# NOTE: enable server-status. this is required by pacemaker to verify apache is 
+#              responding. Only allow from localhost.
+cat > /etc/httpd/conf.d/server-status.conf << EOF
+<Location /server-status>
+    SetHandler server-status
+    Order deny,allow
+    Deny from all
+    Allow from localhost
+</Location>
+EOF
+
+# NOTE: fix apache config to listen only on a given interface (internal)
+sed  -i -e 's/^Listen.*/Listen '$(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')':80/g'  /etc/httpd/conf/httpd.conf 
+....
+
+
+target=$PHD_ENV_nodes1
+....
+pcs resource create horizon apache --clone interleave=true
+....
