@@ -1,0 +1,140 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_deployment
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum install -y openstack-neutron openstack-neutron-openvswitch openvswitch
+....
+
+target=all
+....
+systemctl enable openvswitch
+systemctl start openvswitch
+
+ovs-vsctl add-br br-int
+ovs-vsctl add-br br-ex
+
+# NOTE: this is the ethernet connected to the external LAN of the controller nodes!
+ovs-vsctl add-port br-ex eth0
+
+# workaround for keepalived DNS resolution issue within the 
+# ha-routers at config reload
+dig A $(hostname) | grep -A1 "ANSWER SEC" | tail -n 1 | awk '{print $NF " " $1}' | sed -e 's/.$//g'  >>/etc/hosts
+grep -q $(hostname) /etc/hosts || echo "Failure to setup hostname entry"
+
+# openvswitch plugin (used as mechanism within ml2)
+
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent tunnel_types  vxlan
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent vxlan_udp_port 4789
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip  $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs bridge_mappings physnet1:br-ex
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver  
+
+# ovs l2 population
+
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
+
+# metadata agent
+
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_strategy keystone
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_url http://vip-keystone:35357/v2.0
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_host vip-keystone
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_region regionOne
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_tenant_name services
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_user neutron
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_password neutrontest
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_ip vip-nova
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_port 8775
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret metatest
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_workers 4
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_backlog 2048
+
+# dhcp agent
+
+openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_delete_namespaces False
+
+# current deployment has a routing problem via qrouter->192.168.16.1 which is the 
+# system default nameserver, probably the qrouter has no leg on that net, so... to 
+# make that work specify a comma separated
+# list of DNS servers to be available (Forwarded to the instances)
+openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dnsmasq_dns_servers  10.35.255.14
+
+# L3 agent
+
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT handle_internal_only_routers True
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT send_arp_for_ha 3
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT router_delete_namespaces False
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT metadata_ip vip-nova
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge br-ex
+....
+
+target=$PHD_ENV_nodes1
+....
+# For A/P, set clone-max=1
+pcs resource create neutron-scale ocf:neutron:NeutronScale --clone globally-unique=true clone-max=3 interleave=true
+
+pcs resource create neutron-ovs-cleanup ocf:neutron:OVSCleanup --clone interleave=true
+pcs resource create neutron-netns-cleanup ocf:neutron:NetnsCleanup --clone interleave=true
+pcs resource create neutron-openvswitch-agent  systemd:neutron-openvswitch-agent --clone interleave=true
+pcs resource create neutron-dhcp-agent systemd:neutron-dhcp-agent --clone interleave=true
+pcs resource create neutron-l3-agent systemd:neutron-l3-agent --clone interleave=true
+pcs resource create neutron-metadata-agent systemd:neutron-metadata-agent  --clone interleave=true
+
+pcs constraint order start neutron-scale-clone then neutron-ovs-cleanup-clone
+pcs constraint colocation add neutron-ovs-cleanup-clone with neutron-scale-clone
+pcs constraint order start neutron-ovs-cleanup-clone then neutron-netns-cleanup-clone
+pcs constraint colocation add neutron-netns-cleanup-clone with neutron-ovs-cleanup-clone
+pcs constraint order start neutron-netns-cleanup-clone then neutron-openvswitch-agent-clone
+pcs constraint colocation add neutron-openvswitch-agent-clone with neutron-netns-cleanup-clone
+pcs constraint order start neutron-openvswitch-agent-clone then neutron-dhcp-agent-clone
+pcs constraint colocation add neutron-dhcp-agent-clone with neutron-openvswitch-agent-clone
+pcs constraint order start neutron-dhcp-agent-clone then neutron-l3-agent-clone
+pcs constraint colocation add neutron-l3-agent-clone with neutron-dhcp-agent-clone
+pcs constraint order start neutron-l3-agent-clone then neutron-metadata-agent-clone
+pcs constraint colocation add neutron-metadata-agent-clone with neutron-l3-agent-clone
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   pcs constraint order start neutron-server-clone then neutron-scale-clone
+fi
+....

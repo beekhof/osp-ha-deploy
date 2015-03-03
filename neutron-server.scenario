@@ -1,0 +1,184 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_deployment
+PHD_VAR_env_configdir
+PHD_VAR_network_internal
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+# NOTE: once again, careful with vip-* / user / password substitutions and local
+#              ip addresses via shell expansion
+#              While neutron can be replaced with nova-network. This how-to does NOT
+#              contain information on how to deploy nova-network in HA fashion.
+#              This version of the how-to uses the ML2 plugin. Other supported
+#              plugins can be used. Please consult the OSP documentation on how
+#              to configure/deploy other plugins.
+#              neutron-server requires neutron-agents and viceversa
+
+yum install -y openstack-neutron openstack-neutron-openvswitch openstack-neutron-ml2 nfs-utils
+....
+
+target=all
+....
+if [ $PHD_VAR_deployment = segregated ]; then
+
+    # In the segregated case, we need to mount /srv for any scenario that needs to use it
+    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
+
+    systemctl daemon-reload
+    systemctl start rpcbind.service
+    systemctl start rpc-statd.service
+fi
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+....
+
+target=all
+....
+openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host vip-keystone
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
+
+openstack-config --set /etc/neutron/neutron.conf database connection  mysql://neutron:neutrontest@vip-mysql:3306/neutron
+openstack-config --set /etc/neutron/neutron.conf database max_retries -1
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts rhos6-node1,rhos6-node2,rhos6-node3
+else
+   openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts rhos6-rabbitmq1,rhos6-rabbitmq2,rhos6-rabbitmq3
+fi
+openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues true
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://vip-nova:8774/v2
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_region_name regionOne
+
+. ${PHD_VAR_env_configdir}/keystonerc_admin
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id $(keystone tenant-get services |grep id | awk '{print $4}')
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username compute
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_password novatest
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_auth_url http://vip-keystone:35357/v2.0
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes  True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes  True
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin  neutron.plugins.ml2.plugin.Ml2Plugin
+
+openstack-config  --set /etc/neutron/neutron.conf DEFAULT service_plugins  neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
+
+openstack-config  --set /etc/neutron/neutron.conf DEFAULT router_scheduler_driver  neutron.scheduler.l3_agent_scheduler.ChanceScheduler
+
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini type_drivers local,gre,flat,vxlan,vlan
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks *
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_gre tunnel_id_ranges 10:10000
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 10:10000
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vxlan_group 224.0.0.1
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
+# is this still required?
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup firewall_driver True
+
+ln -sf /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+
+# There are a number of different approaches to make neutron highly
+# available, we cover only A/A and A/P here but more details
+# (internal-only) are available in Bugzilla:
+#    https://bugzilla.redhat.com/show_bug.cgi?id=1170113#c18
+# 
+# 1) Fully neutron A/A, considering nodes A,B,C
+# 
+# all nodes would have l3_ha=True , max_l3_agents_per_router=3, min=2
+# A: host=neutron-n-0  B: host=neutron-n-1  C: host=neutron-n-2
+# 
+# (this way we cover the upgrade path from OSP5->OSP6, by keeping at least one host withb the old neutron-n-0 ID)
+# 
+# 3) A/P, with 1 active node
+# 
+# all nodes would have l3_ha=False
+# 
+# a) A + B + C have host=neutron-n-0
+# b) like case 2, but: 
+#     A: host=neutron-n-0  B: (passive not set)  C: (passive, not set)
+#    and neutron scale does the host= change during failover.
+
+# A/P does NOT require extra settings. Defaults are fine
+# Fully A/A requires extra neutron-server configuration:
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT l3_ha True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT max_l3_agents_per_router 0
+openstack-config --set /etc/neutron/neutron.conf DEFAULT min_l3_agents_per_router 2
+
+# This value _MUST_ follow the number of nodes in the pacemaker cluster
+openstack-config --set /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network 3
+
+....
+
+target=$PHD_ENV_nodes1
+....
+. ${PHD_VAR_env_configdir}/keystonerc_admin
+
+# required when installing the DB manually
+neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file  /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno
+
+systemctl start neutron-server
+systemctl stop neutron-server
+
+# add the service to pacemaker
+pcs resource create neutron-server systemd:neutron-server op start timeout=90 --clone interleave=true
+
+if [ $PHD_VAR_deployment = collapsed ]; then
+   pcs constraint order start keystone-clone then neutron-server-clone
+fi
+....

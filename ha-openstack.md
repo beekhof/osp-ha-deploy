@@ -67,6 +67,7 @@ OpenStack release.
 - Remove all artificial sleep and use pcs --wait once 7.1 is out of the door
 - Improve nova-compute test section with CLI commands
 - re-check keystone -> other services start order require-all=false option
+- Variables for *_passwd
 
 # Hardware / VM deployment
 
@@ -378,7 +379,7 @@ issues integrating RabbitMQ with HAProxy.  Instead consumers must be
 supplied with the full list of hosts running RabbitMQ with
 `rabbit_hosts` and `rabbit_ha_queues` options.
 
-After verifying the (collapsed or newly created) cluster is functional, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid (not yet implemented)](osp-qpid.scenario)into it.
+After verifying the (collapsed or newly created) cluster is functional, you can then deploy [rabbitmq](rabbitmq.scenario) or [qpid (TODO)](osp-qpid.scenario)into it.
 To verify the installation was successful, perform the following [test actions](rabbitmq-test.sh) from one of the nodes.
 
 ### NoSQL Database (optional)
@@ -531,10 +532,39 @@ mode which allows every compute node to be used as the gateway to an
 external network instead of having to route all traffic from every
 compute node through a single network node.
 
-#### Neutron
-Server:
+It is also important to note that we do NOT document how to deploy
+`nova-network` in HA fashion.
 
-Agents:
+#### Neutron
+__Server__
+
+There are 2 methods to deploy neutron-agents:
+
+1. fully active/active where neutron-agents run on all 3 nodes
+1. active/passive where the agents are running only on one node at a time
+
+Depending on the method selected, both `neutron-server` and
+`neutron-agents` will require different configurations.  The only real
+requirement is that you choose the same availability approach for
+both.
+
+Additionally, we use the ML2 plugin. Other supported plugins can be
+used but please consult the OSP documentation on how to configure/deploy
+them.
+
+If you are performing a segregated deployment, follow the [basic
+cluster setup](basic-cluster.scenario) instructions to set up a
+cluster on the guests intended to contain the `neutron` server.
+
+After verifying the (collapsed or newly created) cluster is
+functional, you can then deploy the [neutron server](neutron-server.scenario) 
+components into it.
+
+__Agents__
+
+If you are performing a segregated deployment, follow the [basic cluster setup](basic-cluster.scenario) instructions to set up a cluster on the guests intended to contain the `neutron` agent.
+
+After verifying the (collapsed or newly created) cluster is functional, you can then deploy the [neutron agent](neutron-agent.scenario) components into it.
 
 #### Nova-network (non-compute)
 
@@ -585,6 +615,6 @@ compute daemons are being monitored and recovered as necessary.
 Once you have a set of functional single-node clusters, you can then
 [deploy compute nodes](compute.scenario) into them.
 
-Alternatively, [deploy compute nodes](compute.scenario) into the
+Alternatively, [deploy compute nodes (TODO)](compute.scenario) into the
 existing _collapsed_ cluster.
 
