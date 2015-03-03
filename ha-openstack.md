@@ -71,6 +71,17 @@ OpenStack release.
 
 # Hardware / VM deployment
 
+## Requirements
+
+A minimum of 5 machines are required to deploy this setup:
+
+- 1 commodity server (can be a VM) to deploy nfs-server, dhcp, dns
+- 1 bare metal node to be used a compute node
+- 3 controller nodes
+
+  The linked scripts assume the controller nodes are bare-metal and will create one or more VMs (dependng on the deployment type) to run on top of them.
+  You could equally just use the bare metal directly.
+
 ## Assumptions
 
 - To provide additional isolation, every component runs in its own virtual machine
@@ -691,6 +702,11 @@ functional, you can then [deploy horizon](horizon.scenario) into it.
 
 Just like Swift AOCs, we will usually need more than 16 compute nodes
 which is beyond Corosync's ability to manage.
+
+Start by creating a minimal CentOS installation on at least one node.
+
+Once the machine(s) have been installed, [prepare
+them](baremetal.scenario) for hosting OpenStack.
 
 If you expect to have more than 16 compute nodes, once again use the
 work-around of creating each compute node as a [single node
