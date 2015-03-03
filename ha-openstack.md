@@ -60,7 +60,7 @@ OpenStack release.
 
 ### TODO
 
-- Missing how-to add / remove a node
+- Missing how-to remove a node
 - Missing how-to move a service from cluster X to cluster Y
 - nova network HA
 - Compute nodes managed by pacemaker_remoted
@@ -720,3 +720,17 @@ Once you have a set of functional single-node clusters, you can then
 Alternatively, [deploy compute nodes](compute.scenario) into an
 existing _collapsed_ cluster.
 
+# Adding Additional Nodes Later
+
+Adding an additional node should be a matter of:
+
+1. Deciding what services will run on the node.
+
+   This will depend on whether you have a collapsed or segregated
+   deployment (or somewhere in-between).
+
+1. Locating the relevant scenario files
+
+1. Performing only the actions listed in sections with `target=all`
+
+ 
