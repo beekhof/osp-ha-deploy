@@ -445,7 +445,9 @@ functional, you can then [deploy mongodb](mongodb.scenario) into it.
 
 Keystone is an OpenStack project that provides Identity, Token,
 Catalog and Policy services for use specifically by projects in the
-OpenStack family. It implements OpenStack's Identity API.
+OpenStack family. It implements OpenStack's Identity API and acts as a
+common authentication system across the cloud operating system and can
+integrate with existing backend directory services.
 
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
@@ -466,6 +468,11 @@ services. This currently includes images and metadata definitions.
 Glance image services include discovering, registering, and retrieving
 virtual machine images.
 
+Glance allows these images to be used as templates when deploying new
+virtual machine instances. It can also be used to store and catalog
+multiple backups. The Image Service can store disk and server images
+in a variety of back-ends, however we will only consider NFS here.
+
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `glance`.
@@ -478,7 +485,13 @@ actions](glance-test.sh) from one of the nodes.
 
 ### Cinder
 
-Cinder provides 'block storage as a service'.
+Cinder provides 'block storage as a service' suitable for performance
+sensitive scenarios such as databases, expandable file systems, or
+providing a server with access to raw block level storage.
+
+Persistent block storage can survive instance termination and can also
+be moved across instances like any external storage device. Cinder
+also has volume snapshots capability for backing up the volumes.
 
 In theory cinder can be run as active/active however there are
 currently sufficient concerns that cause us to recommend running the
@@ -522,6 +535,8 @@ You can read more about these concerns on the [Red Hat
 Bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=1193229) and
 there is a [psuedo roadmap](https://etherpad.openstack.org/p/cinder-kilo-stabilisation-work)
 for addressing them upstream.
+
+In this guide we configure the NFS backend, however many others exist.
 
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
@@ -583,6 +598,9 @@ Neutron and Nova are two commonly deployed projects that can provide
 'network connectivity as a service' between interface devices (e.g.,
 vNICs) managed by other OpenStack services (e.g., nova).
 
+Both manage networks and IP addresses, allowing users to define,
+separate, and join networks on demand.
+
 `nova-network` is the legacy networking implementation that was
 limited in terms of functionality but has historically been more
 reliable but than Neutron.
@@ -600,6 +618,14 @@ It is also important to note that we do NOT document how to deploy
 `nova-network` in HA fashion.
 
 #### Neutron
+
+The Neutron API includes support for Layer 2 (L2) networking as well
+as an extension for layer 3 (L3) router construction that enables
+routing between L2 networks and gateways to external networks. Its
+architecture supports numerous virtual networking technologies as well
+as native Linux networking mechanisms including Open vSwitch and Linux
+Bridge.
+
 There are 2 methods to deploy neutron-agents:
 
 1. fully active/active where neutron-agents run on all 3 nodes
@@ -673,9 +699,20 @@ actions](ceilometer-test.sh) from one of the nodes.
 
 ### Heat (optional)
 
-Heat is a service to orchestrate multiple composite cloud applications
-using the AWS CloudFormation template format, through both an
-OpenStack-native ReST API and a CloudFormation-compatible Query API.
+Heat is a service to orchestrate the complete life-cycle of composite
+cloud applications using the AWS CloudFormation template format,
+through both an OpenStack-native ReST API and a
+CloudFormation-compatible Query API.
+
+The templates define what resources to deploy rather than how to
+deploy them.  This is similar to the approach used by popular
+configuration tools such as Puppet, Ansible, and Chef.
+
+However where configuration tools focus on the configuration of a
+system, Heat focuses on resource provision and relies on cloud-init
+scripting to handle system configuration. A template may create and
+configure a large list of resources thus supporting complex
+application stacks.
 
 `heat-engine` can run in an active/active configuration but requires
 `OS::Ceilometer::Alarm` in templates and for `ceilometer` to be
@@ -694,6 +731,12 @@ After verifying the (collapsed or newly created) cluster is
 functional, you can then [deploy heat](heat.scenario) into it.
 
 ### Horizon
+
+Horizon is the dashboard behind OpenStack that provides administrators
+and users a graphical interface to access, provision and automate
+cloud-based resources. Ir provides system administrators a view of
+what is going on in the cloud, and to manage it as necessary. The
+dashboard runs via httpd service.
 
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
