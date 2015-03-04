@@ -29,14 +29,9 @@
 # Scenario Requirements Section #
 #################################
 
-# Create a cluster from however many nodes were provided
 = VARIABLES =
 
-# Expands to $PHD_VAR_env_password, etc
-
-# I set the password to 'cluster', USE A SAFER ONE
-env:
-  password: cluster
+PHD_VAR_env_password
 
 #################################
 # Scenario Requirements Section #
@@ -51,7 +46,6 @@ nodes: 1
 
 target=all
 ....
-sed -i s/6.0-RHEL-7-Beta/6.0-RHEL-7/ /etc/yum.repos.d/osp-6.0.repo 
 # install the packages
 yum install -y pcs pacemaker corosync fence-agents-all resource-agents
 
@@ -77,7 +71,7 @@ done
 # the -p option is used to give the password on command line and make it easier to script
 pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
 
-# Construct the cluster
+# Construct and start the cluster
 # The cluster needs a unique name, base it on the first node's name
 pcs cluster setup --force --name $(echo $PHD_ENV_nodes1 | sed -e s/[0-9]//g -e s/\\..*//g )  ${short_nodes}
 pcs cluster enable --all
@@ -86,6 +80,14 @@ pcs cluster start --all
 
 target=$PHD_ENV_nodes1
 ....
+# Assumes bare metal nodes are:
+# - named with a trailing offset
+# - numbered sequentially
+# - the first node is a proxy
+# - total of three nodes
+# - are configured with fence-virtd (see virt-hosts.scenario)
+# 
+# If any of the above is not true, change the fencing devices below
 pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
 pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
 pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
