@@ -656,6 +656,10 @@ billing systems to acquire all of the measurements they need to
 establish customer billing, across all current OpenStack core
 components with work underway to support future OpenStack components.
 
+Currently `openstack-ceilometer-central` is run in an active/passive
+configuration because [TODO]. A move to an active/active configuration
+is planned but will likely require a switch from `mongodb` to `redis`.
+
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `ceilometer`.
@@ -708,6 +712,8 @@ Start by creating a minimal CentOS installation on at least one node.
 Once the machine(s) have been installed, [prepare
 them](baremetal.scenario) for hosting OpenStack.
 
+Next, you can configure them as [compute nodes](compute-common.scenario).
+
 If you expect to have more than 16 compute nodes, once again use the
 work-around of creating each compute node as a [single node
 cluster](basic-cluster.scenario) - independant of all the others. This
@@ -715,10 +721,10 @@ avoids the 16 node limit while still making sure the individual
 compute daemons are being monitored and recovered as necessary.
 
 Once you have a set of functional single-node clusters, you can then
-[deploy compute nodes](compute.scenario) into them.
+have the cluster [manage the services](compute-cluster.scenario).
 
-Alternatively, [deploy compute nodes](compute.scenario) into an
-existing _collapsed_ cluster.
+Alternatively, have the existing _collapsed_ cluster [manage the
+services](compute-cluster.scenario).
 
 # Adding Additional Nodes Later
 

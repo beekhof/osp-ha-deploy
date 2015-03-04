@@ -1,0 +1,54 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+= VARIABLES =
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+pcs resource show swift-fs > /dev/null 2>&1
+if [ $? != 0 ]; then
+
+    # We must be either the first node to run, or configuring
+    # single-node clusters for a segregated deployment
+
+    # hack!! IPMI does not work from localhost to localhost on those test nodes!. Use 
+    # proper fencing settings!
+    # TODO: Add SBD support
+    pcs property set stonith-enabled=false
+
+    pcs resource create neutron-openvswitch-agent systemd:neutron-openvswitch-agent  --group computenode
+    pcs resource create libvirtd systemd:libvirtd  --group computenode
+    pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --group computenode
+    pcs resource create nova-compute systemd:openstack-nova-compute  --group computenode
+fi
+
+....
