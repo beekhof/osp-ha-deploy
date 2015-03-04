@@ -37,7 +37,6 @@
 = VARIABLES =
 
 PHD_VAR_deployment
-PHD_VAR_network_domain
 PHD_VAR_network_internal
 PHD_VAR_network_nic_base
 PHD_VAR_rpm_download
@@ -59,17 +58,6 @@ nodes: 4
 # Deployment Scripts #
 ######################
 = SCRIPTS =
-
-target=all
-....
-ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
-
-# Turn off auto-generation of resolv.conf so we can override it 
-echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
-echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
-echo nameserver ${ext_ip} >> /etc/resolv.conf
-ifdown ext0 && ifup ext0
-....
 
 target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
 ....
@@ -105,6 +93,11 @@ service fence_virtd start
 
 target=$PHD_ENV_nodes1
 ....
+
+if [ -e ${PHD_VAR_vm_base} ]; then
+    : skip this step if an image already exists
+    exit 0
+fi
 
 distro=${PHD_VAR_rpm_rhel}
 distro_major=$(echo ${PHD_VAR_rpm_rhel} | awk -F. '{print $1}')
@@ -260,13 +253,10 @@ virt-install --connect=qemu:///system \
     --location=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/ \
     --nographics $opts
 
+# Needs 15-20 minutes apparently
+sleep 1200
 ....
 
-target=local
-....
-# Wait for the node to be built
-sleep 600
-....
 
 #target=$PHD_ENV_nodes1
 #....
@@ -290,10 +280,11 @@ mkdir -p /allinone
 
 # cp /srv/vms/rhos4-base.img /localvms/
 vm_base=$(basename ${PHD_VAR_vm_base})
-rsync -avz --progress ${PHD_VAR_vm_base} /localvms/
+if [ ! -e /localvms/${vm_base} ]; then
+    # This takes a loooong time, skip it if we already have an image
+    rsync -avz --progress ${PHD_VAR_vm_base} /localvms/
+fi
 ....
-
-
 
 target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
 ....
@@ -352,7 +343,7 @@ EOF
 
 sequence=16
 lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
-offset="$(echo ${PHD_ENV_nodes1} | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
+offset="$(echo ${PHD_ENV_nodes1} | sed -e 's#\..*##g' -e 's#^[a-z]*-##g' -e 's#^0*##g')"
 for section in lb db rabbitmq memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node keystone; do
     cd /localvms/
 

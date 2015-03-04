@@ -168,6 +168,17 @@ lvresize -f -l+100%FREE /dev/mapper/*root
 resize2fs /dev/mapper/*root || xfs_growfs /dev/mapper/*-root
 ....
 
+target=all
+....
+ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
+
+# Turn off auto-generation of resolv.conf so we can override it 
+echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
+echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
+echo nameserver ${ext_ip} >> /etc/resolv.conf
+ifdown ext0 && ifup ext0
+....
+
 # Implied by the reboot below
 #target=all
 #....
