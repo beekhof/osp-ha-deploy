@@ -140,12 +140,12 @@ target=$PHD_ENV_nodes1
 galera_script=galera.setup
 echo "" > $galera_script
 
-#for node in $PHD_ENV_nodes; do
-#    cat<<EOF >> $galera_script
-#drop user ''@'${node}';
-#drop user 'root'@'${node}';
-#EOF
-#done
+for node in $PHD_ENV_nodes; do
+    cat<<EOF >> $galera_script
+drop user ''@'${node}';
+drop user 'root'@'${node}';
+EOF
+done
 
 echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED by 'mysqltest' WITH GRANT OPTION;" >> $galera_script
 
