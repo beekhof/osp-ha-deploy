@@ -47,15 +47,12 @@ yum install -y mod_wsgi httpd mod_ssl openstack-dashboard nfs-utils
 
 target=all
 ....
-if [ $PHD_VAR_deployment = segregated ]; then
+# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
+# prevents NFS mounts from succeeding by default prior to a reboot
 
-    # In the segregated case, we need to mount /srv for any scenario that needs to use it
-    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
-
-    systemctl daemon-reload
-    systemctl start rpcbind.service
-    systemctl start rpc-statd.service
-fi
+systemctl daemon-reload
+systemctl start rpcbind.service
+systemctl start rpc-statd.service
 
 # Now mount /srv so that we can use $PHD_VAR_env_configdir further down
 
@@ -84,6 +81,9 @@ if [ $PHD_VAR_deployment = collapsed ]; then
 else
    sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rhos6-memcache1:11211', 'rhos6-memcache2:11211',  'rhos6-memcache3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
 fi
+
+# NOTE: fix apache config to listen only on a given interface (internal)
+sed  -i -e 's/^Listen.*/Listen '$(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')':80/g'  /etc/httpd/conf/httpd.conf 
 ....
 
 target=$PHD_ENV_nodes1
@@ -95,7 +95,7 @@ target=$PHD_ENV_nodes1
 
 service httpd stop
 service httpd start
-wget http://localhost/dashboard -O /dev/null
+curl http://$(hostname)/dashboard >/dev/null 2>&1
 service httpd stop
 
 mkdir -p $PHD_VAR_env_configdir
@@ -121,8 +121,6 @@ cat > /etc/httpd/conf.d/server-status.conf << EOF
 </Location>
 EOF
 
-# NOTE: fix apache config to listen only on a given interface (internal)
-sed  -i -e 's/^Listen.*/Listen '$(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')':80/g'  /etc/httpd/conf/httpd.conf 
 ....
 
 
