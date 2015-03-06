@@ -89,8 +89,7 @@ A minimum of 5 machines are required to deploy this setup:
 - neutron-agents are directly connected to the external LAN
 - nova and horizon are exposed to the external LAN via an extra haproxy instance
 - Compute nodes have a management connection to the external LAN but it is not used by OpenStack and hence not reproduced in the diagram. This will be used when adding nova network setup.
-- Here is a [list of variables](ha.variables) used when executing the referenced scripts.  Modify them to your needs.
-
+- Here is a [list of variables](ha-collapsed.variables) used when executing the referenced scripts.  Modify them to your needs.
 
 In this document we describe two deployment extremes:
 
@@ -109,8 +108,8 @@ In this document we describe two deployment extremes:
 
 1.  __Collapsed__ 
     
-    In this configuration, there is one cluster of 3 or more nodes on
-    which every component is running.
+    In this configuration, there is a single cluster of 3 or more
+    nodes on which every component is running.
     
     This scenario has the advantage of requiring far fewer, if more
     powerful, machines.  Additionally, being part of a single cluster
@@ -121,12 +120,17 @@ In this document we describe two deployment extremes:
     
     ![Collapsed deployment architecture](Cluster-deployment-collapsed.png)
 
-While not documented, it is certainly possible to follow a segregated
-approach for one or more components that are expected to be a
-bottleneck and use a collapsed apprach for the remainder.
+1.  __Mixed___ (not documented) 
 
-In each case, it is required that the clusters contain at least three
-nodes so that we take advantage of [quorum](http://en.wikipedia.org/wiki/Quorum_(Distributed_Systems))
+    While not something we document here, it is certainly possible to
+    follow a segregated approach for one or more components that are
+    expected to be a bottleneck and use a collapsed apprach for the
+    remainder.
+
+
+Regardless of which scenario you choose, it is required that the
+clusters contain at least three nodes so that we take advantage of
+[quorum](http://en.wikipedia.org/wiki/Quorum_(Distributed_Systems))
 
 Quorum becomes important when a failure causes the cluster to split in
 two or more paritions.  In this situation, you want the majority to
@@ -138,7 +142,7 @@ both sides are running the same services - leading to data corruption.
 Clusters with an even number of hosts suffer from similar issues - a
 single network failure could easily cause a N:N split where neither
 side retains a majority.  For this reason, we recommend an odd number
-of cluster members.
+of cluster members when scaling up.
 
 You can have up to 16 cluster members (this is currently limited by
 corosync's ability to scale higher).  In extreme cases, 32 and even up
@@ -405,14 +409,42 @@ This guide assumes RabbitMQ is being deployed, however we also
 attention to the comments in that guide for how selecting `Qpid` affects
 the rest of the configuration.
 
+__Note__: Access to RabbitMQ is not handled by HAproxy.  Instead
+consumers must be supplied with the full list of hosts running
+RabbitMQ with `rabbit_hosts` and `rabbit_ha_queues` options.
+
+Jock Eck found the [core
+issue](http://people.redhat.com/jeckersb/private/vip-failover-tcp-persist.html)
+and went into some detail regarding the [history and
+solution](http://john.eckersberg.com/improving-ha-failures-with-tcp-timeouts.html)
+on his blog.
+
+In summary though:
+
+> The source address for the connection from HAProxy back to the
+> client is the VIP address. However the VIP address is no longer
+> present on the host. This means that the network (IP) layer deems
+> the packet unroutable, and informs the transport (TCP) layer. TCP,
+> however, is a reliable transport. It knows how to handle transient
+> errors and will retry. And so it does.
+
+In this case that is a problem though, because:
+
+> TCP generally holds on to hope for a long time. A ballpark estimate
+> is somewhere on the order of tens of minutes (30 minutes is commonly
+> referenced). During this time it will keep probing and trying to
+> deliver the data.
+>
+> It's important to note that HAProxy has no idea that any of this is
+> happening. As far as its process is concerned, it called write()
+> with the data and the kernel returned success.
+
+The [resolution](https://review.openstack.org/#/c/146047/) is already
+understood and just needs to make its way through review.
+
 If you are performing a segregated deployment, follow the [basic
 cluster setup](basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `RabbitMQ` or `Qpid`.
-
-__Note__: Access to RabbitMQ is not handled by HAproxy there are
-issues integrating RabbitMQ with HAProxy.  Instead consumers must be
-supplied with the full list of hosts running RabbitMQ with
-`rabbit_hosts` and `rabbit_ha_queues` options.
+cluster on the guests intended to contain `RabbitMQ`.
 
 After verifying the (collapsed or newly created) cluster is
 functional, you can then deploy [rabbitmq](rabbitmq.scenario) into it.
@@ -658,7 +690,7 @@ cluster on the guests intended to contain the `neutron` agent.
 
 After verifying the (collapsed or newly created) cluster is
 functional, you can then deploy the [neutron
-agent](neutron-agent.scenario) components into it.
+agent](neutron-agents.scenario) components into it.
 
 To verify the installation was successful, perform the following [test
 actions](neutron-test.sh) from one of the nodes.
