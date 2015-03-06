@@ -47,15 +47,12 @@ yum install -y openstack-glance openstack-utils nfs-utils
 
 target=all
 ....
-if [ $PHD_VAR_deployment = segregated ]; then
+# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
+# prevents NFS mounts from succeeding by default prior to a reboot
 
-    # In the segregated case, we need to mount /srv for any scenario that needs to use it
-    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
-
-    systemctl daemon-reload
-    systemctl start rpcbind.service
-    systemctl start rpc-statd.service
-fi
+systemctl daemon-reload
+systemctl start rpcbind.service
+systemctl start rpc-statd.service
 
 # Now mount /srv so that we can use $PHD_VAR_env_configdir further down
 
