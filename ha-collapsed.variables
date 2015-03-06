@@ -32,3 +32,9 @@ vm:
 env:
   password: cluster
   configdir: /srv/RDO-${PHD_VAR_rpm_osp}/configs
+
+# TODO... 
+# password:
+#   cluster: foo
+#   keystone: bar
+#   ...
