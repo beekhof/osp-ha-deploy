@@ -44,6 +44,10 @@ target=all
 ....
 yum install -y rabbitmq-server nfs-utils
 
+# HACK HACK HACK 
+# Download directly until 7.1 is out and we get access to the 0-day (which has the rabbit agent)
+rpm -Uvh http://download.eng.bos.redhat.com/brewroot/packages/resource-agents/3.9.5/40.el7.2/x86_64/resource-agents-3.9.5-40.el7.2.x86_64.rpm
+
 # NOTE: we need to bind the service to the internal IP address
 
 cat > /etc/rabbitmq/rabbitmq-env.conf << EOF
@@ -57,15 +61,12 @@ systemctl stop rabbitmq-server
 
 target=all
 ....
-if [ $PHD_VAR_deployment = segregated ]; then
+# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
+# prevents NFS mounts from succeeding by default prior to a reboot
 
-    # In the segregated case, we need to mount /srv for any scenario that needs to use it
-    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
-
-    systemctl daemon-reload
-    systemctl start rpcbind.service
-    systemctl start rpc-statd.service
-fi
+systemctl daemon-reload
+systemctl start rpcbind.service
+systemctl start rpc-statd.service
 
 # Now mount /srv so that we can use $PHD_VAR_env_configdir further down
 
