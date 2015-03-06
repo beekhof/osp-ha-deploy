@@ -109,8 +109,10 @@ for scenario in $scenarios; do
 
     elif [ ${variables["deployment"]} != "collapsed" ]; then
 	: prep a new cluster for ${scenario}
+	echo "$(date) :: Initializing cluster for scenario $scenario"
 	phd_exec -s ./basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ha-${variables["deployment"]}.variables
     fi
 
+    echo "$(date) :: Beginning scenario $scenario"
     phd_exec -s ./${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ha-${variables["deployment"]}.variables
 done
