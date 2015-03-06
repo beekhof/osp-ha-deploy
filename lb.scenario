@@ -181,8 +181,10 @@ EOF
 if [ $PHD_VAR_deployment = collapsed ]; then
     # In a collapsed environment everything is installed on rhos6-node{1,2,3}
     # So rewite the proxy config to talk to those hosts instead
-    for section in db qpid keystone glance cinder swift neutron nova horizon heat ceilometer rabbitmq; do
-    	sed -i s/rhos6-${section}/rhos6-node/g
+    for section in db qpid keystone glance cinder swift neutron nova horizon heat ceilometer rabbitmq node; do
+    	sed -i s/rhos6-${section}1\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node1\ ${PHD_VAR_network_internal}\.103/g /etc/haproxy/haproxy.cfg
+    	sed -i s/rhos6-${section}2\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node2\ ${PHD_VAR_network_internal}\.104/g /etc/haproxy/haproxy.cfg
+    	sed -i s/rhos6-${section}3\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node3\ ${PHD_VAR_network_internal}\.105/g /etc/haproxy/haproxy.cfg
     done
 fi
 ....
