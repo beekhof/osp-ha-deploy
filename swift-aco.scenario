@@ -84,7 +84,7 @@ if [ $? != 0 ]; then
     # We must be either the first node to run, or configuring
     # single-node clusters for a segregated deployment
 
-    pcs resource create swift-fs Filesystem device="/dev/loop0" directory="/local/swiftstorage/target" fstype="xfs" --clone interleave=true
+    pcs resource create swift-fs Filesystem device="/dev/loop0" directory="/local/swiftstorage/target" fstype="xfs" force_clones="yes" --clone interleave=true
 
     pcs resource create swift-account systemd:openstack-swift-account --clone interleave=true
     pcs constraint colocation add swift-account-clone with swift-fs-clone
