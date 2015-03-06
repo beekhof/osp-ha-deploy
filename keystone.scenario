@@ -46,15 +46,12 @@ yum install -y openstack-keystone openstack-utils nfs-utils
 
 target=all
 ....
-if [ $PHD_VAR_deployment = segregated ]; then
+# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
+# prevents NFS mounts from succeeding by default prior to a reboot
 
-    # In the segregated case, we need to mount /srv for any scenario that needs to use it
-    # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005 prevents the mount from succeeding by default
-
-    systemctl daemon-reload
-    systemctl start rpcbind.service
-    systemctl start rpc-statd.service
-fi
+systemctl daemon-reload
+systemctl start rpcbind.service
+systemctl start rpc-statd.service
 
 # Now mount /srv so that we can use $PHD_VAR_env_configdir further down
 
@@ -80,7 +77,7 @@ export SERVICE_TOKEN=$(cat $PHD_VAR_env_configdir/ks_admin_token)
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-   openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
+    openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
 else
     openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts rhos6-rabbitmq1:11211,rhos6-rabbitmq2:11211,rhos6-rabbitmq3:11211
 fi
@@ -123,7 +120,7 @@ chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
 
 target=$PHD_ENV_nodes1
 ....
-su keystone -s /bin/sh -c "keystone-manage db_sync"
+su keystone -s /bin/sh -c "keystone-manage -v -d db_sync"
 
 pcs resource create keystone systemd:openstack-keystone --clone
 
@@ -147,6 +144,10 @@ export SERVICE_TOKEN=$(cat ${PHD_VAR_env_configdir}/ks_admin_token)
 export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
 
 keystone service-create --name=keystone --type=identity --description="Keystone Identity Service"
+if [ $? != 0 ]; then
+    echo "Keystone service creation failed. Aborting"
+    exit 1
+fi
 
 keystone endpoint-create --service keystone --publicurl 'http://vip-keystone:5000/v2.0' --adminurl 'http://vip-keystone:35357/v2.0' --internalurl 'http://vip-keystone:5000/v2.0'
 
