@@ -782,7 +782,7 @@ functional, you can then [deploy horizon](pcmk/horizon.scenario) into it.
 Just like Swift AOCs, we will usually need more than 16 compute nodes
 which is beyond Corosync's ability to manage.
 
-Start by creating a minimal CentOS installation on at least one node.
+Start by creating a minimal CentOS __7__ installation on at least one node.
 
 Once the machine(s) have been installed, [prepare
 them](pcmk/baremetal.scenario) for hosting OpenStack.
@@ -801,7 +801,9 @@ have the cluster [manage the services](pcmk/compute-cluster.scenario).
 Alternatively, have the existing _collapsed_ cluster [manage the
 services](pcmk/compute-cluster.scenario).
 
-# Adding Additional Nodes Later
+# Adding and Removing Nodes
+
+## Adding a New Node 
 
 Adding an additional node should be a matter of:
 
@@ -814,4 +816,13 @@ Adding an additional node should be a matter of:
 
 1. Performing only the actions listed in sections with `target=all`
 
- 
+## Removing a Node
+
+This is simply a matter of shutting down the cluster on the target
+node and removing it from the cluster configuration.  This can be
+achieved with `psc`:
+
+    node remove ${nodename}
+
+
+
