@@ -1,0 +1,192 @@
+#!/usr/bin/python -tt
+
+import sys, re, os, time
+import atexit, logging
+from pipes import quote
+sys.path.append("/usr/share/fence")
+from fencing import *
+from fencing import fail_usage, is_executable, run_command, run_delay
+
+#BEGIN_VERSION_GENERATION
+RELEASE_VERSION="4.0.11"
+BUILD_DATE="(built Wed Nov 12 06:33:38 EST 2014)"
+REDHAT_COPYRIGHT="Copyright (C) Red Hat, Inc. 2004-2010 All rights reserved."
+#END_VERSION_GENERATION
+
+
+override_status = ""
+
+def get_power_status(_, options):
+	global override_status
+
+	skip_first_line = 1
+	found = 0
+	status = "unknown"
+
+	print "current action: " + options["--action"]
+	print "current override: " + override_status
+
+	(ret, stdout, stderr) = run_command(options, create_command(options, "hypervisor-show"))
+
+	lines = stdout.splitlines()
+	for line in lines:
+		if line.startswith("|"):
+			# skip header from nova table
+			if skip_first_line == 0:
+				# | key | value |
+				entries = line.split("|")
+				for entry in entries:
+					if len(entry) > 0:
+						if entry.strip() == "state":
+							found = 1
+						# print only hostnames
+						else:
+							if found == 1:
+								if entry.strip() == "up":
+									status = "on"
+								if entry.strip() == "down":
+									status = "off"
+								if status != "on" and status != "off":
+									logging.debug("Unknow status detected from nova: " + status)
+								found = 0
+			else:
+				skip_first_line = 0
+
+	return status
+
+def set_power_status(_, options):
+	global override_status
+
+	if options["--action"] == "on":
+		override_status = on
+		return
+
+	# need to wait nova to update its internal status or we cannot
+	# call host-evacuate
+	print "We are here"
+	while get_power_status(_, options) != "off":
+		logging.debug("Waiting for nova to update it's internal state")
+		time.sleep(1)
+
+	(ret, stdout, stderr) = run_command(options, create_command(options, "host-evacuate"))
+
+	return
+
+def get_plugs_list(_, options):
+	result = {}
+	skip_first_line = 1
+	ishost = 0
+
+	(ret, stdout, stderr) = run_command(options, create_command(options, "hypervisor-list"))
+
+	lines = stdout.splitlines()
+	for line in lines:
+		if line.startswith("|"):
+			# skip header from nova table
+			if skip_first_line == 0:
+				# | ID | hostname |
+				entries = line.split("|")
+				for entry in entries:
+					if len(entry) > 0:
+						# print only hostnames
+						if ishost == 1:
+							result[entry.strip()] = ("", None)
+							ishost = 0
+						else:
+							ishost = 1
+			else:
+				skip_first_line = 0
+
+	return result
+
+def create_command(options, action):
+	cmd = options["--novatool-path"]
+
+	cmd += " --os-username " + options["--os-username"]
+	cmd += " --os-password " + options["--os-password"]
+	cmd += " --os-tenant-name " + options["--os-tenant-name"]
+	cmd += " --os-auth-url " + options["--os-auth-url"]
+
+	# --action / -o
+	cmd += " " + action
+
+	if options["--action"] != "list" and options.has_key("--plug"):
+		cmd += " " + options["--plug"]
+
+	return cmd
+
+def define_new_opts():
+	all_opt["os-username"] = {
+		"getopt" : "u:",
+		"longopt" : "os-username",
+		"help" : "-u, --os-username=[username]          Keystone Admin Username",
+		"required" : "1",
+		"shortdesc" : "Keystone Admin Username",
+		"default" : "",
+		"order": 1
+	}
+	all_opt["os-password"] = {
+		"getopt" : "p:",
+		"longopt" : "os-password",
+		"help" : "-p, --os-password=[password]          Keystone Admin Password",
+		"required" : "1",
+		"shortdesc" : "Keystone Admin Password",
+		"default" : "",
+		"order": 1
+	}
+	all_opt["os-tenant-name"] = {
+		"getopt" : "t:",
+		"longopt" : "os-tenant-name",
+		"help" : "-t, --os-tenant-name=[tenant]          Keystone Admin Tenant",
+		"required" : "1",
+		"shortdesc" : "Keystone Admin Tenant",
+		"default" : "",
+		"order": 1
+	}
+	all_opt["os-auth-url"] = {
+		"getopt" : "k:",
+		"longopt" : "os-auth-url",
+		"help" : "-k, --os-auth-url=[tenant]          Keystone Admin Auth URL",
+		"required" : "1",
+		"shortdesc" : "Keystone Admin Auth URL",
+		"default" : "",
+		"order": 1
+	}
+	all_opt["novatool-path"] = {
+		"getopt" : "i:",
+		"longopt" : "novatool-path",
+		"help" : "--novatool-path=[path]         Path to nova binary",
+		"required" : "0",
+		"shortdesc" : "Path to nova binary",
+		"default" : "/usr/bin/nova",
+		"order": 200
+	}
+
+def main():
+	atexit.register(atexit_handler)
+
+	device_opt = ["os-username", "os-password", "os-tenant-name", "os-auth-url",
+		"novatool-path", "no_login", "no_password", "port", "fabric_fencing"]
+	define_new_opts()
+	all_opt["separator"]["default"] = ""
+	all_opt["shell_timeout"]["default"] = "180"
+
+	options = check_input(device_opt, process_input(device_opt))
+
+	docs = {}
+	docs["shortdesc"] = "Fence agent for nova compute nodes"
+	docs["longdesc"] = "fence_compute is a Nova fencing notification agent"
+	docs["vendorurl"] = ""
+
+	show_docs(options, docs)
+
+	run_delay(options)
+
+	if not is_executable(options["--novatool-path"]):
+		fail_usage("nova not found or not accessible")
+
+	result = fence_action(None, options, set_power_status, get_power_status, get_plugs_list, None)
+	sys.exit(result)
+
+if __name__ == "__main__":
+	main()
