@@ -18,24 +18,25 @@ cluster["baremetal"]=0
 cluster["gateway"]=0
 cluster["virt-hosts"]=0
 
+variables["nodes"]=""
 variables["network_domain"]="lab.bos.redhat.com"
 variables["deployment"]="collapsed"
 variables["status"]=0
 variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
-variables["scenarios-segregated"]="baremetal gateway virt-hosts lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat  horizoncompute-common compute-cluster"
+variables["scenarios-segregated"]="baremetal gateway virt-hosts lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat horizon compute-common compute-cluster"
 variables["scenarios-collapsed"]="baremetal gateway virt-hosts basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat horizon compute-common compute-managed"
-
-# Temporary - reuse the existing bare-metal and stop prior to compute nodes
-variables["scenarios-collapsed"]="virt-hosts basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat horizon"
-variables["scenarios-collapsed"]="basic-cluster"
 
 function create_phd_definition() {
     scenario=$1
     definition=$2
     rm -f ${definition}
 
-    nodes=""
-    nodes=${nodeMap[$scenario]}
+    nodes=${variables["nodes"]}
+
+    if [ "x$nodes" = x ]; then
+	nodes=${nodeMap[$scenario]}
+    fi
+
     if [ "x$nodes" = "x" ]; then
 	for n in `seq 1 3`; do
 	    nodes="$nodes rhos6-${scenario}${n}.vmnet"
@@ -58,6 +59,7 @@ while true ; do
 	--help|-h|-\?) 
 	    echo "$0 "
 	    exit 0;;
+	-n|--node)  variables["nodes"]="${variables["nodes"]} $2";  shift; shift;;
 	-c|--collapsed)  variables["deployment"]="collapsed";  shift;;
 	-s|--segregated) variables["deployment"]="segregated"; shift;;
 	-S|--status)     variables["status"]=1; shift;;
@@ -110,9 +112,9 @@ for scenario in $scenarios; do
     elif [ ${variables["deployment"]} != "collapsed" ]; then
 	: prep a new cluster for ${scenario}
 	echo "$(date) :: Initializing cluster for scenario $scenario"
-	phd_exec -s ./basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ha-${variables["deployment"]}.variables
+	phd_exec -s ./pcmk/basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/ha-${variables["deployment"]}.variables
     fi
 
     echo "$(date) :: Beginning scenario $scenario"
-    phd_exec -s ./${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ha-${variables["deployment"]}.variables
+    phd_exec -s ./pcmk/${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/ha-${variables["deployment"]}.variables
 done

@@ -89,7 +89,7 @@ A minimum of 5 machines are required to deploy this setup:
 - neutron-agents are directly connected to the external LAN
 - nova and horizon are exposed to the external LAN via an extra haproxy instance
 - Compute nodes have a management connection to the external LAN but it is not used by OpenStack and hence not reproduced in the diagram. This will be used when adding nova network setup.
-- Here is a [list of variables](ha-collapsed.variables) used when executing the referenced scripts.  Modify them to your needs.
+- Here is a [list of variables](pcmk/ha-collapsed.variables) used when executing the referenced scripts.  Modify them to your needs.
 
 In this document we describe two deployment extremes:
 
@@ -150,7 +150,7 @@ to 64 nodes could be possible however this is not well tested.
 
 In some environments, the available IP address range of the public LAN
 is limited. If this applies to you, you will need one additional node
-to set up as a [gateway](gateway.scenario) that will provide DNS
+to set up as a [gateway](pcmk/gateway.scenario) that will provide DNS
 and DHCP for the guests containing the OpenStack services and expose
 the required nova and horizon APIs to the external network.
 
@@ -163,13 +163,13 @@ For each service we create a virtual cluster, with one member running
 on each of the physical hosts.  Each virtual cluster must contain at
 members, one per physical host, for the reasons stated above.
 
-Once the machines have been installed, [prepare them](baremetal.scenario) 
+Once the machines have been installed, [prepare them](pcmk/baremetal.scenario) 
 for hosting OpenStack.
 
-Next we must [create the image](virt-hosts.scenario) for the
+Next we must [create the image](pcmk/virt-hosts.scenario) for the
 guests that will host the OpenStack services and clone it.  Once the
 image has been created, we can prepare the hosting nodes and
-[clone](virt-hosts.scenario) it.
+[clone](pcmk/virt-hosts.scenario) it.
 
 ## Implementation - Collapsed
 
@@ -180,13 +180,13 @@ We create a single virtual cluster, with one member running on each of
 the physical hosts.  The virtual cluster must contain at least three
 members, one per physical host, for the reasons stated above.
 
-Once the machines have been installed, [prepare them](baremetal.scenario) 
+Once the machines have been installed, [prepare them](pcmk/baremetal.scenario) 
 for hosting OpenStack.
 
-Next we must [create the image](virt-hosts.scenario) for the
+Next we must [create the image](pcmk/virt-hosts.scenario) for the
 guests that will host the OpenStack services and clone it.  Once the
 image has been created, we can prepare the hosting nodes and
-[clone](virt-hosts.scenario) it.
+[clone](pcmk/virt-hosts.scenario) it.
 
 # Deploy OpenStack HA controllers
 
@@ -255,11 +255,11 @@ cluster manager:
 
 For this reason, the use of a cluster manager like
 [Pacemaker](http://clusterlabs.org) is highly recommended.  The [basic
-cluster setup](basic-cluster.scenario) instructions are required for
+cluster setup](pcmk/basic-cluster.scenario) instructions are required for
 every cluster.
 
 When performing an collapsed deployment, there is only one cluster
-and now is the time to follow the [basic cluster setup](basic-cluster.scenario)
+and now is the time to follow the [basic cluster setup](pcmk/basic-cluster.scenario)
 instructions.
 
 When performing an segregated deployment, this step will need to be
@@ -329,10 +329,10 @@ clustering, so in it's case the `stick-table` option ensures that all
 requests go to the active instance.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions.
+cluster setup](pcmk/basic-cluster.scenario) instructions.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy the [load balancer](lb.scenario) to
+functional, you can then deploy the [load balancer](pcmk/lb.scenario) to
 the previously created guests.
 
 ### Replicated Database
@@ -363,14 +363,14 @@ active/passive (enforced by the load balancer) in order to avoid lock
 contention.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `Galera`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy galera](galera.scenario) into it.
+functional, you can then [deploy galera](pcmk/galera.scenario) into it.
 
 To verify the installation was successful, perform the following [test
-actions](galera-test.sh) from one of the nodes.
+actions](pcmk/galera-test.sh) from one of the nodes.
 
 ### Database Cache
 
@@ -385,11 +385,11 @@ consumers must be supplied with the full list of hosts running
 memcached.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `memcached`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy memcached](memcached.scenario) into
+functional, you can then [deploy memcached](pcmk/memcached.scenario) into
 it.
 
 ### Message Bus
@@ -405,7 +405,7 @@ RabbitMQ and Qpid are common deployment options. Both support:
 - replicated queues
 
 This guide assumes RabbitMQ is being deployed, however we also
-[document Qpid (TODO)](osp-qpid.scenario) for completeness.  Pay
+[document Qpid (TODO)](pcmk/osp-qpid.scenario) for completeness.  Pay
 attention to the comments in that guide for how selecting `Qpid` affects
 the rest of the configuration.
 
@@ -443,14 +443,14 @@ The [resolution](https://review.openstack.org/#/c/146047/) is already
 understood and just needs to make its way through review.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `RabbitMQ`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy [rabbitmq](rabbitmq.scenario) into it.
+functional, you can then deploy [rabbitmq](pcmk/rabbitmq.scenario) into it.
 
 To verify the installation was successful, perform the following [test
-actions](rabbitmq-test.sh) from one of the nodes.
+actions](pcmk/rabbitmq-test.sh) from one of the nodes.
 
 ### NoSQL Database (optional)
 
@@ -466,11 +466,11 @@ __Note__: Access to mongodb is not handled by HAproxy [because TODO].
 Instead ceilometer must be supplied with the full list of hosts running mongodb.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `mongodb`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy mongodb](mongodb.scenario) into it.
+functional, you can then [deploy mongodb](pcmk/mongodb.scenario) into it.
 
 ## Installing Openstack services
 ### Keystone
@@ -482,14 +482,14 @@ common authentication system across the cloud operating system and can
 integrate with existing backend directory services.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `keystone`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy keystone](keystone.scenario) into it.
+functional, you can then [deploy keystone](pcmk/keystone.scenario) into it.
 
 To verify the installation was successful, perform the following [test
-actions](keystone-test.sh) from one of the nodes.
+actions](pcmk/keystone-test.sh) from one of the nodes.
 
 ### Glance
 
@@ -506,14 +506,14 @@ multiple backups. The Image Service can store disk and server images
 in a variety of back-ends, however we will only consider NFS here.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `glance`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy glance](glance.scenario) into it.
+functional, you can then [deploy glance](pcmk/glance.scenario) into it.
 
 To verify the installation was successful, perform the following [test
-actions](glance-test.sh) from one of the nodes.
+actions](pcmk/glance-test.sh) from one of the nodes.
 
 ### Cinder
 
@@ -571,14 +571,14 @@ for addressing them upstream.
 In this guide we configure the NFS backend, however many others exist.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `cinder`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy cinder](cinder.scenario) into it.  
+functional, you can then [deploy cinder](pcmk/cinder.scenario) into it.  
 
 To verify the installation was successful, perform the following [test
-actions](cinder-test.sh) from one of the nodes.
+actions](pcmk/cinder-test.sh) from one of the nodes.
 
 ### Swift ACO (optional)
 
@@ -596,15 +596,15 @@ allow the cluster to manage more than 16 worker nodes, but until this
 is properly documented we must make use of a work-around.
 
 If you expect to have more than 16 ACO nodes, creating each as a
-[single node cluster](basic-cluster.scenario) - independant of all the
+[single node cluster](pcmk/basic-cluster.scenario) - independant of all the
 others. This avoids the 16 node limit while still making sure the
 individual `swift` daemons are being monitored and recovered as
 necessary.
 
 Once you have a set of functional single-node clusters, you can then
-[deploy swift ACOs](swift-aco.scenario) into them.
+[deploy swift ACOs](pcmk/swift-aco.scenario) into them.
 
-Alternatively, [deploy swift ACOs](swift-aco.scenario) into the
+Alternatively, [deploy swift ACOs](pcmk/swift-aco.scenario) into the
 existing _collapsed_ cluster.
 
 ### Swift Proxy (optional)
@@ -615,14 +615,14 @@ the account, container, or object in the ring (see below) and route
 the request accordingly.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain the swift proxy.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy swift](swift.scenario) into it.
+functional, you can then [deploy swift](pcmk/swift.scenario) into it.
 
 To verify the installation was successful, perform the following [test
-actions](swift-test.sh) from one of the nodes.
+actions](pcmk/swift-test.sh) from one of the nodes.
 
 ### Networking
 
@@ -675,37 +675,37 @@ them.
 __Server__
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain the `neutron` server.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy the [neutron server](neutron-server.scenario) 
+functional, you can then deploy the [neutron server](pcmk/neutron-server.scenario) 
 components into it.
 
 __Agents__
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain the `neutron` agent.
 
 After verifying the (collapsed or newly created) cluster is
 functional, you can then deploy the [neutron
-agent](neutron-agents.scenario) components into it.
+agent](pcmk/neutron-agents.scenario) components into it.
 
 To verify the installation was successful, perform the following [test
-actions](neutron-test.sh) from one of the nodes.
+actions](pcmk/neutron-test.sh) from one of the nodes.
 
 #### Nova-network (non-compute)
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `nova`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy nova](nova.scenario) into it.
+functional, you can then [deploy nova](pcmk/nova.scenario) into it.
 
 To verify the installation was successful, perform the following [test
-actions](nova-test.sh) from one of the nodes.
+actions](pcmk/nova-test.sh) from one of the nodes.
 
 ### Ceilometer (optional)
 
@@ -719,15 +719,15 @@ configuration because [TODO]. A move to an active/active configuration
 is planned but will likely require a switch from `mongodb` to `redis`.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `ceilometer`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy ceilometer](ceilometer.scenario) into
+functional, you can then [deploy ceilometer](pcmk/ceilometer.scenario) into
 it.
 
 To verify the installation was successful, perform the following [test
-actions](ceilometer-test.sh) from one of the nodes.
+actions](pcmk/ceilometer-test.sh) from one of the nodes.
 
 ### Heat (optional)
 
@@ -756,11 +756,11 @@ template.  For this reason we limit `heat-engine` to an active/passive
 configuration.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `heat`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy heat](heat.scenario) into it.
+functional, you can then [deploy heat](pcmk/heat.scenario) into it.
 
 ### Horizon
 
@@ -771,11 +771,11 @@ what is going on in the cloud, and to manage it as necessary. The
 dashboard runs via httpd service.
 
 If you are performing a segregated deployment, follow the [basic
-cluster setup](basic-cluster.scenario) instructions to set up a
+cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
 cluster on the guests intended to contain `horizon`.
 
 After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy horizon](horizon.scenario) into it.
+functional, you can then [deploy horizon](pcmk/horizon.scenario) into it.
 
 # Compute nodes (standalone)
 
@@ -785,21 +785,21 @@ which is beyond Corosync's ability to manage.
 Start by creating a minimal CentOS installation on at least one node.
 
 Once the machine(s) have been installed, [prepare
-them](baremetal.scenario) for hosting OpenStack.
+them](pcmk/baremetal.scenario) for hosting OpenStack.
 
-Next, you can configure them as [compute nodes](compute-common.scenario).
+Next, you can configure them as [compute nodes](pcmk/compute-common.scenario).
 
 If you expect to have more than 16 compute nodes, once again use the
 work-around of creating each compute node as a [single node
-cluster](basic-cluster.scenario) - independant of all the others. This
+cluster](pcmk/basic-cluster.scenario) - independant of all the others. This
 avoids the 16 node limit while still making sure the individual
 compute daemons are being monitored and recovered as necessary.
 
 Once you have a set of functional single-node clusters, you can then
-have the cluster [manage the services](compute-cluster.scenario).
+have the cluster [manage the services](pcmk/compute-cluster.scenario).
 
 Alternatively, have the existing _collapsed_ cluster [manage the
-services](compute-cluster.scenario).
+services](pcmk/compute-cluster.scenario).
 
 # Adding Additional Nodes Later
 

@@ -1,0 +1,186 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+= VARIABLES =
+
+PHD_VAR_deployment
+PHD_VAR_env_configdir
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# $(pidof pacemaker) is a convenient method for deciding if the node is intended to be a compute node
+# Empty implies 'yes' because there is no cluster running
+
+if [ -z $(pidof pacemakerd) ]; then
+
+    # This node wasn't previously setup to run cluster software.
+    # Therefore it must be intended as a managed compute node and we
+    # should install pacemaker-remote.
+
+    yum install -y pacemaker-remote resource-agents pcs nfs-utils
+fi
+....
+
+target=all
+....
+# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
+# prevents NFS mounts from succeeding by default prior to a reboot
+
+systemctl daemon-reload
+systemctl start rpcbind.service
+systemctl start rpc-statd.service
+
+# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already mounted; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+    mount /srv
+fi
+....
+
+target=all
+....
+if [ ! -e $PHD_VAR_env_configdir/pcmk-authkey ]; then
+   dd if=/dev/urandom of=$PHD_VAR_env_configdir/pcmk-authkey bs=4096 count=1
+fi
+
+mkdir -p /etc/pacemaker
+cp $PHD_VAR_env_configdir/pcmk-authkey /etc/pacemaker/authkey
+
+if [ -z $(pidof pacemakerd) ]; then
+    service pacemaker-remote start
+fi
+....
+
+target=$PHD_ENV_nodes1
+....
+if [ $PHD_VAR_deployment = segregated ]; then
+    echo "We don't document managed compute nodes in a segregated environment yet"
+
+    # Certainly none of the location constraints would work and the
+    # resource-discovery options are mostly redundant
+
+    exit 1
+fi
+
+if [ -z $(pidof pacemakerd) ]; then
+    echo "Sanity check: The first node, $(hostname -s), must be part of a cluster"
+
+    # Otherwise none of the pcs commands that follow will work    
+
+    exit 1
+fi
+
+# Take down the ODP control plane
+pcs resource disable keystone
+
+# Force services to run only on nodes with osprole = controller
+#
+# Importantly it also tells Pacemaker not to even look for the services on other
+# nodes. This helps reduce noise and collisions with services that fill the same role
+# on compute nodes.
+
+for i in $(cibadmin -Q --xpath //primitive --node-path | tr ' ' '\n' | awk -F "id='" '{print $2}' | awk -F "'" '{print $1}' | uniq | grep -v "\-fence") ; do pcs constraint location $i rule resource-discovery=exclusive score=0 osprole eq controller ; done
+
+# Now (because the compute nodes have roles assigned to them and keystone is
+# stopped) it is safe to define the services that will run on the compute nodes
+
+pcs resource create neutron-openvswitch-agent-compute  systemd:neutron-openvswitch-agent --clone interleave=true --disabled
+pcs constraint location neutron-openvswitch-agent-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
+
+pcs resource create libvirtd-compute systemd:libvirtd  --clone interleave=true --disabled
+pcs constraint location libvirtd-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
+
+pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --clone interleave=true --disabled
+pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
+
+pcs resource create nova-compute systemd:openstack-nova-compute  --clone interleave=true --disabled
+pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
+
+pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
+
+pcs constraint order start neutron-openvswitch-agent-compute-clone then libvirtd-compute-clone
+pcs constraint colocation add libvirtd-compute-clone with neutron-openvswitch-agent-compute-clone
+
+pcs constraint order start libvirtd-compute-clone then ceilometer-compute-clone
+pcs constraint colocation add ceilometer-compute-clone with libvirtd-compute-clone
+
+pcs constraint order start ceilometer-notification-clone then ceilometer-compute-clone require-all=false
+
+pcs constraint order start ceilometer-compute-clone then nova-compute-clone
+pcs constraint colocation add nova-compute-clone with ceilometer-compute-clone
+
+pcs constraint order start nova-conductor-clone then nova-compute-clone require-all=false
+
+pcs resource enable keystone
+pcs resource enable neutron-openvswitch-agent-compute
+pcs resource enable libvirtd-compute
+pcs resource enable ceilometer-compute
+pcs resource enable nova-compute
+
+# Take advantage of the fact that control nodes will already be part of the cluster
+# At this step, we need to teach the cluster about the compute nodes
+#
+# This requires running commands on the cluster based on the names of the compute nodes
+
+controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
+
+for node in ${PHD_ENV_nodes}; do
+    found=0
+    short_node=$(echo ${node} | sed s/\\..*//g)
+
+    for controller in ${controllers}; do
+	if [ ${short_node} = ${controller} ]; then
+	    pcs property set --node ${short_node} osprole=controller
+	fi
+    done
+
+    if [ $found = 0 ]; then
+	# We only want to execute the following _for_ the compute nodes, not _on_ the compute nodes
+	# Rather annoying
+
+	pcs resource create ${short_node} ocf:pacemaker:remote
+	pcs property set --node ${short_node} osprole=compute
+
+	# This step will /entirely/ depend on the hardware you have
+	# If you have IPMI, it might be like so:
+	# pcs stonith create fence-compute-$node fence_ipmilan login="root" passwd="supersecret" ipaddr="192.168.1.1" pcmk_host_list="$node"
+	# Personally, I have an APC switch that can control all the compute nodes at once (so I create it outside of this loop)
+    fi
+done
+
+pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;"
+....
