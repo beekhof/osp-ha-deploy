@@ -76,6 +76,20 @@ gpgcheck=0
 enabled=1
 EOF
 
+case $distro_major in
+	# Account for the location differences between CentOS 6 and 7
+    6)
+	;;
+    7)
+	sed -i s#HighAvailability#addons/HighAvailability#g /etc/yum.repos.d/rhel-${distro}.repo
+	sed -i s#RHEL-${distro}-Z#rhel-${distro}-z#g /etc/yum.repos.d/rhel-${distro}.repo
+
+	# ethX will do nicely thankyou
+	rm -f /lib/udev/rules.d/75-persistent-net-generator.rules
+	rm -f /etc/udev/rules.d/70-persistent-net.rules
+	;;
+esac
+
 yum clean all
 yum update -y
 yum install -y pacemaker fence-agents resource-agents pcs cman ccs libvirt qemu-kvm bind-utils
@@ -83,9 +97,17 @@ sed -i -e 's/=enforcing/=disabled/g' /etc/sysconfig/selinux
 sed -i -e 's/=enforcing/=disabled/g' /etc/selinux/config
 
 [ -f /etc/cron.d/rhn-virtualization.cron ] && sed -i -e 's/^0/#0/g' /etc/cron.d/rhn-virtualization.cron
-chkconfig acpid off
-chkconfig iptables off
-chkconfig ip6tables off
+
+case $distro_major in
+    6)
+	chkconfig acpid off
+	chkconfig iptables off
+	chkconfig ip6tables off
+	;;
+    7)
+	chkconfig firewalld off
+	;;
+esac
 chkconfig libvirtd on
 service libvirtd start
 ....
@@ -176,7 +198,6 @@ ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
 echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
 echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
 echo nameserver ${ext_ip} >> /etc/resolv.conf
-ifdown ext0 && ifup ext0
 ....
 
 # Implied by the reboot below
