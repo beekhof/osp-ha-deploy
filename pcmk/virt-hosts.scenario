@@ -59,6 +59,24 @@ nodes: 4
 ######################
 = SCRIPTS =
 
+
+target=all
+....
+
+if [ $(host $(hostname -s) | awk '{print $4}') != $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
+    : Everyone except the first node needs to run the commands below
+    exit 0
+fi
+
+if grep -q srv /etc/fstab; then 
+    echo /srv is already defined; 
+else
+    mkdir -p /srv
+    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+fi  
+mount -a
+....
+
 target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
 ....
 yum install -y fence-virtd fence-virtd-multicast fence-virtd-libvirt
@@ -83,6 +101,12 @@ backends {
         }
 }
 EOF
+
+if [ ! -e $PHD_VAR_env_configdir/fence_xvm.key ]; then
+    echo $(openssl rand -hex 10) > $PHD_VAR_env_configdir/fence_xvm.key
+fi
+
+cp $PHD_VAR_env_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
 
 # XXX remember to file a bug
 chkconfig --add fence_virtd
@@ -264,17 +288,14 @@ sleep 1200
 #virsh define /srv/rhos6-rhel7-vms/rhos6-rhel7-base.xml
 #....
 
-target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
+target=all
 ....
 
-if grep -q srv /etc/fstab; then 
-    echo /srv is already defined; 
-else
-    mkdir -p /srv
-    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
+if [ $(host $(hostname -s) | awk '{print $4}') = $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
+    : Everyone except the first node needs to run the commands below
+    exit 0
 fi
 
-mount -a
 mkdir -p /localvms
 mkdir -p /allinone
 
@@ -286,8 +307,13 @@ if [ ! -e /localvms/${vm_base} ]; then
 fi
 ....
 
-target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
+target=all
 ....
+
+if [ $(host $(hostname -s) | awk '{print $4}') = $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
+    : Everyone except the first node needs to run the commands below
+    exit 0
+fi
 
 # The internal network must go first so that hostname can be set by
 # DHCP and it will generally be the preferred network
