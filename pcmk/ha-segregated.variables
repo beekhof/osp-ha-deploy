@@ -31,4 +31,4 @@ vm:
 # I set the password to 'cluster', USE A SAFER ONE
 env:
   password: cluster
-  configdir: /srv/RDO-${PHD_VAR_rpm_osp}/configs
+  configdir: /srv/RDO-6.0/configs
