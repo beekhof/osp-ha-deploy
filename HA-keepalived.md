@@ -67,7 +67,7 @@ The detailed high availability strategy for the OpenStack services is defined in
 | Nova             |openstack-nova-novncproxy   | A/A    | HAProxy     |
 | Cinder           |openstack-cinder-api        | A/A    | HAProxy     |
 | Cinder           |openstack-cinder-scheduler  | A/A    |             |
-| Cinder           |openstack-cinder-api        | **A/P**| No HA       |
+| Cinder           |openstack-cinder-volume     | **A/P**| No HA       |
 | Cinder           |openstack-cinder-backup     | A/A    |             |
 | Neutron          |neutron-server              | A/A    | HAProxy     |
 | Neutron          |neutron-dhcp-agent          | A/A    | Multiple DHCP agents |
@@ -118,7 +118,7 @@ The current design of the Neutron LBaaS agent using the HAProxy driver does not 
 
 Some OpenStack API services have specific requirements that enable them to support an active-active operation in some configurations, but not on others:
 
--   Heat: <add details>
+-   Heat: heat-engine can run in an active/active configuration, but it requires `OS::Ceilometer::Alarm` in templates and for Ceilometer to be functional before starting Heat.
 
 ### Service monitoring and recovery required
 
