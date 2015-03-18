@@ -777,10 +777,13 @@ cluster on the guests intended to contain `horizon`.
 After verifying the (collapsed or newly created) cluster is
 functional, you can then [deploy horizon](pcmk/horizon.scenario) into it.
 
-# Compute nodes (standalone)
+# Compute nodes 
 
 Just like Swift AOCs, we will usually need more than 16 compute nodes
-which is beyond Corosync's ability to manage.
+which is beyond Corosync's ability to manage.  The good news is that
+we can use `pacemaker-remote` to manage the compute nodes as partial
+members - allowing us to bypass the Corosync limit without needing to
+create each compute node as a single node cluster.
 
 Start by creating a minimal CentOS __7__ installation on at least one node.
 
@@ -789,17 +792,12 @@ them](pcmk/baremetal.scenario) for hosting OpenStack.
 
 Next, you can configure them as [compute nodes](pcmk/compute-common.scenario).
 
-If you expect to have more than 16 compute nodes, once again use the
-work-around of creating each compute node as a [single node
-cluster](pcmk/basic-cluster.scenario) - independant of all the others. This
-avoids the 16 node limit while still making sure the individual
-compute daemons are being monitored and recovered as necessary.
+In the _collapsed_ scenario we now add them to the cluster as [partial
+members](pcmk/compute-managed.scenario).
 
-Once you have a set of functional single-node clusters, you can then
-have the cluster [manage the services](pcmk/compute-cluster.scenario).
-
-Alternatively, have the existing _collapsed_ cluster [manage the
-services](pcmk/compute-cluster.scenario).
+For a _segregated_ deployment, we now add them to the cluster we
+created for _Nova (non-compute)_, again as [partial
+members](pcmk/compute-managed.scenario)
 
 # Adding and Removing Nodes
 
