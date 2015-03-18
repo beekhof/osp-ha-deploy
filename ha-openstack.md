@@ -695,7 +695,7 @@ agent](pcmk/neutron-agents.scenario) components into it.
 To verify the installation was successful, perform the following [test
 actions](pcmk/neutron-test.sh) from one of the nodes.
 
-#### Nova-network (non-compute)
+### Nova (non-compute)
 
 If you are performing a segregated deployment, follow the [basic
 cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
