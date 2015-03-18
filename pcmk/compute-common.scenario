@@ -52,6 +52,11 @@ enabled=1
 EOT
 
 yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached
+
+# Until this makes it upstream
+mkdir /usr/lib/ocf/resource.d/openstack/
+wget -O /usr/lib/ocf/resource.d/openstack/NovaCompute https://github.com/beekhof/osp-ha-deploy/raw/master/pcmk/NovaCompute
+chmod a+x /usr/lib/ocf/resource.d/openstack/NovaCompute 
 ....
 
 target=all

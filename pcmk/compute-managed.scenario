@@ -77,6 +77,10 @@ if [ ! -e $PHD_VAR_env_configdir/pcmk-authkey ]; then
    dd if=/dev/urandom of=$PHD_VAR_env_configdir/pcmk-authkey bs=4096 count=1
 fi
 
+# Until this makes it upstream
+wget -O /usr/sbin/fence_compute https://github.com/beekhof/osp-ha-deploy/raw/master/pcmk/fence_compute
+chmod a+x /usr/sbin/fence_compute 
+
 mkdir -p /etc/pacemaker
 cp $PHD_VAR_env_configdir/pcmk-authkey /etc/pacemaker/authkey
 
@@ -130,7 +134,7 @@ pcs constraint location libvirtd-compute-clone rule resource-discovery=exclusive
 pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --clone interleave=true --disabled --force
 pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
-pcs resource create nova-compute systemd:openstack-nova-compute  --clone interleave=true --disabled --force
+pcs resource create nova-compute NovaCompute --clone interleave=true --disabled --force
 pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
 pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
@@ -148,18 +152,14 @@ pcs constraint colocation add nova-compute-clone with ceilometer-compute-clone
 
 pcs constraint order start nova-conductor-clone then nova-compute-clone require-all=false
 
-pcs resource enable keystone
-pcs resource enable neutron-openvswitch-agent-compute
-pcs resource enable libvirtd-compute
-pcs resource enable ceilometer-compute
-pcs resource enable nova-compute
-
 # Take advantage of the fact that control nodes will already be part of the cluster
 # At this step, we need to teach the cluster about the compute nodes
 #
 # This requires running commands on the cluster based on the names of the compute nodes
 
 controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
+
+pcs --force stonith create fence-nova fence_compute domain=${PHD_VAR_network_domain} os-username=admin os-tenant-name=admin os-password=keystonetest os-auth-url=http://vip-keystone:35357/v2.0/
 
 for node in ${PHD_ENV_nodes}; do
     found=0
@@ -181,10 +181,22 @@ for node in ${PHD_ENV_nodes}; do
 
 	# This step will /entirely/ depend on the hardware you have
 	# If you have IPMI, it might be like so:
-	# pcs stonith create fence-compute-$node fence_ipmilan login="root" passwd="supersecret" ipaddr="192.168.1.1" pcmk_host_list="$node"
+	#   pcs stonith create fence-compute-${short_node} fence_ipmilan login="root" passwd="supersecret" ipaddr="192.168.1.1" pcmk_host_list="$node"
+	# Also, you'd reference fence-compute-${short_node} in the call to 'pcs stonith level add' below
+	#
 	# Personally, I have an APC switch that can control all the compute nodes at once (so I create it outside of this loop)
+	
+	# Now instruct the cluster to require both fencing methods be performed
+	pcs stonith level add 1 ${short_node} fence-compute,fence-nova
     fi
 done
 
 pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;"
+
+pcs resource enable keystone
+pcs resource enable neutron-openvswitch-agent-compute
+pcs resource enable libvirtd-compute
+pcs resource enable ceilometer-compute
+pcs resource enable nova-compute
+
 ....
