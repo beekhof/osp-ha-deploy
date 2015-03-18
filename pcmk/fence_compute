@@ -1,0 +1,210 @@
+#!/usr/bin/python -tt
+
+import sys, re, os, time
+import atexit, logging
+from pipes import quote
+sys.path.append("/usr/share/fence")
+from fencing import *
+from fencing import fail_usage, is_executable, run_command, run_delay
+
+#BEGIN_VERSION_GENERATION
+RELEASE_VERSION="4.0.11"
+BUILD_DATE="(built Wed Nov 12 06:33:38 EST 2014)"
+REDHAT_COPYRIGHT="Copyright (C) Red Hat, Inc. 2004-2010 All rights reserved."
+#END_VERSION_GENERATION
+
+override_status = ""
+def get_power_status(_, options):
+        global override_status
+
+        status = "unknown"
+
+        print "get action: " + options["--action"]
+
+        if len(override_status):
+                print "Pretending we're "+override_status
+                return override_status
+
+        (ret, stdout, stderr) = run_command(options, create_command(options, "service-list"))
+
+        lines = stdout.splitlines()
+        for line in lines:
+                # | Id | Binary           | Host                                         | Zone     | Status  | State | Updated_at                 | Disabled Reason |
+                entries = line.split("|")
+                if len(entries) > 6 and entries[2].strip() == "nova-compute":
+                        if entries[6].strip() == "up":
+                                status = "on"
+                        elif entries[6].strip() == "down":
+                                status = "off"
+                        else:
+                                logging.debug("Unknown status detected from nova: " + entries[6].strip())
+
+        return status
+
+def set_power_status(_, options):
+        global override_status
+
+        override_status = ""
+        print "set action: " + options["--action"]
+
+        if options["--action"] == "on":
+                if get_power_status(_, options) == "on":
+                        # nova service-enable $hostname nova-compute
+                        (ret, stdout, stderr) = run_command(options, create_command(options, "service-enable"))
+                else:
+                        # Pretend we're 'on' so that the fencing library doesn't loop forever waiting for the node to boot
+                        override_status = "on"
+                return
+
+        # need to wait for nova to update its internal status or we
+        # cannot call host-evacuate
+        while get_power_status(_, options) != "off":
+                logging.debug("Waiting for nova to update it's internal state")
+                time.sleep(1)
+
+        # TODO: Optionally append --on-shared-storage nova option
+        # Can this be detected from the nova service-list output or must it be an option
+        (ret, stdout, stderr) = run_command(options, create_command(options, "host-evacuate"))
+
+        return
+
+def get_plugs_list(_, options):
+        result = {}
+
+        (ret, stdout, stderr) = run_command(options, create_command(options, "hypervisor-list"))
+
+        lines = stdout.splitlines()
+        for line in lines:
+                # | ID | Hypervisor hostname               |
+                entries = line.split("|")
+                if len(entries) > 3 and entries[2].strip() != "Hypervisor hostname":
+                        longhost = entries[2].strip()
+                        if options["--action"] == "list" and options["--domain"] != "":
+                                shorthost = longhost.replace("."+options["--domain"], "")
+                                result[shorthost] = ("", None)
+                                
+                        else:
+                                result[longhost] = ("", None)
+
+        return result
+
+def create_command(options, action):
+        cmd = options["--novatool-path"]
+
+        cmd += " --os-auth-url " + options["--os-auth-url"]
+        cmd += " --os-username " + options["--os-username"]
+        cmd += " --os-password " + options["--os-password"]
+        cmd += " --os-tenant-name " + options["--os-tenant-name"]
+
+        # --action / -o
+        cmd += " " + action
+
+        if options["--action"] != "list" and options.has_key("--plug") and action == "service-list": 
+                cmd += " --host " + options["--plug"]
+
+        elif options["--action"] != "list" and options.has_key("--plug") and action == "service-enable": 
+                cmd += " --host " + options["--plug"] + " nova-compute"
+
+        elif options["--action"] != "list" and options.has_key("--plug"):
+                cmd += " " + options["--plug"]
+
+        logging.debug("Executing command: "+cmd)
+        return cmd
+
+def define_new_opts():
+        all_opt["os-username"] = {
+                "getopt" : "u:",
+                "longopt" : "os-username",
+                "help" : "-u, --os-username=[username]   Keystone Admin Username",
+                "required" : "1",
+                "shortdesc" : "Keystone Admin Username",
+                "default" : "",
+                "order": 1
+        }
+        all_opt["os-password"] = {
+                "getopt" : "p:",
+                "longopt" : "os-password",
+                "help" : "-p, --os-password=[password]   Keystone Admin Password",
+                "required" : "1",
+                "shortdesc" : "Keystone Admin Password",
+                "default" : "",
+                "order": 1
+        }
+        all_opt["os-tenant-name"] = {
+                "getopt" : "t:",
+                "longopt" : "os-tenant-name",
+                "help" : "-t, --os-tenant-name=[tenant]  Keystone Admin Tenant",
+                "required" : "1",
+                "shortdesc" : "Keystone Admin Tenant",
+                "default" : "",
+                "order": 1
+        }
+        all_opt["os-auth-url"] = {
+                "getopt" : "k:",
+                "longopt" : "os-auth-url",
+                "help" : "-k, --os-auth-url=[tenant]     Keystone Admin Auth URL",
+                "required" : "1",
+                "shortdesc" : "Keystone Admin Auth URL",
+                "default" : "",
+                "order": 1
+        }
+        all_opt["novatool-path"] = {
+                "getopt" : "i:",
+                "longopt" : "novatool-path",
+                "help" : "--novatool-path=[path]         Path to nova binary",
+                "required" : "0",
+                "shortdesc" : "Path to nova binary",
+                "default" : "/usr/bin/nova",
+                "order": 200
+        }
+        all_opt["domain"] = {
+                "getopt" : "d:",
+                "longopt" : "domain",
+                "help" : "--domain=[string]             DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN",
+                "required" : "0",
+                "shortdesc" : "DNS domain in which hosts live",
+                "default" : "",
+                "order": 200
+        }
+
+def main():
+        global override_status
+        atexit.register(atexit_handler)
+
+        device_opt = ["os-username", "os-password", "os-tenant-name", "os-auth-url",
+                      "novatool-path", "no_login", "no_password", "port", "domain"]
+        define_new_opts()
+        all_opt["separator"]["default"] = ""
+        all_opt["shell_timeout"]["default"] = "180"
+
+        options = check_input(device_opt, process_input(device_opt))
+
+        docs = {}
+        docs["shortdesc"] = "Fence agent for nova compute nodes"
+        docs["longdesc"] = "fence_nova_host is a Nova fencing notification agent"
+        docs["vendorurl"] = ""
+
+        show_docs(options, docs)
+
+        run_delay(options)
+
+        if not is_executable(options["--novatool-path"]):
+                fail_usage("nova not found or not accessible")
+
+        if options["--action"] == "off":
+                # Pretend we're 'on' so that the fencing library will always call set_power_status(off) 
+                override_status = "on"
+
+        if options["--action"] == "on":
+                # Pretend we're 'off' so that the fencing library will always call set_power_status(on)
+                override_status = "off"
+
+        # Potentially we should make this a pacemaker  
+        if options["--action"] != "list" and options["--domain"] != "" and options.has_key("--plug"):
+                options["--plug"] = options["--plug"]+"."+options["--domain"]
+
+        result = fence_action(None, options, set_power_status, get_power_status, get_plugs_list, None)
+        sys.exit(result)
+
+if __name__ == "__main__":
+        main()
