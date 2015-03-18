@@ -48,13 +48,8 @@ openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
-else
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts rhos6-rabbitmq1:11211,rhos6-rabbitmq2:11211,rhos6-rabbitmq3:11211
-fi
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_ha_queues true
 
 openstack-config --set /etc/ceilometer/ceilometer.conf publisher_rpc metering_secret ceilometersecret
@@ -64,11 +59,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_us
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ceilometertest
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config  --set /etc/ceilometer/ceilometer.conf database connection     mongodb://rhos6-node1,rhos6-node2,rhos6-node3:27017/ceilometer?replicaSet=ceilometer
-else
-    openstack-config  --set /etc/ceilometer/ceilometer.conf database connection     mongodb://rhos6-mongodb1,rhos6-mongodb2,rhos6-mongodb3:27017/ceilometer?replicaSet=ceilometer
-fi
+openstack-config  --set /etc/ceilometer/ceilometer.conf database connection     mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf database max_retries -1
 
 # keep last 5 days data only (value is in secs). Don't set to retain all data indefinetely.

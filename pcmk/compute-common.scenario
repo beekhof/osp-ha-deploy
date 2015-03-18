@@ -69,21 +69,15 @@ openstack-config    --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_addr
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
 
 # NOTE: same consideration as nova configuration applies here. They need to match.
-openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://mrg-01.mpc.lab.eng.bos.redhat.com:6080/vnc_auto.html
+openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${PHD_VAR_network_hosts_gateway}${PHD_VAR_network_domain}:6080/vnc_auto.html
 
 openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-mysql/nova
 openstack-config --set /etc/nova/nova.conf database max_retries -1
 
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT memcache_servers  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
-else
-    openstack-config --set /etc/nova/nova.conf DEFAULT memcache_servers  rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts rhos6-rabbitmq1:11211,rhos6-rabbitmq2:11211,rhos6-rabbitmq3:11211
-fi
-
+openstack-config --set /etc/nova/nova.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues true
 
 openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
@@ -124,12 +118,7 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
-else
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts rhos6-rabbitmq1:11211,rhos6-rabbitmq2:11211,rhos6-rabbitmq3:11211
-fi
-
+openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues true
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
@@ -142,9 +131,9 @@ openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini 
 
 openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
 openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
-openstack-config    --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip $(ip addr show dev vmnet0  scope global | grep inet | sed -e 's#.*inet ##g' -e 's#/.*##g')
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip $(ip addr show dev vmnet0  scope global | grep inet | sed -e 's#.*inet ##g' -e 's#/.*##g')
 
-openstack-config  --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini  securitygroup firewall_driver  neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini  securitygroup firewall_driver  neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
 
 openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
 
@@ -165,8 +154,8 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
     openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
 else
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rhos6-memcache1:11211,rhos6-memcache2:11211,rhos6-memcache3:11211
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts rhos6-rabbitmq1:11211,rhos6-rabbitmq2:11211,rhos6-rabbitmq3:11211
+    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
+    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 fi
 
 openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_ha_queues true
@@ -178,11 +167,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_us
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ceilometertest
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/ceilometer/ceilometer.conf database connection      mongodb://rhos6-node1,rhos6-node2,rhos6-node3:27017/ceilometer?replicaSet=ceilometer
-else
-    openstack-config --set /etc/ceilometer/ceilometer.conf database connection      mongodb://rhos6-mongodb1,rhos6-mongodb2,rhos6-mongodb3:27017/ceilometer?replicaSet=ceilometer
-fi
+openstack-config --set /etc/ceilometer/ceilometer.conf database connection      mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf database connection max_retries -1
 
 # keep last 5 days data only (value is in secs)

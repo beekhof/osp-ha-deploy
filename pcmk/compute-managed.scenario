@@ -81,7 +81,7 @@ mkdir -p /etc/pacemaker
 cp $PHD_VAR_env_configdir/pcmk-authkey /etc/pacemaker/authkey
 
 if [ -z $(pidof pacemakerd) ]; then
-    service pacemaker-remote start
+    service pacemaker_remote start
 fi
 ....
 
@@ -118,16 +118,19 @@ for i in $(cibadmin -Q --xpath //primitive --node-path | tr ' ' '\n' | awk -F "i
 # Now (because the compute nodes have roles assigned to them and keystone is
 # stopped) it is safe to define the services that will run on the compute nodes
 
-pcs resource create neutron-openvswitch-agent-compute  systemd:neutron-openvswitch-agent --clone interleave=true --disabled
-pcs constraint location neutron-openvswitch-agent-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
+# We use --force to allow the resources to be created even they don't exist on the local machine
+# Since we know they do exist on the compute nodes
 
-pcs resource create libvirtd-compute systemd:libvirtd  --clone interleave=true --disabled
+pcs resource create neutron-openvswitch-agent-compute  systemd:neutron-openvswitch-agent --clone interleave=true --disabled --force
+pcs constraint location neutron-openvswitch-agent-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute 
+
+pcs resource create libvirtd-compute systemd:libvirtd  --clone interleave=true --disabled --force
 pcs constraint location libvirtd-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
-pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --clone interleave=true --disabled
+pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --clone interleave=true --disabled --force
 pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
-pcs resource create nova-compute systemd:openstack-nova-compute  --clone interleave=true --disabled
+pcs resource create nova-compute systemd:openstack-nova-compute  --clone interleave=true --disabled --force
 pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
 pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
@@ -165,6 +168,7 @@ for node in ${PHD_ENV_nodes}; do
     for controller in ${controllers}; do
 	if [ ${short_node} = ${controller} ]; then
 	    pcs property set --node ${short_node} osprole=controller
+	    found=1
 	fi
     done
 

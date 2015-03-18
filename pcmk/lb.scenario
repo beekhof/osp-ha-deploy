@@ -74,51 +74,52 @@ EOF
 
 cat >> /etc/haproxy/haproxy.cfg << EOF
 frontend vip-db
-    bind ${PHD_VAR_network_internal}.200:3306
+    bind ${PHD_VAR_network_internal}.201:3306
     timeout client 90s
     default_backend db-vms-galera
 
 frontend vip-qpid
-    bind ${PHD_VAR_network_internal}.201:5672
+    bind ${PHD_VAR_network_internal}.215:5672
     timeout client 120s
     default_backend qpid-vms
 
 frontend vip-horizon
-    bind ${PHD_VAR_network_internal}.208:80
+    bind ${PHD_VAR_network_internal}.211:80
     timeout client 180s
     cookie SERVERID insert indirect nocache
     default_backend horizon-vms
 
 frontend vip-ceilometer
-    bind ${PHD_VAR_network_internal}.211:8777
+    bind ${PHD_VAR_network_internal}.214:8777
     timeout client 90s
     default_backend ceilometer-vms
 
 frontend vip-rabbitmq
     option clitcpka
-    bind ${PHD_VAR_network_internal}.213:5672
+    bind ${PHD_VAR_network_internal}.202:5672
     timeout client 900m
     default_backend rabbitmq-vms
 EOF
 
 # nova-metadata needs "balance roundrobin" for frontend?
 #db-vms-mariadb:58:3306:90s
+
 mappings="
-keystone-admin:202:64:35357
-keystone-public:202:64:5000
-glance-api:203:70:9191
-glance-registry:203:70:9292
-cinder:204:73:8776
-swift:205:79:8080
-neutron:206:82:9696
-nova-vnc-novncproxy:207:85:6080
-nova-vnc-xvpvncproxy:207:85:6081
-nova-metadata:207:85:8775
-nova-api:207:85:8774
+keystone-admin:203:64:35357
+keystone-public:203:64:5000
+glance-api:205:70:9191
+glance-registry:205:70:9292
+cinder:206:73:8776
+swift:208:79:8080
+neutron:209:82:9696
+nova-vnc-novncproxy:210:85:6080
+nova-vnc-xvpvncproxy:210:85:6081
+nova-metadata:210:85:8775
+nova-api:210:85:8774
 horizon:x:85:80:108s
-heat-cfn:209:91:8000
-heat-cloudw:209:91:8004
-heat-srv:209:91:8004
+heat-cfn:212:91:8000
+heat-cloudw:212:91:8004
+heat-srv:212:91:8004
 ceilometer:x:97:8777
 "
 
@@ -181,7 +182,7 @@ EOF
 if [ $PHD_VAR_deployment = collapsed ]; then
     # In a collapsed environment everything is installed on rhos6-node{1,2,3}
     # So rewite the proxy config to talk to those hosts instead
-    for section in db qpid keystone glance cinder swift neutron nova horizon heat ceilometer rabbitmq node; do
+    for section in ${PHD_VAR_components}; do
     	sed -i s/rhos6-${section}1\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node1\ ${PHD_VAR_network_internal}\.103/g /etc/haproxy/haproxy.cfg
     	sed -i s/rhos6-${section}2\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node2\ ${PHD_VAR_network_internal}\.104/g /etc/haproxy/haproxy.cfg
     	sed -i s/rhos6-${section}3\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node3\ ${PHD_VAR_network_internal}\.105/g /etc/haproxy/haproxy.cfg
@@ -193,11 +194,33 @@ target=$PHD_ENV_nodes1
 ....
 pcs resource create lb-haproxy systemd:haproxy op monitor start-delay=10s --clone
 
+
+# The VIPs changed recently 
+####
+# db         was 192.168.16.200 -> 201
+# rabbitmq   was 192.168.16.213 -> 202
+# qpid       was 192.168.16.201 -> 215
+# keystone   was 192.168.16.202 -> 203
+# glance     was 192.168.16.203 -> 205
+# cinder     was 192.168.16.204 -> 206
+# swift      was 192.168.16.205 -> 208
+# neutron    was 192.168.16.206 -> 209
+# nova       was 192.168.16.207 -> 210
+# horizon    was 192.168.16.208 -> 211
+# heat       was 192.168.16.209 -> 212
+# ceilometer was 192.168.16.211 -> 214
+####
+
 offset=200
-for section in db qpid keystone glance cinder swift neutron nova horizon heat x ceilometer x rabbitmq; do
-    if [ $section != x ]; then 
-	pcs resource create vip-${section} IPaddr2 ip=${PHD_VAR_network_internal}.${offset} nic=eth1
-    fi
+for section in ${PHD_VAR_components}; do
+    case $section in 
+	lb|memcache|swift-brick|mongodb)
+	    : No VIP needed for $section
+	    ;;
+	*)
+	    pcs resource create vip-${section} IPaddr2 ip=${PHD_VAR_network_internal}.${offset} nic=eth1
+	    ;;
+    esac
     offset=$(( $offset + 1 ))
 done
 
@@ -208,9 +231,16 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     # things in a particular order and require services to be active
     # on the same hosts.  We do this with constraints.
 
-    for section in db qpid keystone glance cinder swift neutron nova horizon heat ceilometer rabbitmq; do
-        pcs constraint order start vip-${section} then lb-haproxy-clone kind=Optional
-    	pcs constraint colocation add vip-${section} with lb-haproxy-clone
+    for section in ${PHD_VAR_components}; do
+	case $section in 
+	    lb|memcache|swift-brick|mongodb)
+		: No VIP constraints needed for $section
+		;;
+	    *)
+		pcs constraint order start vip-${section} then lb-haproxy-clone kind=Optional
+    		pcs constraint colocation add vip-${section} with lb-haproxy-clone
+		;;
+	esac
     done
 fi
 ....
