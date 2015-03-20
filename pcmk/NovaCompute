@@ -90,7 +90,7 @@ nova_start() {
 
     export LIBGUESTFS_ATTACH_METHOD=appliance
     su nova -s /bin/sh -c /usr/bin/nova-compute &
-    nova service-enable $(hostname) nova-compute
+    nova service-enable ${NOVA_HOST} nova-compute
 
     rc=$OCF_NOT_RUNNING
     while [ $rc != $OCF_SUCCESS ]; do
@@ -117,10 +117,15 @@ nova_stop() {
 	    # | 0ee0cbd2-90e0-4910-8f6d-ac35920abb92 | True               |                                                                                                                                                                 |
 	    # | be2fa0b5-17bb-4f28-a55f-3339bb57ead1 | False              | Error while migrating instance: No valid host was found. No valid host found for cold migrate (HTTP 400) (Request-ID: req-dc51e285-dd99-4120-aab3-f3bf0335a1e3) |
 	    # ...
-	    nova host-servers-migrate $(hostname)
+	    nova host-servers-migrate ${NOVA_HOST}
+	    nova live-migration
+
+	    loop over:
+		nova migration-list
 
 	    # If we do call the above, we'd need to loop until they're actually migrated
 	    # What to do if some cannot be?
+	    # nova delete
 	fi
 
 	# Then stop
@@ -150,7 +155,7 @@ nova_monitor() {
     if [ "x$pid" != x ]; then
 	touch $statefile
 
-	state=$(nova service-list --host $(hostname) --binary nova-compute | grep $(hostname) | awk -F\| '{print $7}' | tr -d ' ')
+	state=$(nova service-list --host ${NOVA_HOST} --binary nova-compute | grep ${NOVA_HOST} | awk -F\| '{print $7}' | tr -d ' ')
 	if [ $state = "up" ]; then
 	    return $OCF_SUCCESS
 	else
@@ -193,6 +198,11 @@ export OS_AUTH_URL=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_
 export OS_USERNAME=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_username)
 export OS_PASSWORD=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_password)
 export OS_TENANT_NAME=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name)
+
+NOVA_HOST=$(openstack-config --get /etc/nova/nova.conf DEFAULT host 2>/dev/null)
+if [ $? = 1 ]; then
+    NOVA_HOST=$(hostname)
+fi
 
 case $__OCF_ACTION in
 meta-data)	meta_data
