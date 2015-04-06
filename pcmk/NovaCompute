@@ -48,7 +48,7 @@ OpenStack Nova Compute Server.
 </longdesc>
 <shortdesc lang="en">OpenStack Nova Compute Server</shortdesc>
 
-</parameters>
+<parameters/>
 
 <actions>
 <action name="start"        timeout="20" />
