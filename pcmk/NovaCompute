@@ -45,10 +45,54 @@ meta_data() {
 
 <longdesc lang="en">
 OpenStack Nova Compute Server.
+Extracts authorization settings from nova.conf where possible.
 </longdesc>
 <shortdesc lang="en">OpenStack Nova Compute Server</shortdesc>
 
-<parameters/>
+<parameters>
+
+<parameter name="auth_url" unique="0">
+<longdesc lang="en">
+Authorization URL for connecting to neutron in admin context
+</longdesc>
+<shortdesc lang="en">Authorization URL</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+<parameter name="user_name" unique="0">
+<longdesc lang="en">
+Username for connecting to neutron in admin context
+</longdesc>
+<shortdesc lang="en">Username</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+<parameter name="password" unique="0">
+<longdesc lang="en">
+Password for connecting to neutron in admin context
+</longdesc>
+<shortdesc lang="en">Password</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+<parameter name="tenant_name" unique="0">
+<longdesc lang="en">
+Tenant name for connecting to neutron in admin context.
+Note that with Keystone V3 tenant names are only unique within a domain.
+</longdesc>
+<shortdesc lang="en">Tenant name</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+<parameter name="extra" unique="0">
+<longdesc lang="en">
+Additional options to pass on the nova command line
+</longdesc>
+<shortdesc lang="en">Additional options</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+</parameters>
 
 <actions>
 <action name="start"        timeout="20" />
@@ -90,7 +134,7 @@ nova_start() {
 
     export LIBGUESTFS_ATTACH_METHOD=appliance
     su nova -s /bin/sh -c /usr/bin/nova-compute &
-    nova service-enable ${NOVA_HOST} nova-compute
+    nova ${nova_options} service-enable ${NOVA_HOST} nova-compute
 
     rc=$OCF_NOT_RUNNING
     while [ $rc != $OCF_SUCCESS ]; do
@@ -117,11 +161,11 @@ nova_stop() {
 	    # | 0ee0cbd2-90e0-4910-8f6d-ac35920abb92 | True               |                                                                                                                                                                 |
 	    # | be2fa0b5-17bb-4f28-a55f-3339bb57ead1 | False              | Error while migrating instance: No valid host was found. No valid host found for cold migrate (HTTP 400) (Request-ID: req-dc51e285-dd99-4120-aab3-f3bf0335a1e3) |
 	    # ...
-	    nova host-servers-migrate ${NOVA_HOST}
-	    nova live-migration
+	    nova ${nova_options} host-servers-migrate ${NOVA_HOST}
+	    nova ${nova_options} live-migration
 
 	    loop over:
-		nova migration-list
+		nova ${nova_options} migration-list
 
 	    # If we do call the above, we'd need to loop until they're actually migrated
 	    # What to do if some cannot be?
@@ -155,8 +199,11 @@ nova_monitor() {
     if [ "x$pid" != x ]; then
 	touch $statefile
 
-	state=$(nova service-list --host ${NOVA_HOST} --binary nova-compute | grep ${NOVA_HOST} | awk -F\| '{print $7}' | tr -d ' ')
-	if [ $state = "up" ]; then
+	state=$(nova ${nova_options} service-list --host ${NOVA_HOST} --binary nova-compute | grep ${NOVA_HOST} | awk -F\| '{print $7}' | tr -d ' ')
+	if [ -z "$state" ]; then
+	    ocf_exit_reason "nova service-list command failed"
+	    return $OCF_ERR_GENERIC
+	elif [ $state = "up" ]; then
 	    return $OCF_SUCCESS
 	else
 	    return $OCF_ERR_GENERIC
@@ -172,32 +219,48 @@ nova_monitor() {
 nova_validate() {
     rc=$OCF_SUCCESS
 
-    if [ "x$OS_USERNAME" = x ]; then
-        ocf_exit_reason "Nova username not configured in nova.conf"
-	rc=$OCF_ERR_INSTALLED
-    fi
-    if [ "x$OS_PASSWORD" = x ]; then
-        ocf_exit_reason "Nova password not configured in nova.conf"
-	rc=$OCF_ERR_INSTALLED
-    fi
-    if [ "x$OS_AUTH_URL" = x ]; then
-        ocf_exit_reason "Nova auth URL not configured in nova.conf"
-	rc=$OCF_ERR_INSTALLED
-    fi
-    if [ "x$OS_TENANT_NAME" = x ]; then
-        ocf_exit_reason "Nova tenant name not configured in nova.conf"
-	rc=$OCF_ERR_INSTALLED
-    fi
+#    if [ "x$OS_USERNAME" = x ]; then
+#        ocf_exit_reason "Nova username not configured in nova.conf"
+#	rc=$OCF_ERR_INSTALLED
+#    fi
 
     return $rc
 }
 
 statefile="${HA_RSCTMP}/nova-compute"
+nova_options=""
 
-export OS_AUTH_URL=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_auth_url)
-export OS_USERNAME=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_username)
-export OS_PASSWORD=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_password)
-export OS_TENANT_NAME=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name)
+if [ -z "${OCF_RESKEY_auth_url}" ]; then
+    OCF_RESKEY_auth_url=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_auth_url)
+fi
+if [ ! -z "${OCF_RESKEY_auth_url}" ]; then
+    nova_options="${nova_options} --os-auth-url ${OCF_RESKEY_auth_url}"
+fi
+
+if [ -z "${OCF_RESKEY_username}" ]; then
+    OCF_RESKEY_username=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_username)
+fi
+if [ ! -z "${OCF_RESKEY_username}" ]; then
+    nova_options="${nova_options} --os-username ${OCF_RESKEY_username}"
+fi
+
+if [ -z "${OCF_RESKEY_password}" ]; then
+    OCF_RESKEY_password=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_password)
+fi
+if [ ! -z "${OCF_RESKEY_password}" ]; then
+    nova_options="${nova_options} --os-password ${OCF_RESKEY_password}"
+fi
+
+if [ -z "${OCF_RESKEY_tenant_name}" ]; then
+    OCF_RESKEY_tenant_name=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name)
+fi
+if [ ! -z "${OCF_RESKEY_tenant_name}" ]; then
+    nova_options="${nova_options} --os-tenant-name ${OCF_RESKEY_tenant_name}"
+fi
+
+if [ ! -z "${OCF_RESKEY_extra}" ]; then
+    nova_options="${nova_options} ${OCF_RESKEY_extra}"
+fi
 
 NOVA_HOST=$(openstack-config --get /etc/nova/nova.conf DEFAULT host 2>/dev/null)
 if [ $? = 1 ]; then
