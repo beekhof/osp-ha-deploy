@@ -126,17 +126,57 @@ nova_pid() {
     ps axf | grep python.*nova-compute | grep -v grep | awk '{print $1}'
 }
 
+pending_migrations() {
+    # For valid states: grep -r migration.status.*= /usr/lib/python2.7
+    # - confirming
+    # - confirmed
+    # - reverting
+    # - reverted    
+    # - pre-migrating
+    # - migrating
+    # - post-migrating
+    # - finished
+    # - error
+
+    # API defines pending ops as:
+    #/usr/lib/python2.7/site-packages/nova/db/sqlalchemy/api.py:            filter(~models.Migration.status.in_(['confirmed', 'reverted', 'error']))
+    
+    # Output:
+    #+-----------------------------------+-----------------------------------+-----------------------------------+-----------------------------------+--------------+--------+--------------------------------------+------------+------------+----------------------------+----------------------------+
+    #| Source Node                       | Dest Node                         | Source Compute                    | Dest Compute                      | Dest Host    | Status | Instance UUID                        | Old Flavor | New Flavor | Created At                 | Updated At                 |
+    #+-----------------------------------+-----------------------------------+-----------------------------------+-----------------------------------+--------------+--------+--------------------------------------+------------+------------+----------------------------+----------------------------+
+    #| mrg-03.mpc.lab.eng.bos.redhat.com | mrg-04.mpc.lab.eng.bos.redhat.com | mrg-03.mpc.lab.eng.bos.redhat.com | mrg-04.mpc.lab.eng.bos.redhat.com | 10.16.144.40 | error  | 0ee0cbd2-90e0-4910-8f6d-ac35920abb92 | 5          | 5          | 2015-03-13T02:08:15.000000 | 2015-03-13T02:08:17.000000 |
+
+    nova ${nova_options} migration-list --host ${NOVA_HOST} | awk -F\| '
+$7~/ing/ { incomplete = 1 }
+{ 
+  if(incomplete) {
+    print $8
+  }
+}'
+}
+
 nova_start() {
     nova_monitor
     if [ $? =  $OCF_SUCCESS ]; then
 	return $OCF_SUCCESS
     fi
 
+    while [ 1 = 1 ]; do
+	pending=`pending_migrations | wc -l`
+	if [ ${pending} = 0 ]; then
+	    break
+	fi
+	ocf_exit_reason "Waiting on ${pending} migrations"
+	sleep 2
+    done
+
     export LIBGUESTFS_ATTACH_METHOD=appliance
     su nova -s /bin/sh -c /usr/bin/nova-compute &
     nova ${nova_options} service-enable ${NOVA_HOST} nova-compute
 
     rc=$OCF_NOT_RUNNING
+    ocf_exit_reason "Waiting for nova to start"
     while [ $rc != $OCF_SUCCESS ]; do
 	nova_monitor
 	rc=$?
@@ -164,12 +204,17 @@ nova_stop() {
 	    nova ${nova_options} host-servers-migrate ${NOVA_HOST}
 	    nova ${nova_options} live-migration
 
-	    loop over:
-		nova ${nova_options} migration-list
+	    while [ 1 = 1 ]; do
+		pending=`pending_migrations | wc -l`
+		if [ ${pending} = 0 ]; then
+		    break
+		fi
+		ocf_exit_reason "Waiting on ${pending} migrations"
+		sleep 2
+	    done
 
-	    # If we do call the above, we'd need to loop until they're actually migrated
-	    # What to do if some cannot be?
-	    # nova delete
+	    # What to do if some cannot be migrated?
+	    # nova delete?
 	fi
 
 	# Then stop
