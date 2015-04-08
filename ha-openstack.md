@@ -780,10 +780,98 @@ functional, you can then [deploy horizon](pcmk/horizon.scenario) into it.
 # Compute nodes 
 
 Just like Swift AOCs, we will usually need more than 16 compute nodes
-which is beyond Corosync's ability to manage.  The good news is that
-we can use `pacemaker-remote` to manage the compute nodes as partial
-members - allowing us to bypass the Corosync limit without needing to
-create each compute node as a single node cluster.
+which is beyond Corosync's ability to manage. So in order monitor the
+healthiness of compute nodes and the services running on them, we
+previously had to create single node clusters.
+
+The current deployment model allows Pacemaker to continue this role,
+but presents a single coherent view of the entire deployment while
+allowing us to scale beyond corosync's limits. Having this single
+administrative domain then allows us to do clever things like
+automated recovery of VMs running on a failed or failing compute node.
+
+The main difference with the previous deployment mode is that services
+on the compute nodes are now managed and driven by the Pacemaker
+cluster on the control plane. The compute nodes do not become full
+members of the cluster and they no longer require the full cluster
+stack, instead they run pacemaker_remoted which acts as a conduit.
+
+> Implementation Details:
+>
+> - Pacemaker monitors the connection to pacemaker_remoted to verify
+>   that the node is reachable or not.  Failure to talk to a node
+>   triggers recovery action.
+>
+> - Pacemaker uses pacemaker_remoted to start compute node services in
+>   the same sequence as before (neutron-ovs-agent ->
+>   ceilometer-compute -> nova-compute).
+>
+> - If a service fails to start, any services that depend on the
+>   FAILED service will not be started.  This avoids the issue to add
+>   a broken node (back) to the pool.
+> 
+> - If a service fails to stop, the node where the service is running
+>   will be fenced.  This is necessary to guarantee data integrity and
+>   a core HA concept (for the purposes of this particular discussion,
+>   please take this as a given).
+> 
+> - If a service's health check fails, the resource (and anything that
+>   depends on it) will be stopped and then restarted.  Remember that
+>   failure to stop will trigger a fencing action.
+>
+> - A successful restart of all the services can only potentially
+>   affect network connectivity of the instances for a short period of
+>   time.
+
+With these capabilities in place, we can exploit Pacemaker's node
+monitoring and fencing capabilities to drive nova host-evacuate for
+the failed compute nodes and recover the VMs elsewhere.
+
+When a compute node fails, Pacemaker will:
+
+1. Execute 'nova service-disable'
+2. power fence off
+3. fence_compute off (waiting for nova to detect compute node is gone)
+4. fence_compute on (a no-op unless the host happens to be up already)
+5. Execute 'nova service-enable' when the compute node returns
+
+Technically steps 1 and 5 are optional and they are aimed to improve
+user experience by immediately excluding a failed host from nova
+scheduling.
+
+The only benefit is a faster scheduling of VMs that happens during a
+failure (nova does not have to recognize a host is down, timeout and
+subsequently schedule the VM on another host).
+
+Step 2 will make sure the host is completely powered off and nothing
+is running on the host.  Optionally, you can have the failed host
+reboot which would potentially allow it to re-enter the pool.
+
+We have an implementation for Step 3 but the ideal solution depends on
+extensions to the nova API.  Currently fence_compute loops, waiting
+for nova to recognise that the failed host is down, before we make a
+host-evacuate call which triggers nova to restart the VMs on another
+host.  The discussed nova API extensions will speed up recovery times
+by allowing fence_compute to proactively push that information into
+nova instead.
+
+
+To take advantage of the VM recovery features:
+
+- VMs need to be running off a cinder volume or using shared ephemeral
+  storage (like RBD or NFS)
+
+- If VM is not running using shared storage, recovery of the instance
+  on a new compute node would need to revert to a previously stored
+  snapshot/image in Glance (potentially losing state, but in some
+  cases that may not matter)
+
+- RHEL7.1+ required for infrastructure nodes (controllers and
+  compute). Instance guests can run anything.
+
+- Compute nodes need to have a working fencing mechanism (IPMI,
+  hardware watchdog, etc)
+
 
 Start by creating a minimal CentOS __7__ installation on at least one node.
 
@@ -820,7 +908,7 @@ This is simply a matter of shutting down the cluster on the target
 node and removing it from the cluster configuration.  This can be
 achieved with `psc`:
 
-    node remove ${nodename}
+    pcs node remove ${nodename}
 
 
 
