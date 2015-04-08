@@ -60,7 +60,6 @@ OpenStack release.
 
 ### TODO
 
-- Missing how-to remove a node
 - Missing how-to move a service from cluster X to cluster Y
 - nova network HA
 - Compute nodes managed by pacemaker_remoted
@@ -120,7 +119,7 @@ In this document we describe two deployment extremes:
     
     ![Collapsed deployment architecture](Cluster-deployment-collapsed.png)
 
-1.  __Mixed___ (not documented) 
+1.  __Mixed__ (not documented) 
 
     While not something we document here, it is certainly possible to
     follow a segregated approach for one or more components that are
@@ -807,8 +806,8 @@ stack, instead they run pacemaker_remoted which acts as a conduit.
 >   ceilometer-compute -> nova-compute).
 >
 > - If a service fails to start, any services that depend on the
->   FAILED service will not be started.  This avoids the issue to add
->   a broken node (back) to the pool.
+>   FAILED service will not be started.  This avoids the issue of 
+>   adding a broken node (back) to the pool.
 > 
 > - If a service fails to stop, the node where the service is running
 >   will be fenced.  This is necessary to guarantee data integrity and
@@ -830,7 +829,7 @@ the failed compute nodes and recover the VMs elsewhere.
 When a compute node fails, Pacemaker will:
 
 1. Execute 'nova service-disable'
-2. power fence off
+2. fence (power off) the failed compute node
 3. fence_compute off (waiting for nova to detect compute node is gone)
 4. fence_compute on (a no-op unless the host happens to be up already)
 5. Execute 'nova service-enable' when the compute node returns
@@ -872,6 +871,7 @@ To take advantage of the VM recovery features:
 - Compute nodes need to have a working fencing mechanism (IPMI,
   hardware watchdog, etc)
 
+## Compute Node Implementation
 
 Start by creating a minimal CentOS __7__ installation on at least one node.
 
@@ -886,6 +886,14 @@ members](pcmk/compute-managed.scenario).
 For a _segregated_ deployment, we now add them to the cluster we
 created for _Nova (non-compute)_, again as [partial
 members](pcmk/compute-managed.scenario)
+
+
+> TODO: what if nova-compute fails to restart and there are scheduled
+> instances?  Those can still be accessed from outside but cannot be
+> managed by nova.  This might warrant a host-evacuate.
+>
+> Traditionally, HA systems would fence the node at this point.
+
 
 # Adding and Removing Nodes
 
