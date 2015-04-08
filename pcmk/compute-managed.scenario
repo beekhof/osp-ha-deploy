@@ -162,7 +162,7 @@ pcs constraint order start nova-conductor-clone then nova-compute-clone require-
 
 controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
 
-pcs --force stonith create fence-nova fence_compute domain=${PHD_VAR_network_domain} os-username=admin os-tenant-name=admin os-password=keystonetest os-auth-url=http://vip-keystone:35357/v2.0/
+pcs --force stonith create fence-nova fence_compute domain=${PHD_VAR_network_domain} login=admin tenant-name=admin passwd=keystonetest auth-url=http://vip-keystone:35357/v2.0/
 
 for node in ${PHD_ENV_nodes}; do
     found=0

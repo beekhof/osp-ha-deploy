@@ -25,7 +25,7 @@ def get_power_status(_, options):
                 logging.debug("Pretending we're "+override_status)
                 return override_status
 
-        (ret, stdout, stderr) = run_command(options, create_command(options, "service-list"))
+        (ret, stdout, stderr) = run_command(options, create_command(options, "service-list --host " + options["--plug"]))
 
         lines = stdout.splitlines()
         for line in lines:
@@ -50,7 +50,7 @@ def set_power_status(_, options):
         if options["--action"] == "on":
                 if get_power_status(_, options) == "on":
                         # nova service-enable $hostname nova-compute
-                        (ret, stdout, stderr) = run_command(options, create_command(options, "service-enable"))
+                        (ret, stdout, stderr) = run_command(options, create_command(options, "service-enable --host " + options["--plug"] + " nova-compute"))
                 else:
                         # Pretend we're 'on' so that the fencing library doesn't loop forever waiting for the node to boot
                         override_status = "on"
@@ -66,9 +66,16 @@ def set_power_status(_, options):
                 logging.debug("Waiting for nova to update it's internal state")
                 time.sleep(1)
 
-        # TODO: Optionally append --on-shared-storage nova option
-        # Can this be detected from the nova service-list output or must it be an option
-        (ret, stdout, stderr) = run_command(options, create_command(options, "host-evacuate"))
+        evacuate = "host-evacuate"
+
+        if not options.has_key("--no-shared-storage"):
+                # If the admin sets this when they DO have shared
+                # storage in use, then they get what they asked for
+                evacuate += " --on-shared-storage"
+
+        evacuate += " --host " + options["--plug"]
+
+        (ret, stdout, stderr) = run_command(options, create_command(options, evacuate))
 
         return
 
@@ -95,59 +102,32 @@ def get_plugs_list(_, options):
 def create_command(options, action):
         cmd = options["--novatool-path"]
 
-        cmd += " --os-auth-url " + options["--os-auth-url"]
-        cmd += " --os-username " + options["--os-username"]
-        cmd += " --os-password " + options["--os-password"]
-        cmd += " --os-tenant-name " + options["--os-tenant-name"]
+        cmd += " --auth-url " + options["--auth-url"]
+        cmd += " --username " + options["--username"]
+        cmd += " --password " + options["--password"]
+        cmd += " --tenant-name " + options["--tenant-name"]
 
         # --action / -o
         cmd += " " + action
-
-        if options["--action"] != "list" and options.has_key("--plug") and action == "service-list": 
-                cmd += " --host " + options["--plug"]
-
-        elif options["--action"] != "list" and options.has_key("--plug") and action == "service-enable": 
-                cmd += " --host " + options["--plug"] + " nova-compute"
-
-        elif options["--action"] != "list" and options.has_key("--plug"):
-                cmd += " " + options["--plug"]
 
         logging.debug("Executing command: "+cmd)
         return cmd
 
 def define_new_opts():
-        all_opt["os-username"] = {
-                "getopt" : "u:",
-                "longopt" : "os-username",
-                "help" : "-u, --os-username=[username]   Keystone Admin Username",
-                "required" : "1",
-                "shortdesc" : "Keystone Admin Username",
-                "default" : "",
-                "order": 1
-        }
-        all_opt["os-password"] = {
-                "getopt" : "p:",
-                "longopt" : "os-password",
-                "help" : "-p, --os-password=[password]   Keystone Admin Password",
-                "required" : "1",
-                "shortdesc" : "Keystone Admin Password",
-                "default" : "",
-                "order": 1
-        }
-        all_opt["os-tenant-name"] = {
+        all_opt["tenant-name"] = {
                 "getopt" : "t:",
-                "longopt" : "os-tenant-name",
-                "help" : "-t, --os-tenant-name=[tenant]  Keystone Admin Tenant",
-                "required" : "1",
+                "longopt" : "tenant-name",
+                "help" : "-t, --tenant-name=[tenant]     Keystone Admin Tenant",
+                "required" : "0",
                 "shortdesc" : "Keystone Admin Tenant",
                 "default" : "",
                 "order": 1
         }
-        all_opt["os-auth-url"] = {
+        all_opt["auth-url"] = {
                 "getopt" : "k:",
-                "longopt" : "os-auth-url",
-                "help" : "-k, --os-auth-url=[tenant]     Keystone Admin Auth URL",
-                "required" : "1",
+                "longopt" : "auth-url",
+                "help" : "-k, --auth-url=[tenant]        Keystone Admin Auth URL",
+                "required" : "0",
                 "shortdesc" : "Keystone Admin Auth URL",
                 "default" : "",
                 "order": 1
@@ -155,28 +135,37 @@ def define_new_opts():
         all_opt["novatool-path"] = {
                 "getopt" : "i:",
                 "longopt" : "novatool-path",
-                "help" : "--novatool-path=[path]         Path to nova binary",
+                "help" : "-i, --novatool-path=[path]     Path to nova binary",
                 "required" : "0",
                 "shortdesc" : "Path to nova binary",
                 "default" : "/usr/bin/nova",
-                "order": 200
+                "order": 6
         }
         all_opt["domain"] = {
                 "getopt" : "d:",
                 "longopt" : "domain",
-                "help" : "--domain=[string]             DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN",
+                "help" : "-d, --domain=[string]          DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN",
                 "required" : "0",
                 "shortdesc" : "DNS domain in which hosts live",
                 "default" : "",
-                "order": 200
+                "order": 5
+        }
+        all_opt["no-shared-storage"] = {
+                "getopt" : "S",
+                "longopt" : "no-shared-storage",
+                "help" : "-S, --no-shared-storage        Disable functionality for shared storage",
+                "required" : "0",
+                "shortdesc" : "Disable functionality for dealing with shared storage",
+                "default" : "False",
+                "order": 5
         }
 
 def main():
         global override_status
         atexit.register(atexit_handler)
 
-        device_opt = ["os-username", "os-password", "os-tenant-name", "os-auth-url",
-                      "novatool-path", "no_login", "no_password", "port", "domain"]
+        device_opt = ["login", "passwd", "tenant-name", "auth-url",
+                      "novatool-path", "no_login", "no_password", "port", "domain", "no-shared-storage"]
         define_new_opts()
         all_opt["separator"]["default"] = ""
         all_opt["shell_timeout"]["default"] = "180"
@@ -203,7 +192,7 @@ def main():
                 # Pretend we're 'off' so that the fencing library will always call set_power_status(on)
                 override_status = "off"
 
-        # Potentially we should make this a pacemaker  
+        # Potentially we should make this a pacemaker feature
         if options["--action"] != "list" and options["--domain"] != "" and options.has_key("--plug"):
                 options["--plug"] = options["--plug"]+"."+options["--domain"]
 
