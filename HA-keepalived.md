@@ -10,6 +10,10 @@ The document can be used to create a highly available architecture for:
 
 Most of the time the instructions will apply to both distributions. If there is any difference, it will be specified throughout the document.
 
+### Authors and changelog
+
+- Javier Peña (jpena@redhat.com) commited the initial version.
+
 Architecture overview
 ---------------------
 

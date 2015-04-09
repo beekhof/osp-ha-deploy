@@ -170,7 +170,7 @@ Start services and open VXLAN firewall port
     firewall-cmd --add-port=4789/udp
     firewall-cmd --add-port=4789/udp --permanent
 
-'''NOTE: ''' During a full cluster reboot, since Galera does not start cleanly neutron-server will wait for some time, then fail due to a service startup timeout (see [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1188198) for details). We can fix that by creating a file named `/etc/systemd/system/neutron-server.service.d/restart.conf` with the following contents:
+**NOTE: ** During a full cluster reboot, since Galera does not start cleanly neutron-server will wait for some time, then fail due to a service startup timeout (see [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1188198) for details). We can fix that by creating a file named `/etc/systemd/system/neutron-server.service.d/restart.conf` with the following contents:
 
     [Service]
     Restart=on-failure
