@@ -65,9 +65,10 @@ global
 defaults
     mode tcp
     maxconn 10000
-    timeout connect 2s
-    timeout client 10s
-    timeout server 10s
+    timeout  connect 10s
+    timeout  client 1m
+    timeout  server 1m
+    timeout  check 10s
 EOF
 
 # Special case front-ends
@@ -166,9 +167,9 @@ backend db-vms-galera
     stick-table type ip size 2
     stick on dst
     timeout server 90s
-    server rhos6-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200
-    server rhos6-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200
-    server rhos6-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200
+    server rhos6-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+    server rhos6-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+    server rhos6-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
 
 backend rabbitmq-vms
     option srvtcpka
