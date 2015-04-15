@@ -914,7 +914,7 @@ Adding an additional node should be a matter of:
 
 This is simply a matter of shutting down the cluster on the target
 node and removing it from the cluster configuration.  This can be
-achieved with `psc`:
+achieved with `pcs`:
 
     pcs node remove ${nodename}
 
