@@ -282,11 +282,11 @@ if [ ! -z "${OCF_RESKEY_auth_url}" ]; then
     nova_options="${nova_options} --os-auth-url ${OCF_RESKEY_auth_url}"
 fi
 
-if [ -z "${OCF_RESKEY_username}" ]; then
-    OCF_RESKEY_username=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_username)
+if [ -z "${OCF_RESKEY_user_name}" ]; then
+    OCF_RESKEY_user_name=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_username)
 fi
-if [ ! -z "${OCF_RESKEY_username}" ]; then
-    nova_options="${nova_options} --os-username ${OCF_RESKEY_username}"
+if [ ! -z "${OCF_RESKEY_user_name}" ]; then
+    nova_options="${nova_options} --os-username ${OCF_RESKEY_user_name}"
 fi
 
 if [ -z "${OCF_RESKEY_password}" ]; then
