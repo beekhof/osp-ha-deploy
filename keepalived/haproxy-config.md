@@ -165,11 +165,12 @@ Configure HAProxy
     frontend vip-horizon
         bind 192.168.1.220:80
         timeout client 180s
-        cookie SERVERID insert indirect nocache
         default_backend horizon-vms
     backend horizon-vms
         balance roundrobin
         timeout server 180s
+        mode http
+        cookie SERVERID insert indirect nocache
         server rhos6-node1 192.168.1.221:80 check inter 1s cookie rhos6-horizon1 on-marked-down shutdown-sessions
         server rhos6-node2 192.168.1.222:80 check inter 1s cookie rhos6-horizon2 on-marked-down shutdown-sessions
         server rhos6-node3 192.168.1.223:80 check inter 1s cookie rhos6-horizon3 on-marked-down shutdown-sessions
