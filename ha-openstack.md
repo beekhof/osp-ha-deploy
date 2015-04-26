@@ -1,5 +1,12 @@
 # Highly Available Openstack Deployments
 
+Looking for the Juno (RDO6) edition?
+Check out the [Juno-RDO6 branch](../Juno-RDO6/ha-openstack.md)
+instead.
+
+The current target for this document is pre-release RDO 7, based on
+the OpenStack Kilo release.
+
 ## Purpose of this Document
 
 This document aims at defining a high level architecture for a highly
@@ -37,9 +44,6 @@ active/active with the exception of:
 
 Implementation details are contained in scripts linked to from the main document.
 Read them carefully before considering to run them in your own environment. 
-
-The current target for this document is RHEL OSP 6, based on the Juno
-OpenStack release.
 
 ## Disclaimer 
 
