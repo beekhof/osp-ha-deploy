@@ -1,11 +1,9 @@
 #!/bin/sh
 #
 #
-#	Dummy OCF RA. Does nothing but wait a few seconds, can be
-#	configured to fail occassionally.
+# NovaCompute agent manages compute daemons.
 #
-# Copyright (c) 2004 SUSE LINUX AG, Lars Marowsky-Brée
-#                    All Rights Reserved.
+# Copyright (c) 2015
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of version 2 of the GNU General Public License as
@@ -40,7 +38,7 @@ meta_data() {
 	cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="Dummy" version="1.0">
+<resource-agent name="NovaCompute" version="1.0">
 <version>1.0</version>
 
 <longdesc lang="en">
