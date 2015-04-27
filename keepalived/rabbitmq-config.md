@@ -93,7 +93,7 @@ Start services and open firewall ports
 
 And check everything is going fine by running:
 
-<pre# rabbitmqctl cluster_status
+<pre> # rabbitmqctl cluster_status
 
 Cluster status of node rabbit@hacontroller1 ...
 [{nodes,[{disc,[rabbit@hacontroller1,rabbit@hacontroller2,

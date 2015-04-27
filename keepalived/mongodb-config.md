@@ -13,8 +13,8 @@ Install packages
 Listen to external connections, and configure replication set
 -------------------------------------------------------------
 
-    sed -i -e 's#bind_ip.*#bind_ip = 0.0.0.0#g' /etc/mongodb.conf
-    echo "replSet = ceilometer" >> /etc/mongodb.conf 
+    sed -i -e 's#bind_ip.*#bind_ip = 0.0.0.0#g' /etc/mongod.conf
+    echo "replSet = ceilometer" >> /etc/mongod.conf 
 
 Start services and enable firewall ports
 ----------------------------------------
@@ -34,7 +34,6 @@ On node 1:
 
     > rs.initiate()
     > sleep(10000)
-    > rs.add("hacontroller1.example.com");
     > rs.add("hacontroller2.example.com");
     > rs.add("hacontroller3.example.com");
 
