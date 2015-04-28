@@ -19,10 +19,10 @@ Configure glance-api and glance-registry
     openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_password glancetest
     openstack-config --set /etc/glance/glance-api.conf DEFAULT notification_driver messaging
-    openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_hosts hacontroller1,hacontroller2,hacontroller3
-    openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_ha_queues true
-    openstack-config --set /etc/glance/glance-api.conf DEFAULT registry_host controller-vip.example.com
     openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host 192.168.1.22X
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT registry_host controller-vip.example.com
+    openstack-config --set /etc/glance/glance-api.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
+    openstack-config --set /etc/glance/glance-api.conf oslo_messaging_rabbit rabbit_ha_queues true
     openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@controller-vip.example.com/glance
     openstack-config --set /etc/glance/glance-registry.conf database max_retries -1
     openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone

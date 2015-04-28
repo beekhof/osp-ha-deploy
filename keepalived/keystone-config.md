@@ -24,25 +24,26 @@ Configure Apache web server for Keystone
 **NOTE:** running Keystone under eventlet has been deprecated as of the Kilo release. Support for utilizing eventlet will be removed as of the M-release. Thus, instructions are provided to run Keystone under the Apache web server, as a WSGI process.
 
 On all nodes:
-<pre>mkdir /var/www/cgi-bin/keystone
+```
+mkdir /var/www/cgi-bin/keystone
 chown keystone:keystone /var/www/cgi-bin/keystone
 ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/admin
 ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/main
-restorecon -R /var/www/cgi-bin/keystone /etc/httpd
+restorecon -R /var/www/cgi-bin/keystone /etc/httpd 
 
 cat > /etc/httpd/conf.d/10-keystone_wsgi_admin.conf << EOF
-<VirtualHost *:35357>
+&lt;VirtualHost *:35357>
   ServerName hacontrollerX
   ## Vhost docroot
   DocumentRoot "/var/www/cgi-bin/keystone"
 
   ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
 
-  <Directory "/var/www/cgi-bin/keystone">
+  &lt;Directory "/var/www/cgi-bin/keystone">
     Options Indexes FollowSymLinks MultiViews
     AllowOverride None
     Require all granted
-  </Directory>
+  &lt;/Directory>
 
   ## Logging
   ErrorLog "/var/log/httpd/keystone_wsgi_admin_error.log"
@@ -51,22 +52,22 @@ cat > /etc/httpd/conf.d/10-keystone_wsgi_admin.conf << EOF
   WSGIDaemonProcess keystone_admin group=keystone processes=1 threads=1 user=keystone
   WSGIProcessGroup keystone_admin
   WSGIScriptAlias / "/var/www/cgi-bin/keystone/admin"
-</VirtualHost>
+&lt;/VirtualHost>
 EOF
 
 cat > /etc/httpd/conf.d/10-keystone_wsgi_main.conf << EOF
-<VirtualHost *:5000>
+&lt;VirtualHost *:5000>
   ServerName hacontrollerX
   ## Vhost docroot
   DocumentRoot "/var/www/cgi-bin/keystone"
 
   ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
 
-  <Directory "/var/www/cgi-bin/keystone">
+  &lt;Directory "/var/www/cgi-bin/keystone">
     Options Indexes FollowSymLinks MultiViews
     AllowOverride None
     Require all granted
-  </Directory>
+  &lt;/Directory>
 
   ## Logging
   ErrorLog "/var/log/httpd/keystone_wsgi_main_error.log"
@@ -75,13 +76,14 @@ cat > /etc/httpd/conf.d/10-keystone_wsgi_main.conf << EOF
   WSGIDaemonProcess keystone_main group=keystone processes=1 threads=1 user=keystone
   WSGIProcessGroup keystone_main
   WSGIScriptAlias / "/var/www/cgi-bin/keystone/main"
-</VirtualHost>
+&lt;/VirtualHost>
 EOF
 
 
 sed -i -e 's/^Listen.*/Listen 192.168.1.22X:80/g' /etc/httpd/conf/httpd.conf 
 echo 'Listen 192.168.1.22X:5000' >> /etc/httpd/conf/httpd.conf
-echo 'Listen 192.168.1.22X:35357' >> /etc/httpd/conf/httpd.conf</pre>
+echo 'Listen 192.168.1.22X:35357' >> /etc/httpd/conf/httpd.conf
+```
 
 Configure Keystone
 ------------------

@@ -10,6 +10,8 @@ Install software
 
     yum install -y openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
 
+**Note:** python-tooz 0.13.2 or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1203706). This should be fixed by the Kilo GA date.
+
 Configure ceilometer
 --------------------
 
@@ -18,9 +20,9 @@ Configure ceilometer
     openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
     openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
     openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts hacontroller1,hacontroller2,hacontroller3
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_ha_queues true
-    openstack-config --set /etc/ceilometer/ceilometer.conf publisher_rpc metering_secret ceilometersecret
+    openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
+    openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
+    openstack-config --set /etc/ceilometer/ceilometer.conf publisher telemetry_secret ceilometersecret
     openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_auth_url http://controller-vip.example.com:5000/v2.0 
     openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_username ceilometer
     openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
@@ -29,7 +31,7 @@ Configure ceilometer
     openstack-config --set /etc/ceilometer/ceilometer.conf database max_retries -1
 
     # keep last 5 days data only (value is in secs)
-    openstack-config --set /etc/ceilometer/ceilometer.conf database time_to_live 432000
+    openstack-config --set /etc/ceilometer/ceilometer.conf database metering_time_to_live 432000
     openstack-config --set /etc/ceilometer/ceilometer.conf api host 192.168.1.22X
 
 Configure coordination URL

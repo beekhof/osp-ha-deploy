@@ -6,7 +6,7 @@ The following commands will be executed on all controller nodes, unless otherwis
 Install software
 ----------------
 
-    yum install -y openstack-heat-* python-heatclient openstack-utils python-glanceclient
+    yum install -y openstack-heat-engine openstack-heat-api openstack-heat-api-cfn openstack-heat-api-cloudwatch python-heatclient openstack-utils python-glanceclient
 
 Configure Heat
 --------------
@@ -28,8 +28,8 @@ Configure Heat
     openstack-config --set /etc/heat/heat.conf DEFAULT heat_metadata_server_url controller-vip.example.com:8000
     openstack-config --set /etc/heat/heat.conf DEFAULT heat_waitcondition_server_url controller-vip.example.com:8000/v1/waitcondition
     openstack-config --set /etc/heat/heat.conf DEFAULT heat_watch_server_url controller-vip.example.com:8003
-    openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_hosts hacontroller1,hacontroller2,hacontroller3
-    openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues true
+    openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
+    openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_ha_queues true
     openstack-config --set /etc/heat/heat.conf DEFAULT rpc_backend rabbit
     openstack-config --set /etc/heat/heat.conf DEFAULT notification_driver heat.openstack.common.notifier.rpc_notifier
 
