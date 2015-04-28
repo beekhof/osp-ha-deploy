@@ -25,7 +25,7 @@
 = VARIABLES =
 
 PHD_VAR_deployment
-PHD_VAR_env_configdir
+PHD_VAR_osp_configdir
 PHD_VAR_network_domain
 PHD_VAR_network_internal
 
@@ -68,7 +68,7 @@ systemctl daemon-reload
 systemctl start rpcbind.service
 systemctl start rpc-statd.service
 
-# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
 
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
@@ -81,8 +81,8 @@ fi
 
 target=$PHD_ENV_nodes1
 ....
-mkdir -p $PHD_VAR_env_configdir
-cp /var/lib/rabbitmq/.erlang.cookie $PHD_VAR_env_configdir/rabbitmq_erlang_cookie
+mkdir -p $PHD_VAR_osp_configdir
+cp /var/lib/rabbitmq/.erlang.cookie $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie
 ....
 
 target=all
@@ -90,7 +90,7 @@ target=all
 # the cookie has to be the same across all nodes. Copy around as preferred, I am 
 # using my NFS commodity storage. Also check for file permission/ownership. I 
 # workaround that step by using 'cat' vs cp.
-cat $PHD_VAR_env_configdir/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.cookie
+cat $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.cookie
 ....
 
 

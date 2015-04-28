@@ -28,7 +28,7 @@ nodes: 1
 = VARIABLES =
 
 PHD_VAR_deployment
-PHD_VAR_env_configdir
+PHD_VAR_osp_configdir
 
 ######################
 # Deployment Scripts #
@@ -60,7 +60,7 @@ systemctl daemon-reload
 systemctl start rpcbind.service
 systemctl start rpc-statd.service
 
-# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
 
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
@@ -73,8 +73,8 @@ fi
 
 target=all
 ....
-if [ ! -e $PHD_VAR_env_configdir/pcmk-authkey ]; then
-   dd if=/dev/urandom of=$PHD_VAR_env_configdir/pcmk-authkey bs=4096 count=1
+if [ ! -e $PHD_VAR_osp_configdir/pcmk-authkey ]; then
+   dd if=/dev/urandom of=$PHD_VAR_osp_configdir/pcmk-authkey bs=4096 count=1
 fi
 
 # Until this makes it upstream
@@ -85,7 +85,7 @@ wget -O /usr/sbin/fence_compute https://github.com/beekhof/osp-ha-deploy/raw/mas
 chmod a+x /usr/sbin/fence_compute 
 
 mkdir -p /etc/pacemaker
-cp $PHD_VAR_env_configdir/pcmk-authkey /etc/pacemaker/authkey
+cp $PHD_VAR_osp_configdir/pcmk-authkey /etc/pacemaker/authkey
 
 if [ -z $(pidof pacemakerd) ]; then
     service pacemaker_remote start

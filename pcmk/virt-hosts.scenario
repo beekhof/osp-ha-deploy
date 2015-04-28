@@ -40,8 +40,9 @@ PHD_VAR_deployment
 PHD_VAR_network_internal
 PHD_VAR_network_nic_base
 PHD_VAR_rpm_download
-PHD_VAR_rpm_osp
-PHD_VAR_rpm_rhel
+PHD_VAR_osp_major
+PHD_VAR_rpm_major
+PHD_VAR_rpm_minor
 PHD_VAR_vm_base
 PHD_VAR_vm_cpus
 PHD_VAR_vm_disk
@@ -102,11 +103,11 @@ backends {
 }
 EOF
 
-if [ ! -e $PHD_VAR_env_configdir/fence_xvm.key ]; then
-    echo $(openssl rand -hex 10) > $PHD_VAR_env_configdir/fence_xvm.key
+if [ ! -e $PHD_VAR_osp_configdir/fence_xvm.key ]; then
+    echo $(openssl rand -hex 10) > $PHD_VAR_osp_configdir/fence_xvm.key
 fi
 
-cp $PHD_VAR_env_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
+cp $PHD_VAR_osp_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
 
 # XXX remember to file a bug
 chkconfig --add fence_virtd
@@ -118,18 +119,12 @@ service fence_virtd start
 target=$PHD_ENV_nodes1
 ....
 
-if [ -e ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base} ]; then
+if [ -e ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base} ]; then
     : skip this step if an image already exists
     exit 0
 fi
 
-distro=${PHD_VAR_rpm_rhel}
-distro_major=$(echo ${PHD_VAR_rpm_rhel} | awk -F. '{print $1}')
-
-case ${distro_major} in
-    7) addons="addons/"; zstream="rhel-${distro}-z-build";;
-    *) addons=""; zstream="RHEL-${distro}-Z-build";;
-esac
+distro=${PHD_VAR_rpm_major}.${PHD_VAR_rpm_minor}
 
 # headless - do not bork if we specify --noautoconsole
 # reboot
@@ -204,28 +199,28 @@ EOT
 # Occurs if we clone the guest and change NICs
 rm -f /var/lib/NetworkManager/dhclient-*.lease
 
-cat > /etc/yum.repos.d/rhel-${distro}.repo << EOT
-[rhel-${distro}]
-name=rhel-${distro}
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/\\\$basearch/os/
+cat > /etc/yum.repos.d/redhat-${distro}.repo << EOT
+[redhat-${distro}]
+name=redhat-${distro}
+baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_base}
 gpgcheck=0
 enabled=1
-[rhel-ha]
-name=rhel-${distro}-ha
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/\\\$basearch/os/${addons}HighAvailability/
+[redhat-ha]
+name=redhat-${distro}-ha
+baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_cluster}
 gpgcheck=0
 enabled=1
-[rhel-z]
-name=rhel-${distro}-z
-baseurl=http://${PHD_VAR_rpm_download}/brewroot/repos/${zstream}/latest/\\\$basearch/
+[redhat-z]
+name=redhat-${distro}-z
+baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_updates}
 gpgcheck=0
-enabled=0
+enabled=1
 EOT
 
-cat > /etc/yum.repos.d/osp-${PHD_VAR_rpm_osp}.repo << EOT
-[OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle]
-name=OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/OpenStack/${PHD_VAR_rpm_osp}-RHEL-${distro_major}${PHD_VAR_rpm_osp_beta}/latest/RH${distro_major}-RHOS-${PHD_VAR_rpm_osp}/\\\$basearch/os
+cat > /etc/yum.repos.d/osp-${PHD_VAR_osp_major}.repo << EOT
+[OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle]
+name=OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle
+baseurl=http://${PHD_VAR_osp_download}/${PHD_VAR_osp_base}
 gpgcheck=0
 enabled=1
 EOT
@@ -242,17 +237,17 @@ EOF
 
 
 yum install -y virt-install 
-virsh destroy rhos6-rhel${distro_major}-base  &>/dev/null
-virsh undefine rhos6-rhel${distro_major}-base &>/dev/null
+virsh destroy rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base  &>/dev/null
+virsh undefine rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base &>/dev/null
 
 #Create the qcow2 disk image with preallocation and 'facllocate'(which pre-allocates all the blocks to a file) it for max. performance
 echo "Creating qcow2 disk image.."
-rm -f ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base}
-mkdir -p ${PHD_VAR_env_configdir}
-qemu-img create -f qcow2 -o preallocation=metadata ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base} ${PHD_VAR_vm_disk}
-ls -lash ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base}
-#fallocate -l $(ls -al ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base} | awk '{print $5}') ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base}
-#ls -lash ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base}
+rm -f ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base}
+mkdir -p ${PHD_VAR_osp_configdir}
+qemu-img create -f qcow2 -o preallocation=metadata ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base} ${PHD_VAR_vm_disk}
+ls -lash ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base}
+#fallocate -l $(ls -al ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base} | awk '{print $5}') ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base}
+#ls -lash ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base}
 
 # Turn off install logs
 opts="--noautoconsole"
@@ -264,17 +259,17 @@ virt-install --connect=qemu:///system \
     --network=bridge:ext0,mac=${PHD_VAR_network_nic_base}:00:00:02 \
     --initrd-inject=./virt-base.ks \
     --extra-args="ks=file:/virt-base.ks console=tty0 console=ttyS0,115200 serial rd_NO_PLYMOUTH" \
-    --name=rhos6-rhel${distro_major}-base \
-    --disk path=${PHD_VAR_env_configdir}/${PHD_VAR_vm_base},format=qcow2,cache=none \
+    --name=rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base \
+    --disk path=${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base},format=qcow2,cache=none \
     --ram ${PHD_VAR_vm_ram} \
     --vcpus=${PHD_VAR_vm_cpus} \
     --check-cpu \
     --accelerate \
     --os-type linux \
-    --os-variant rhel${distro_major} \
+    --os-variant rhel${PHD_VAR_rpm_major} \
     --cpuset auto \
     --hvm \
-    --location=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/ \
+    --location=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_base} \
     --nographics $opts
 
 # Needs 15-20 minutes apparently
@@ -285,7 +280,7 @@ sleep 1200
 #target=$PHD_ENV_nodes1
 #....
 #virsh define /srv/vms/rhos4-base.xml
-#virsh define /srv/rhos6-rhel7-vms/rhos6-rhel7-base.xml
+#virsh define /srv/rdo${PHD_VAR_osp_major}-rhel7-vms/rdo${PHD_VAR_osp_major}-rhel7-base.xml
 #....
 
 target=all
@@ -302,7 +297,7 @@ mkdir -p /allinone
 # cp /srv/vms/rhos4-base.img /localvms/
 if [ ! -e /localvms/${PHD_VAR_vm_base} ]; then
     # This takes a loooong time, skip it if we already have an image
-    rsync -avz --progress ${PHD_VAR_env_configdir}/${PHD_VAR_vm_base} /localvms/
+    rsync -avz --progress ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base} /localvms/
 fi
 ....
 
@@ -343,7 +338,7 @@ cat<<-EOF > /localvms/template.xml
     <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='/srv/rhos6-rhel7-vms/rhos6-rhel7-base.img'/>
+      <source file='/srv/rdo${PHD_VAR_osp_major}-rhel7-vms/rdo${PHD_VAR_osp_major}-rhel7-base.img'/>
       <target dev='vda' bus='virtio'/>
     </disk>
     <interface type='bridge'>
@@ -372,7 +367,7 @@ offset="$(echo ${PHD_ENV_nodes1} | sed -e 's#\..*##g' -e 's#^[a-z]*-##g' -e 's#^
 for section in ${PHD_VAR_components}; do
     cd /localvms/
 
-    target=rhos6-${section}$(( ${lastoct} - ${offset} ))
+    target=rdo${PHD_VAR_osp_major}-${section}$(( ${lastoct} - ${offset} ))
     octet=${sequence}
 
     sequence=$((sequence + 1))
@@ -409,7 +404,7 @@ for section in ${PHD_VAR_components}; do
     rm ${target}.xml.sed ${target}.xml
 done
 
-#truncate --size=10G /localvms/rhos6-swift-brick1_data.img
-#truncate --size=10G /allinone/rhos6-node1_data.img
-#truncate --size=10G /allinone/rhos6-mbayer1_data.img
+#truncate --size=10G /localvms/rdo${PHD_VAR_osp_major}-swift-brick1_data.img
+#truncate --size=10G /allinone/rdo${PHD_VAR_osp_major}-node1_data.img
+#truncate --size=10G /allinone/rdo${PHD_VAR_osp_major}-mbayer1_data.img
 ....

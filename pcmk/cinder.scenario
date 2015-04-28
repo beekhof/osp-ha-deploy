@@ -25,7 +25,7 @@
 = VARIABLES =
 
 PHD_VAR_deployment
-PHD_VAR_env_configdir
+PHD_VAR_osp_configdir
 PHD_VAR_network_internal
 
 #################################
@@ -53,7 +53,7 @@ systemctl daemon-reload
 systemctl start rpcbind.service
 systemctl start rpc-statd.service
 
-# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
 
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
@@ -84,9 +84,9 @@ openstack-config  --set /etc/cinder/cinder.conf DEFAULT memcache_servers  ${PHD_
 openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 
 
-# rhos6-cinder isn't the name of a real host or an IP
+# rdo${PHD_VAR_osp_major}-cinder isn't the name of a real host or an IP
 # Its the name which we should advertise ourselves as and for A/P it should be the same everywhere
-openstack-config --set /etc/cinder/cinder.conf DEFAULT host rhos6-cinder
+openstack-config --set /etc/cinder/cinder.conf DEFAULT host rdo${PHD_VAR_osp_major}-cinder
 openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_listen $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_shares_config /etc/cinder/nfs_exports
 openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_sparsed_volumes true
@@ -97,10 +97,10 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volu
 # NOTE: this config section is to enable and configure the NFS cinder driver.
 
 # Create the directory on the server
-mkdir -p $PHD_VAR_env_configdir/cinder
+mkdir -p $PHD_VAR_osp_configdir/cinder
 
 cat > /etc/cinder/nfs_exports << EOF
-${PHD_VAR_network_internal}.1:$PHD_VAR_env_configdir/cinder
+${PHD_VAR_network_internal}.1:$PHD_VAR_osp_configdir/cinder
 EOF
 
 chown root:cinder /etc/cinder/nfs_exports

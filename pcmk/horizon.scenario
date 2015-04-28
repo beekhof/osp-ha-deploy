@@ -25,7 +25,7 @@
 = VARIABLES =
 
 PHD_VAR_deployment
-PHD_VAR_env_configdir
+PHD_VAR_osp_configdir
 PHD_VAR_network_domain
 PHD_VAR_network_internal
 
@@ -54,7 +54,7 @@ systemctl daemon-reload
 systemctl start rpcbind.service
 systemctl start rpc-statd.service
 
-# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
 
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
@@ -77,9 +77,9 @@ target=all
 #             fix a LOCAL_PATH to point to the correct location.
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rhos6-node1:11211', 'rhos6-node2:11211',  'rhos6-node3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
+   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rdo${PHD_VAR_osp_major}-node1:11211', 'rdo${PHD_VAR_osp_major}-node2:11211',  'rdo${PHD_VAR_osp_major}-node3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
 else
-   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rhos6-memcache1:11211', 'rhos6-memcache2:11211',  'rhos6-memcache3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
+   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rdo${PHD_VAR_osp_major}-memcache1:11211', 'rdo${PHD_VAR_osp_major}-memcache2:11211',  'rdo${PHD_VAR_osp_major}-memcache3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
 fi
 
 # NOTE: fix apache config to listen only on a given interface (internal)
@@ -98,8 +98,8 @@ service httpd start
 curl http://$(hostname)/dashboard >/dev/null 2>&1
 service httpd stop
 
-mkdir -p $PHD_VAR_env_configdir
-cp /var/lib/openstack-dashboard/.secret_key_store $PHD_VAR_env_configdir/horizon_secret_key_store 
+mkdir -p $PHD_VAR_osp_configdir
+cp /var/lib/openstack-dashboard/.secret_key_store $PHD_VAR_osp_configdir/horizon_secret_key_store 
 ....
 
 target=all
@@ -107,7 +107,7 @@ target=all
 # the cookie has to be the same across all nodes. Copy around as preferred, I am 
 # using my NFS commodity storage. Also check for file permission/ownership. I 
 # workaround that step by using 'cat' vs cp.
-cat $PHD_VAR_env_configdir/horizon_secret_key_store > /var/lib/openstack-dashboard/.secret_key_store
+cat $PHD_VAR_osp_configdir/horizon_secret_key_store > /var/lib/openstack-dashboard/.secret_key_store
 chown apache:apache /var/lib/openstack-dashboard/.secret_key_store
 
 # NOTE: enable server-status. this is required by pacemaker to verify apache is 

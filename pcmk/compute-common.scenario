@@ -27,10 +27,10 @@ nodes: 1
 
 = VARIABLES =
 
-PHD_VAR_rpm_osp
-PHD_VAR_rpm_rhel
+PHD_VAR_osp_major
+PHD_VAR_rpm_major
 PHD_VAR_deployment
-PHD_VAR_env_configdir
+PHD_VAR_osp_configdir
 
 ######################
 # Deployment Scripts #
@@ -39,14 +39,10 @@ PHD_VAR_env_configdir
 
 target=all
 ....
-
-distro=${PHD_VAR_rpm_rhel}
-distro_major=$(echo ${PHD_VAR_rpm_rhel} | awk -F. '{print $1}')
-
-cat > /etc/yum.repos.d/osp-${PHD_VAR_rpm_osp}.repo << EOT
-[OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle]
-name=OpenStack-${PHD_VAR_rpm_osp}-RHEL-${distro}-Puddle
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/OpenStack/${PHD_VAR_rpm_osp}-RHEL-${distro_major}${PHD_VAR_rpm_osp_beta}/latest/RH${distro_major}-RHOS-${PHD_VAR_rpm_osp}/\\\$basearch/os
+cat > /etc/yum.repos.d/osp-${PHD_VAR_osp_major}.repo << EOT
+[OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle]
+name=OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle
+baseurl=http://${PHD_VAR_osp_download}/${PHD_VAR_osp_base}
 gpgcheck=0
 enabled=1
 EOT
@@ -156,8 +152,8 @@ openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
-    openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts  rhos6-node1:11211,rhos6-node2:11211,rhos6-node3:11211
+    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node2:11211,rdo${PHD_VAR_osp_major}-node3:11211
+    openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts  rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node2:11211,rdo${PHD_VAR_osp_major}-node3:11211
 else
     openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
     openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}

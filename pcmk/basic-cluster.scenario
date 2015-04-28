@@ -90,12 +90,12 @@ target=$PHD_ENV_nodes1
 # If any of the above is not true, change the fencing devices below
 
 # Set up the authkey
-if [ ! -e $PHD_VAR_env_configdir/fence_xvm.key ]; then
-    echo $(openssl rand -hex 10) > $PHD_VAR_env_configdir/fence_xvm.key
+if [ ! -e $PHD_VAR_osp_configdir/fence_xvm.key ]; then
+    echo $(openssl rand -hex 10) > $PHD_VAR_osp_configdir/fence_xvm.key
 fi
 
 mkdir -p /etc/cluster
-cp $PHD_VAR_env_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
+cp $PHD_VAR_osp_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
 
 pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
 pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3

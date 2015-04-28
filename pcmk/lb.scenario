@@ -146,7 +146,7 @@ for mapping in $mappings; do
 	echo "    timeout server ${timeout}" >> /etc/haproxy/haproxy.cfg
     fi
     for count in 1 2 3; do
-	echo "    server rhos6-${server}${count} ${PHD_VAR_network_internal}.$(( ${target} + ${count} - 1)):${port} check inter 1s" >> /etc/haproxy/haproxy.cfg
+	echo "    server rdo${PHD_VAR_osp_major}-${server}${count} ${PHD_VAR_network_internal}.$(( ${target} + ${count} - 1)):${port} check inter 1s" >> /etc/haproxy/haproxy.cfg
     done
 done
 
@@ -158,35 +158,35 @@ backend qpid-vms
     stick-table type ip size 2
     stick on dst
     timeout server 120s
-    server rhos6-qpid1 ${PHD_VAR_network_internal}.103:5672 check inter 1s
-    server rhos6-qpid2 ${PHD_VAR_network_internal}.104:5672 check inter 1s
-    server rhos6-qpid3 ${PHD_VAR_network_internal}.105:5672 check inter 1s
+    server rdo${PHD_VAR_osp_major}-qpid1 ${PHD_VAR_network_internal}.103:5672 check inter 1s
+    server rdo${PHD_VAR_osp_major}-qpid2 ${PHD_VAR_network_internal}.104:5672 check inter 1s
+    server rdo${PHD_VAR_osp_major}-qpid3 ${PHD_VAR_network_internal}.105:5672 check inter 1s
 
 backend db-vms-galera
     option httpchk
     stick-table type ip size 2
     stick on dst
     timeout server 90s
-    server rhos6-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-    server rhos6-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-    server rhos6-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+    server rdo${PHD_VAR_osp_major}-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+    server rdo${PHD_VAR_osp_major}-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+    server rdo${PHD_VAR_osp_major}-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
 
 backend rabbitmq-vms
     option srvtcpka
     balance roundrobin
     timeout server 900m
-    server rhos6-rabbitmq1 ${PHD_VAR_network_internal}.61:5672 check inter 1s
-    server rhos6-rabbitmq2 ${PHD_VAR_network_internal}.62:5672 check inter 1s
-    server rhos6-rabbitmq3 ${PHD_VAR_network_internal}.63:5672 check inter 1s
+    server rdo${PHD_VAR_osp_major}-rabbitmq1 ${PHD_VAR_network_internal}.61:5672 check inter 1s
+    server rdo${PHD_VAR_osp_major}-rabbitmq2 ${PHD_VAR_network_internal}.62:5672 check inter 1s
+    server rdo${PHD_VAR_osp_major}-rabbitmq3 ${PHD_VAR_network_internal}.63:5672 check inter 1s
 EOF
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    # In a collapsed environment everything is installed on rhos6-node{1,2,3}
+    # In a collapsed environment everything is installed on rdo${PHD_VAR_osp_major}-node{1,2,3}
     # So rewite the proxy config to talk to those hosts instead
     for section in ${PHD_VAR_components}; do
-    	sed -i s/rhos6-${section}1\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node1\ ${PHD_VAR_network_internal}\.103/g /etc/haproxy/haproxy.cfg
-    	sed -i s/rhos6-${section}2\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node2\ ${PHD_VAR_network_internal}\.104/g /etc/haproxy/haproxy.cfg
-    	sed -i s/rhos6-${section}3\ ${PHD_VAR_network_internal}.[0-9]*/rhos6-node3\ ${PHD_VAR_network_internal}\.105/g /etc/haproxy/haproxy.cfg
+    	sed -i s/rdo${PHD_VAR_osp_major}-${section}1\ ${PHD_VAR_network_internal}.[0-9]*/rdo${PHD_VAR_osp_major}-node1\ ${PHD_VAR_network_internal}\.103/g /etc/haproxy/haproxy.cfg
+    	sed -i s/rdo${PHD_VAR_osp_major}-${section}2\ ${PHD_VAR_network_internal}.[0-9]*/rdo${PHD_VAR_osp_major}-node2\ ${PHD_VAR_network_internal}\.104/g /etc/haproxy/haproxy.cfg
+    	sed -i s/rdo${PHD_VAR_osp_major}-${section}3\ ${PHD_VAR_network_internal}.[0-9]*/rdo${PHD_VAR_osp_major}-node3\ ${PHD_VAR_network_internal}\.105/g /etc/haproxy/haproxy.cfg
     done
 fi
 ....

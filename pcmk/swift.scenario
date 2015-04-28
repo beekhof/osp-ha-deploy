@@ -54,11 +54,11 @@ openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip $(ip addr sh
 openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rhos6-node1:11211,rhos6-node1:11211,rhos6-node1:11211
-    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rhos6-node1:11211,rhos6-node1:11211,rhos6-node1:11211
+    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211
+    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211
 else
-    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
-    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rhos6-memcache1:11211,rhos6-memcache1:11211,rhos6-memcache1:11211
+    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211
+    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211
 fi
 
 # ceilometer hook
@@ -78,7 +78,7 @@ swift-ring-builder /etc/swift/object.builder create 16 3 24
 swift-ring-builder /etc/swift/container.builder create 16 3 24
 swift-ring-builder /etc/swift/account.builder create 16 3 24
 
-# .76,.77 and .78 are the addresses of rhos6-swift-brick{1,2,3}
+# .76,.77 and .78 are the addresses of rdo${PHD_VAR_osp_major}-swift-brick{1,2,3}
 # 'target' here comes from the swift-fs resource created on the proxy
 # pcs resource create swift-fs Filesystem device="/local/swiftsource" directory="/local/swiftstorage/target" fstype="none" options="bind"
 

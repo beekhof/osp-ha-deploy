@@ -25,7 +25,7 @@
 = VARIABLES =
 
 PHD_VAR_deployment
-PHD_VAR_env_configdir
+PHD_VAR_osp_configdir
 PHD_VAR_network_internal
 
 #################################
@@ -62,7 +62,7 @@ systemctl daemon-reload
 systemctl start rpcbind.service
 systemctl start rpc-statd.service
 
-# Now mount /srv so that we can use $PHD_VAR_env_configdir further down
+# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
 
 if grep -q srv /etc/fstab; then 
     echo /srv is already mounted; 
@@ -87,9 +87,9 @@ openstack-config --set /etc/neutron/neutron.conf database connection  mysql://ne
 openstack-config --set /etc/neutron/neutron.conf database max_retries -1
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-   openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts rhos6-node1,rhos6-node2,rhos6-node3
+   openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts rdo${PHD_VAR_osp_major}-node1,rdo${PHD_VAR_osp_major}-node2,rdo${PHD_VAR_osp_major}-node3
 else
-   openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts rhos6-rabbitmq1,rhos6-rabbitmq2,rhos6-rabbitmq3
+   openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts rdo${PHD_VAR_osp_major}-rabbitmq1,rdo${PHD_VAR_osp_major}-rabbitmq2,rdo${PHD_VAR_osp_major}-rabbitmq3
 fi
 
 
@@ -98,7 +98,7 @@ openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neu
 openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://vip-nova:8774/v2
 openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
 
-. ${PHD_VAR_env_configdir}/keystonerc_admin
+. ${PHD_VAR_osp_configdir}/keystonerc_admin
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id $(keystone tenant-get services |grep id | awk '{print $4}')
 
@@ -164,7 +164,7 @@ openstack-config --set /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network
 
 target=$PHD_ENV_nodes1
 ....
-. ${PHD_VAR_env_configdir}/keystonerc_admin
+. ${PHD_VAR_osp_configdir}/keystonerc_admin
 
 # required when installing the DB manually
 neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file  /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno

@@ -37,7 +37,6 @@ PHD_VAR_network_internal
 PHD_VAR_network_nic_external
 PHD_VAR_network_nic_internal
 PHD_VAR_network_named_forwarders
-PHD_VAR_rpm_osp
 PHD_VAR_rpm_download
 
 #################################
@@ -58,31 +57,33 @@ distro=$(cat /etc/redhat-release | sed s/.*release\ // | awk '{print $1}')
 distro_major=$(cat /etc/redhat-release | sed s/.*release\ // | awk -F. '{print $1}')
 echo "Installing repos for $distro"
 
-cat > /etc/yum.repos.d/rhel-${distro}.repo << EOF
-[rhel-${distro}]
-name=rhel-${distro}
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/
+cat > /etc/yum.repos.d/redhat-${distro}.repo << EOF
+[redhat-${distro}]
+name=redhat-${distro}
+baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_base}
 gpgcheck=0
 enabled=1
-[rhel-ha]
-name=rhel-${distro}-ha
-baseurl=http://${PHD_VAR_rpm_download}/rel-eng/latest-RHEL-${distro_major}/compose/Server/x86_64/os/HighAvailability/
+[redhat-ha]
+name=redhat-${distro}-ha
+baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_cluster}
 gpgcheck=0
 enabled=1
-[rhel-z]
-name=rhel-${distro}-z
-baseurl=http://${PHD_VAR_rpm_download}/brewroot/repos/RHEL-${distro}-Z-build/latest/\$basearch
+[redhat-z]
+name=redhat-${distro}-z
+baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_updates}
 gpgcheck=0
 enabled=1
 EOF
 
 case $distro_major in
-	# Account for the location differences between CentOS 6 and 7
+	# Account for the location differences between RHEL/CentOS 6 and 7
     6)
+	sed -i s#addons/HighAvailability#HighAvailability#g /etc/yum.repos.d/redhat-${distro}.repo
+	sed -i s#RHEL-${distro}-z#rhel-${distro}-Z#g /etc/yum.repos.d/redhat-${distro}.repo
 	;;
     7)
-	sed -i s#HighAvailability#addons/HighAvailability#g /etc/yum.repos.d/rhel-${distro}.repo
-	sed -i s#RHEL-${distro}-Z#rhel-${distro}-z#g /etc/yum.repos.d/rhel-${distro}.repo
+	sed -i s#HighAvailability#addons/HighAvailability#g /etc/yum.repos.d/redhat-${distro}.repo
+	sed -i s#RHEL-${distro}-Z#rhel-${distro}-z#g /etc/yum.repos.d/redhat-${distro}.repo
 
 	# ethX will do nicely thankyou
 	rm -f /lib/udev/rules.d/75-persistent-net-generator.rules
