@@ -1,8 +1,10 @@
 #!/usr/bin/python -tt
 
-import sys, re, os, time
-import atexit, logging
-from pipes import quote
+import sys
+import time
+import atexit
+import logging
+
 sys.path.append("/usr/share/fence")
 from fencing import *
 from fencing import fail_usage, is_executable, run_command, run_delay
@@ -93,7 +95,7 @@ def get_plugs_list(_, options):
                         if options["--action"] == "list" and options["--domain"] != "":
                                 shorthost = longhost.replace("."+options["--domain"], "")
                                 result[shorthost] = ("", None)
-                                
+
                         else:
                                 result[longhost] = ("", None)
 
@@ -102,10 +104,10 @@ def get_plugs_list(_, options):
 def create_command(options, action):
         cmd = options["--novatool-path"]
 
-        cmd += " --auth-url " + options["--auth-url"]
-        cmd += " --username " + options["--username"]
-        cmd += " --password " + options["--password"]
-        cmd += " --tenant-name " + options["--tenant-name"]
+        cmd += " --os-auth-url " + options["--auth-url"]
+        cmd += " --os-username " + options["--username"]
+        cmd += " --os-password " + options["--password"]
+        cmd += " --os-tenant-name " + options["--tenant-name"]
 
         # --action / -o
         cmd += " " + action
@@ -184,8 +186,8 @@ def main():
         if not is_executable(options["--novatool-path"]):
                 fail_usage("nova not found or not accessible")
 
-        if options["--action"] == "off":
-                # Pretend we're 'on' so that the fencing library will always call set_power_status(off) 
+        if options["--action"] in ["off", "reboot"]:
+                # Pretend we're 'on' so that the fencing library will always call set_power_status(off)
                 override_status = "on"
 
         if options["--action"] == "on":
