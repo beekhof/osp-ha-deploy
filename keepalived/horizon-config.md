@@ -8,6 +8,17 @@ Install software
 
     yum install -y mod_wsgi httpd mod_ssl python-memcached openstack-dashboard
 
+Set secret key
+--------------
+
+On node 1:
+
+    openssl rand -hex 10
+
+Take note of the generated random value, then on all nodes:
+
+    sed -i -e "s#SECRET_KEY.*#SECRET_KEY = 'VALUE'#g#" /etc/openstack-dashboard/local_settings
+
 Configure local\_settings and httpd.conf
 ----------------------------------------
 
@@ -18,30 +29,10 @@ Configure local\_settings and httpd.conf
     -e "s#^LOCAL_PATH.*#LOCAL_PATH = '/var/lib/openstack-dashboard'#g" \
     /etc/openstack-dashboard/local_settings
 
-    sed -i -e 's/^Listen.*/Listen 192.168.1.22X:80/g' /etc/httpd/conf/httpd.conf 
+Restart httpd and open firewall port
+------------------------------------
 
-Enable service and open firewall port
--------------------------------------
-
-    systemctl enable httpd
+    systemctl daemon-reload
+    systemctl restart httpd
     firewall-cmd --add-port=80/tcp
     firewall-cmd --add-port=80/tcp --permanent
-
-Create secret\_key\_store file
-------------------------------
-
-On node 1:
-
-    systemctl start httpd
-    curl http://controller-vip.example.com/dashboard
-    scp /var/lib/openstack-dashboard/.secret_key_store hacontroller2:/var/lib/openstack-dashboard/.secret_key_store
-    scp /var/lib/openstack-dashboard/.secret_key_store hacontroller3:/var/lib/openstack-dashboard/.secret_key_store
-
-Import same secret\_key\_store file from node 1 and start httpd
----------------------------------------------------------------
-
-On nodes 2 and 3:
-
-    chown apache:apache /var/lib/openstack-dashboard/.secret_key_store
-    chmod 600 /var/lib/openstack-dashboard/.secret_key_store
-    systemctl start httpd
