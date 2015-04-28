@@ -184,7 +184,7 @@ def main():
         if not is_executable(options["--novatool-path"]):
                 fail_usage("nova not found or not accessible")
 
-        if options["--action"] == "off":
+        if options["--action"] == "off" or options["--action"] == "reboot":
                 # Pretend we're 'on' so that the fencing library will always call set_power_status(off) 
                 override_status = "on"
 

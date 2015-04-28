@@ -36,7 +36,7 @@ PHD_VAR_deployment
 
 target=all
 ....
-yum install -y openstack-heat-* python-heatclient openstack-utils python-glanceclient
+yum install -y openstack-heat-engine openstack-heat-api openstack-heat-api-cfn openstack-heat-api-cloudwatch python-heatclient openstack-utils python-glanceclient
 ....
 
 target=all
@@ -54,8 +54,8 @@ openstack-config --set /etc/heat/heat.conf keystone_authtoken keystone_ec2_uri h
 openstack-config --set /etc/heat/heat.conf ec2authtoken auth_uri http://vip-keystone:5000/v2.0
 
 openstack-config --set /etc/heat/heat.conf DEFAULT memcache_servers   ${PHD_VAR_network_hosts_memcache}
-openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
-openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues true
+openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+
 
 openstack-config --set /etc/heat/heat.conf heat_api bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 openstack-config --set /etc/heat/heat.conf heat_api_cfn bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')

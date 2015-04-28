@@ -76,8 +76,8 @@ export SERVICE_TOKEN=$(cat $PHD_VAR_env_configdir/ks_admin_token)
 
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
-openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
-openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_ha_queues true
+openstack-config --set /etc/keystone/keystone.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+
 
 # Define the API endpoints. Be careful with replacing vip-keystone and shell escapes.
 

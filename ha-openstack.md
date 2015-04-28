@@ -60,7 +60,10 @@ Read them carefully before considering to run them in your own environment.
 
 ## Bugs
 
-- N/A
+- **python-tooz 0.13.2** or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1203706).
+- **python-websockify 0.6.0** or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1200701).
+
+These should be fixed by the Kilo GA date.
 
 ### TODO
 
@@ -782,7 +785,7 @@ functional, you can then [deploy horizon](pcmk/horizon.scenario) into it.
 
 # Compute nodes 
 
-Just like Swift AOCs, we will usually need more than 16 compute nodes
+We will usually need more than 16 compute nodes
 which is beyond Corosync's ability to manage. So in order monitor the
 healthiness of compute nodes and the services running on them, we
 previously had to create single node clusters.
