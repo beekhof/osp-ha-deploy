@@ -40,6 +40,7 @@ PHD_VAR_deployment
 PHD_VAR_network_internal
 PHD_VAR_network_nic_base
 PHD_VAR_rpm_download
+PHD_VAR_osp_configdir
 PHD_VAR_osp_major
 PHD_VAR_rpm_major
 PHD_VAR_rpm_minor
@@ -64,7 +65,7 @@ nodes: 4
 target=all
 ....
 
-if [ $(host $(hostname -s) | awk '{print $4}') != $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
+if [ $(host $(hostname -s) | awk '{print $4}') = $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
     : Everyone except the first node needs to run the commands below
     exit 0
 fi
@@ -78,8 +79,10 @@ fi
 mount -a
 ....
 
-target=$PHD_ENV_nodes2 $PHD_ENV_nodes3 $PHD_ENV_nodes4
+target=all
 ....
+# Not required on the gateway, but wont hurt either
+
 yum install -y fence-virtd fence-virtd-multicast fence-virtd-libvirt
 lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
 
