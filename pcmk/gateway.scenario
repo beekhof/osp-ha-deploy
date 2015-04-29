@@ -28,6 +28,7 @@
 #################################
 = VARIABLES =
 
+PHD_VAR_osp_major
 PHD_VAR_network_domain
 PHD_VAR_network_internal
 PHD_VAR_network_nic_base
@@ -94,9 +95,13 @@ target=$PHD_ENV_nodes1
 ....
 yum install -y bind
 sed -i -e 's#127.0.0.1#any#g' -e 's#::1#any#g' -e 's#allow-query#//allow-query#g' /etc/named.conf 
-sed -i -e 's#recursion yes;#recursion yes;\n\n\tforwarders  {\n\t\t10.16.36.29;\n\t\t10.11.5.19;\n\t\t10.5.30.160;\n\t};\n#g'  /etc/named.conf 
 sed -i -e 's#dnssec-enable yes;#dnssec-enable no;#g' -e 's#dnssec-validation yes;#dnssec-validation no;#g' /etc/named.conf 
-echo 'include "/etc/named/lab.zones";' >> /etc/named.conf
+if
+    ! grep -q forwarders /etc/named.conf
+then
+    sed -i -e 's#recursion yes;#recursion yes;\n\n\tforwarders  {\n\t\t10.16.36.29;\n\t\t10.11.5.19;\n\t\t10.5.30.160;\n\t};\n#g'  /etc/named.conf
+    echo 'include "/etc/named/lab.zones";' >> /etc/named.conf
+fi
 
 reverse_dns_net=$(echo ${PHD_VAR_network_internal} | awk -F. '{print $3}').$(echo ${PHD_VAR_network_internal} | awk -F. '{print $2}').$(echo ${PHD_VAR_network_internal} | awk -F. '{print $1}')
 
