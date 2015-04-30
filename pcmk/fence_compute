@@ -75,7 +75,7 @@ def set_power_status(_, options):
                 # storage in use, then they get what they asked for
                 evacuate += " --on-shared-storage"
 
-        evacuate += " --host " + options["--plug"]
+        evacuate += " " + options["--plug"]
 
         (ret, stdout, stderr) = run_command(options, create_command(options, evacuate))
 
