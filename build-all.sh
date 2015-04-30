@@ -24,7 +24,7 @@ variables["deployment"]="collapsed"
 variables["status"]=0
 variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
 variables["scenarios-segregated"]="baremetal gateway virt-hosts hacks lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat horizon compute-common compute-cluster"
-variables["scenarios-collapsed"]="baremetal gateway virt-hosts basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat horizon compute-common compute-managed"
+variables["scenarios-collapsed"]="baremetal gateway virt-hosts hacks basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents ceilometer heat horizon compute-common compute-managed"
 
 function create_phd_definition() {
     scenario=$1
