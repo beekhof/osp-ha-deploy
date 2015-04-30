@@ -1,0 +1,48 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - installing the cluster software
+# - enabling the pcs daemon to allow remote management
+# - setting a password for the hacluster user for use with pcs
+# - authenticating to pcs on the other hosts with the hacluster user and password
+# - creating and starting the cluster
+# - configuring fencing using the multicast addresses specified for fence_virt on the bare metal hosts 
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+# Hack to get pre-release kilo
+yum install -y https://repos.fedorapeople.org/repos/openstack/openstack-kilo/rdo-release-kilo-0.noarch.rpm
+
+# No galera packages found, go direct to brew
+yum install -y  mariadb-galera-server http://download.devel.redhat.com/brewroot/packages/galera/25.3.5/7.el7ost/x86_64/galera-25.3.5-7.el7ost.x86_64.rpm
+
+....
