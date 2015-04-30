@@ -35,14 +35,16 @@ rpm:
   major: 7
   minor: 1
   base:    rel-eng/latest-RHEL-7/compose/Server/x86_64/os/
-  cluster: rel-eng/latest-RHEL-7/compose/Server/\\\$basearch/os/addons/HighAvailability/
-  updates: brewroot/repos/RHEL-7.0-Z-build/latest/\$basearch
+  cluster: rel-eng/latest-RHEL-7/compose/Server/x86_64/os/addons/HighAvailability/
+  updates: brewroot/repos/rhel-7.0-z-build/latest/x86_64/
 
 osp:
   configdir: /srv/RDO-7/configs
-  download: download.devel.redhat.com
+  download: repos.fedorapeople.org
+  #download.devel.redhat.com
   major: 7
-  base: rel-eng/OpenStack/7.0-RHEL-7-Beta/latest/RH7-RHOS-7.0/\\\$basearch/os
+  #base: rel-eng/OpenStack/7.0-RHEL-7-Beta/latest/RH7-RHOS-7.0/x86_64/os
+  base: /repos/openstack/openstack-trunk/epel-7/rc2/
 
 # Dedicate all cores to the sole VM that we'll create per host
 vm:
