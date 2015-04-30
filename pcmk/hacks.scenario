@@ -43,6 +43,14 @@ target=all
 yum install -y https://repos.fedorapeople.org/repos/openstack/openstack-kilo/rdo-release-kilo-0.noarch.rpm
 
 # No galera packages found, go direct to brew
-yum install -y  http://download.devel.redhat.com/brewroot/packages/mariadb-galera/5.5.41/3.el7ost/x86_64/mariadb-galera-common-5.5.41-3.el7ost.x86_64.rpm http://download.devel.redhat.com/brewroot/packages/mariadb-galera/5.5.41/3.el7ost/x86_64/mariadb-galera-server-5.5.41-3.el7ost.x86_64.rpm http://download.devel.redhat.com/brewroot/packages/galera/25.3.5/7.el7ost/x86_64/galera-25.3.5-7.el7ost.x86_64.rpm
+#yum install -y  http://download.devel.redhat.com/brewroot/packages/mariadb-galera/5.5.41/3.el7ost/x86_64/mariadb-galera-common-5.5.41-3.el7ost.x86_64.rpm http://download.devel.redhat.com/brewroot/packages/mariadb-galera/5.5.41/3.el7ost/x86_64/mariadb-galera-server-5.5.41-3.el7ost.x86_64.rpm http://download.devel.redhat.com/brewroot/packages/galera/25.3.5/7.el7ost/x86_64/galera-25.3.5-7.el7ost.x86_64.rpm
+
+cat > /etc/yum.repos.d/osp6.repo << EOF
+[OpenStack-6.0-RHEL-7-Puddle]
+name=OpenStack-6.0-RHEL-7-Puddle
+baseurl=http://download.lab.bos.redhat.com/rel-eng/OpenStack/6.0-RHEL-7/latest/RH7-RHOS-6.0/x86_64/os
+gpgcheck=0
+enabled=1
+EOF
 
 ....
