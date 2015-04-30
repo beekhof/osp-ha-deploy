@@ -42,7 +42,7 @@ nodes: 1
 
 target=all
 ....
-yum install -y rabbitmq-server nfs-utils
+yum install -y rabbitmq-server 
 
 # HACK HACK HACK 
 # Download directly until 7.1 is out and we get access to the 0-day (which has the rabbit agent)
@@ -57,26 +57,6 @@ EOF
 # required to generate the cookies
 systemctl start rabbitmq-server
 systemctl stop rabbitmq-server
-....
-
-target=all
-....
-# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
-# prevents NFS mounts from succeeding by default prior to a reboot
-
-systemctl daemon-reload
-systemctl start rpcbind.service
-systemctl start rpc-statd.service
-
-# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
-
-if grep -q srv /etc/fstab; then 
-    echo /srv is already mounted; 
-else
-    mkdir -p /srv
-    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
-    mount /srv
-fi
 ....
 
 target=$PHD_ENV_nodes1

@@ -41,29 +41,8 @@ nodes: 1
 
 target=all
 ....
-yum install -y openstack-keystone openstack-utils nfs-utils
+yum install -y openstack-keystone openstack-utils 
 ....
-
-target=all
-....
-# Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
-# prevents NFS mounts from succeeding by default prior to a reboot
-
-systemctl daemon-reload
-systemctl start rpcbind.service
-systemctl start rpc-statd.service
-
-# Now mount /srv so that we can use $PHD_VAR_osp_configdir further down
-
-if grep -q srv /etc/fstab; then 
-    echo /srv is already mounted; 
-else
-    mkdir -p /srv
-    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
-    mount /srv
-fi
-....
-
 
 target=all
 ....
