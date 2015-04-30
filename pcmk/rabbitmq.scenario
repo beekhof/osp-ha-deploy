@@ -44,10 +44,6 @@ target=all
 ....
 yum install -y rabbitmq-server 
 
-# HACK HACK HACK 
-# Download directly until 7.1 is out and we get access to the 0-day (which has the rabbit agent)
-rpm -Uvh http://download.eng.bos.redhat.com/brewroot/packages/resource-agents/3.9.5/40.el7.2/x86_64/resource-agents-3.9.5-40.el7.2.x86_64.rpm
-
 # NOTE: we need to bind the service to the internal IP address
 
 cat > /etc/rabbitmq/rabbitmq-env.conf << EOF
@@ -76,5 +72,5 @@ cat $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.co
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create rabbitmq-server rabbitmq-cluster set_policy='HA ^(?!amq\.).* {"ha-mode":"all"}' --clone ordered=true
+pcs resource create rabbitmq-server rabbitmq-cluster set_policy='HA ^(?!amq\.).* {"ha-mode":"all"}' --clone ordered=true interleave=true
 ....
