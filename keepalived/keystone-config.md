@@ -198,6 +198,16 @@ On node 1:
     openstack role add --project services --user ceilometer ResellerAdmin
     openstack service create --name=ceilometer --description="OpenStack Telemetry Service" metering
     openstack endpoint create --publicurl "http://controller-vip.example.com:8777" --adminurl "http://controller-vip.example.com:8777" --internalurl "http://controller-vip.example.com:8777" --region regionOne ceilometer
+    # sahara
+    openstack user create --password saharatest sahara
+    openstack role add --project services --user sahara admin
+    openstack service create --name=sahara --description="Sahara Data Processing" data-processing
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8386/v1.1/%(tenant_id)s" --adminurl "http://controller-vip.example.com:8386/v1.1/%(tenant_id)s" --internalurl "http://controller-vip.example.com:8386/v1.1/%(tenant_id)s" --region regionOne sahara
+    # trove
+    openstack user create --password trovetest trove
+    openstack role add --project services --user trove admin
+    openstack service create --name=trove --description="OpenStack Database Service" database
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8779/v1.0/%(tenant_id)s" --adminurl "http://controller-vip.example.com:8779/v1.0/%(tenant_id)s" --internalurl "http://controller-vip.example.com:8779/v1.0/%(tenant_id)s" --region regionOne trove
 
 Create keystonerc files for simplicity
 --------------------------------------

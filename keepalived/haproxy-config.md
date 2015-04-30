@@ -213,6 +213,23 @@ Configure HAProxy
         server rhos7-node2 192.168.1.222:8777 check inter 1s
         server rhos7-node3 192.168.1.223:8777 check inter 1s
 
+    frontend vip-sahara
+        bind 192.168.1.220:8386
+        default_backend sahara-vms
+    backend sahara-vms
+        balance roundrobin
+        server rhos7-node1 192.168.1.221:8386 check inter 1s
+        server rhos7-node2 192.168.1.222:8386 check inter 1s
+        server rhos7-node3 192.168.1.223:8386 check inter 1s
+
+    frontend vip-trove
+        bind 192.168.1.220:8779
+        default_backend trove-vms
+    backend trove-vms
+        balance roundrobin
+        server rhos7-node1 192.168.1.221:8779 check inter 1s
+        server rhos7-node2 192.168.1.222:8779 check inter 1s
+        server rhos7-node3 192.168.1.223:8779 check inter 1s
     EOF
 
 Note we are **not** starting haproxy yet.

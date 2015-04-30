@@ -8,6 +8,26 @@ Install software
 
     yum install -y openstack-heat-engine openstack-heat-api openstack-heat-api-cfn openstack-heat-api-cloudwatch python-heatclient openstack-utils python-glanceclient
 
+Configure Heat domain
+---------------------
+
+To allow non-admin users to create Heat stacks, a Keystone domain needs to be created. Run the following commands to create the Heat domain, and configure Heat to use it.
+
+    openstack role create heat_stack_user
+    openstack token issue
+
+Take note of the token ID issued, then:
+
+    openstack --os-token=${TOKEN_ID} --os-url=http://controller-vip.example.com:5000/v3 --os-identity-api-version=3 domain create heat --description "Owns users and projects created by heat"
+    openstack --os-token=${TOKEN_ID} --os-url=http://controller-vip.example.com:5000/v3 --os-identity-api-version=3 user create --password heattest --domain heat --description "Manages users and projects created by heat" heat_domain_admin
+    openstack --os-token=${TOKEN_ID} --os-url=http://controller-vip.example.com:5000/v3 --os-identity-api-version=3 role add --user heat_domain_admin --domain heat admin
+
+Take note of the id for the domain you just created, and then run the following commands:
+
+    openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin_password heattest
+    openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin heat_domain_admin
+    openstack-config --set /etc/heat/heat.conf DEFAULT stack_user_domain_id ${HEAT_DOMAIN_ID}
+
 Configure Heat
 --------------
 
