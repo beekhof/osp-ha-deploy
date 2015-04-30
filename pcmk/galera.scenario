@@ -55,6 +55,11 @@ MYSQL_HOST="localhost"
 MYSQL_PORT="3306"
 EOF
 
+# workaround some old buggy mariadb packages
+# that created log files as root:root and newer
+# packages would fail to start....
+chown mysql:mysql /var/log/mariadb -R
+
 systemctl start mysqld
 
 # required for clustercheck to work
@@ -137,15 +142,20 @@ fi
 
 target=$PHD_ENV_nodes1
 ....
-galera_script=galera.setup
-echo "" > $galera_script
+# wait for galera to start and become promoted
+loop=0; while ! clustercheck > /dev/null 2>&1 && [ "$loop" -lt 60 ]; do
+	echo waiting galera to be promoted
+	loop=$((loop + 1))
+	sleep 5
+done
 
 for node in $PHD_ENV_nodes; do
-    cat<<EOF >> $galera_script
-drop user ''@'${node}';
-drop user 'root'@'${node}';
-EOF
+	mysql -e "DROP USER ''@'${node}';"
+	mysql -e "DROP USER 'root'@'${node}';"
 done
+
+galera_script=galera.setup
+echo "" > $galera_script
 
 echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED by 'mysqltest' WITH GRANT OPTION;" >> $galera_script
 
@@ -159,10 +169,11 @@ done
 echo "FLUSH PRIVILEGES;" >> $galera_script
 #echo "quit" >> $galera_script
 
-# wait for galera to start and become promoted
-sleep 30
-
-mysql mysql < $galera_script
-mysqladmin flush-hosts
+if [ "$loop" -ge 60 ]; then
+	echo Timeout waiting for galera
+else
+	mysql mysql < $galera_script
+	mysqladmin flush-hosts
+fi
 
 ....
