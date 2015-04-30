@@ -35,8 +35,12 @@ target=all
 yum install -y mongodb mongodb-server
 
 # set binding IP address and replica set
-sed -i -e 's#bind_ip.*#bind_ip = 0.0.0.0#g'  /etc/mongodb.conf
-echo "replSet = ceilometer" >> /etc/mongodb.conf 
+# also use smallfiles = true to stall installation while allocating N GB of journals
+sed -i \
+	-e 's#.*bind_ip.*#bind_ip = 0.0.0.0#g' \
+	-e 's/.*replSet.*/replSet = ceilometer/g' \
+	-e 's/.*smallfiles.*/smallfiles = true/g' \
+	/etc/mongod.conf
 
 # required to bootstrap mongodb
 systemctl start mongod
