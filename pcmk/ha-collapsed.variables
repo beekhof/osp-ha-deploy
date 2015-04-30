@@ -34,9 +34,11 @@ rpm:
   download: download.devel.redhat.com
   major: 7
   minor: 1
-  base:    rel-eng/latest-RHEL-7/compose/Server/x86_64/os/
-  cluster: rel-eng/latest-RHEL-7/compose/Server/x86_64/os/addons/HighAvailability/
-  updates: brewroot/repos/rhel-7.0-z-build/latest/x86_64/
+  #base:    rel-eng/latest-RHEL-7/compose/Server/x86_64/os/
+  #cluster: rel-eng/latest-RHEL-7/compose/Server/x86_64/os/addons/HighAvailability/
+  base:    released/RHEL-7/7.1/Server/x86_64/os/
+  cluster: released/RHEL-7/7.1/Server/x86_64/os/addons/HighAvailability/
+  updates: brewroot/repos/rhel-7.1-z-build/latest/x86_64/
 
 osp:
   configdir: /srv/RDO-7/configs
