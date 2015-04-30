@@ -79,7 +79,7 @@ case $distro_major in
 	# Account for the location differences between RHEL/CentOS 6 and 7
     6)
 	sed -i s#addons/HighAvailability#HighAvailability#g /etc/yum.repos.d/redhat-${distro}.repo
-	sed -i s#RHEL-${distro}-z#rhel-${distro}-Z#g /etc/yum.repos.d/redhat-${distro}.repo
+	sed -i s#rhel-${distro}-z#RHEL-${distro}-Z#g /etc/yum.repos.d/redhat-${distro}.repo
 	;;
     7)
 	sed -i s#HighAvailability#addons/HighAvailability#g /etc/yum.repos.d/redhat-${distro}.repo
