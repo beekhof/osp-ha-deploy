@@ -186,7 +186,7 @@ nova_stop() {
     pid=`nova_pid`
 
     nova_monitor
-    if [ $? != $OCF_SUCCESS ]; then
+    if [ $? = $OCF_SUCCESS ]; then
 	if [ 0 = 1 ]; then
 	    # Apparently this is a bad idea...
 	    #
@@ -216,9 +216,10 @@ nova_stop() {
 	fi
 
 	# Then stop
-	su nova -c "kill -TERM $pid"
-
-	rc=$OCF_ERR_GENERIC
+	su nova -c "kill -TERM $pid" -s /bin/bash
+	
+	nova_monitor
+	rc=$
 	while [ $rc = $OCF_SUCCESS ]; do
 	    nova_monitor
 	    rc=$?
