@@ -49,7 +49,7 @@ systemctl stop mongod
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create mongodb systemd:mongod --clone
+pcs resource create mongodb systemd:mongod op start timeout=300s --clone
 
 # Start can take a while
 pcs resource op add mongodb start timeout=120s
