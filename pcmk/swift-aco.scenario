@@ -97,9 +97,8 @@ if [ $? != 0 ]; then
     pcs resource create swift-object systemd:openstack-swift-object --clone interleave=true
     pcs constraint colocation add swift-object-clone with swift-container-clone
     pcs constraint order start swift-container-clone then swift-object-clone
-fi
-
-if [ $PHD_VAR_deployment = collapsed ]; then
-    pcs constraint order start keystone-clone then swift-account-clone
+    if [ $PHD_VAR_deployment = collapsed ]; then
+	pcs constraint order start keystone-clone then swift-account-clone
+   fi
 fi
 ....
