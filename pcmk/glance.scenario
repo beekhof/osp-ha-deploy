@@ -61,8 +61,9 @@ openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_user
 openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_password glancetest
 
 openstack-config --set /etc/glance/glance-api.conf DEFAULT notification_driver messaging
-openstack-config --set /etc/glance/glance.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 
+openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_ha_queues true
 
 openstack-config --set /etc/glance/glance-api.conf DEFAULT registry_host vip-glance
 openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
@@ -71,6 +72,8 @@ openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host $(ip addr s
 
 openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@vip-db/glance
 openstack-config --set /etc/glance/glance-registry.conf database max_retries -1
+openstack-config --set /etc/glance/glance-registry.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/glance/glance-registry.conf DEFAULT rabbit_ha_queues true
 openstack-config --set /etc/glance/glance-registry.conf DEFAULT registry_host vip-glance
 openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
 openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_host vip-keystone
