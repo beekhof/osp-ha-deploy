@@ -21,7 +21,7 @@ network:
     # In the collapsed case, it is the members of the single cluster we will create  
     mongodb:  rdo7-node1,rdo7-node2,rdo7-node3
     memcache: rdo7-node1:11211,rdo7-node2:11211,rdo7-node3:11211
-    rabbit:   rdo7-node1,rdo7-node2,rdo7-node3
+    rabbitmq: rdo7-node1,rdo7-node2,rdo7-node3
 
 # We use a centrally defined list so that segregated guests, DNS, and DHCP are all created consistently
 # Changing this list in any way will probably break the haproxy configuration 
