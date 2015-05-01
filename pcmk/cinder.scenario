@@ -60,8 +60,9 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT control_exchange cinder
 
 openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host vip-glance
 
-openstack-config  --set /etc/cinder/cinder.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
-openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_ha_queues true
 
 
 # rdo${PHD_VAR_osp_major}-cinder isn't the name of a real host or an IP
