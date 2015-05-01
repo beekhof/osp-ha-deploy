@@ -62,6 +62,8 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host vi
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri http://vip-keystone:35357/v2.0/
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri http://vip-keystone:5000/
 
 openstack-config --set /etc/neutron/neutron.conf database connection  mysql://neutron:neutrontest@vip-db:3306/neutron
 openstack-config --set /etc/neutron/neutron.conf database max_retries -1
@@ -143,7 +145,7 @@ target=$PHD_ENV_nodes1
 . ${PHD_VAR_osp_configdir}/keystonerc_admin
 
 # required when installing the DB manually
-neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file  /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno
+neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file  /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade kilo
 
 systemctl start neutron-server
 systemctl stop neutron-server
