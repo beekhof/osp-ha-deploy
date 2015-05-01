@@ -41,7 +41,7 @@ yum install -y openstack-heat-engine openstack-heat-api openstack-heat-api-cfn o
 
 target=all
 ....
-openstack-config --set /etc/heat/heat.conf database connection mysql://heat:heattest@vip-mysql/heat
+openstack-config --set /etc/heat/heat.conf database connection mysql://heat:heattest@vip-db/heat
 openstack-config --set /etc/heat/heat.conf database database max_retries -1
 
 openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_tenant_name services

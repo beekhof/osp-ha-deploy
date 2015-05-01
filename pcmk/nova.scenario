@@ -76,7 +76,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova.virt.
 
 openstack-config --set /etc/nova/nova.conf conductor use_local false
 
-openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-mysql/nova
+openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-db/nova
 openstack-config --set /etc/nova/nova.conf database max_retries -1
 
 # REQUIRED FOR A/A scheduler

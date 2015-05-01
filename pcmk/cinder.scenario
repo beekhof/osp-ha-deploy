@@ -46,7 +46,7 @@ yum install -y openstack-cinder openstack-utils python-memcached python-keystone
 
 target=all
 ....
-openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:cindertest@vip-mysql/cinder
+openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:cindertest@vip-db/cinder
 openstack-config --set /etc/cinder/cinder.conf database max_retries -1
 
 openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone

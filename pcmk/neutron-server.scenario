@@ -63,7 +63,7 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
 
-openstack-config --set /etc/neutron/neutron.conf database connection  mysql://neutron:neutrontest@vip-mysql:3306/neutron
+openstack-config --set /etc/neutron/neutron.conf database connection  mysql://neutron:neutrontest@vip-db:3306/neutron
 openstack-config --set /etc/neutron/neutron.conf database max_retries -1
 
 if [ $PHD_VAR_deployment = collapsed ]; then

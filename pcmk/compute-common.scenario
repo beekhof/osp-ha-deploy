@@ -72,7 +72,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
 # NOTE: same consideration as nova configuration applies here. They need to match.
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${PHD_VAR_network_hosts_gateway}${PHD_VAR_network_domain}:6080/vnc_auto.html
 
-openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-mysql/nova
+openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-db/nova
 openstack-config --set /etc/nova/nova.conf database max_retries -1
 
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
