@@ -1,0 +1,62 @@
+# Expanded to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc by PHD
+# Each scenario file will verify that values have been provided for the variables it requires.
+
+# Deployment types: collapsed | segregated
+deployment: collapsed
+
+network:
+  domain: lab.bos.redhat.com
+  internal: 192.168.16
+  named:
+    forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
+  nic:
+    base: 54:52:00
+    external: enp1s0 eth0
+    internal: enp2s0 eth1
+  hosts:
+    gateway:  mrg-01
+
+    # These services are not able to live behind a proxy, so we must list the hosts explicitly
+    # In the segregated case, it is the per-service guests we will create
+    # In the collapsed case, it is the members of the single cluster we will create  
+    mongodb:  rdo7-node1,rdo7-node2,rdo7-node3
+    memcache: rdo7-node1:11211,rdo7-node2:11211,rdo7-node3:11211
+    rabbit:   rdo7-node1,rdo7-node2,rdo7-node3
+
+# We use a centrally defined list so that segregated guests, DNS, and DHCP are all created consistently
+# Changing this list in any way will probably break the haproxy configuration 
+# - ONLY add entries 
+# - ALWAYS do so to the end of the list
+# - LOOK for PHD_VAR_components to see places that may be affected
+components: lb db rabbitmq keystone memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer qpid node
+
+rpm:
+  download: download.devel.redhat.com
+  major: 7
+  minor: 1
+  base:    released/RHEL-7/7.1/Server/x86_64/os/
+  cluster: released/RHEL-7/7.1/Server/x86_64/os/addons/HighAvailability/
+  updates: brewroot/repos/rhel-7.1-z-build/latest/x86_64/
+
+osp:
+  configdir: /srv/RDO-7/configs
+  download: repos.fedorapeople.org
+  major: 7
+  base: /repos/openstack/openstack-trunk/epel-7/rc2/
+
+# Dedicate all cores to the sole VM that we'll create per host
+vm:
+  cpus: 4
+  ram: 8048
+  disk: 25G
+  base: rdo7-rhel7-base.img
+  key: AAAAB3NzaC1yc2EAAAADAQABAAABAQDHs2qRMxtqEpr7gJygHAn2rSWKUS/FlJ9oLG7cRtzLyhIl+oSrs30KrdzkgsGTZqSEwfKM8f2LGF08x5HbN2cIDc9YhnwHQNnb8qDIXY2UqzpyLUzckctOMSiRSz/qYxeutDYGg/p1lPzPdWQPympFVIoAzCRDhogX26kXQTpKs7uUzEvZCnnzSn2I9ynchKGP3TlOzTaZHqJM4bj5+KqvUTH2ifvX3EgolP/XtIWjW54zhQnlDuS2UsDd8vvB8ZRrgtaFEXhCSivvazE8zMVAOxCFNYjnh+SvV96VB+hEjqQQeDSdhkgC2huHwsAB3Y9XCkyFe6DEfKuQZwLJjlTZ
+
+# I set the password to 'cluster', USE A SAFER ONE
+env:
+  password: cluster
+
+# TODO... 
+password:
+  cluster: foo
+  keystone: bar

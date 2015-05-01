@@ -63,6 +63,14 @@ while true ; do
 	-c|--collapsed)  variables["deployment"]="collapsed";  shift;;
 	-s|--segregated) variables["deployment"]="segregated"; shift;;
 	-S|--status)     variables["status"]=1; shift;;
+	--mrg)
+	    variables["config"]="mrg";
+	    nodeMap["baremetal"]="mrg-01 mrg-02 mrg-03 mrg-04 mrg-07 mrg-08 mrg-09"
+	    nodeMap["gateway"]="mrg-01"
+	    nodeMap["virt-hosts"]="mrg-01 mrg-02 mrg-03 mrg-04"
+	    nodeMap["compute-common"]="mrg-07 mrg-08 mrg-09"
+	    nodeMap["compute-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet mrg-07 mrg-08 mrg-09"
+	    shift;;
 	-x) set -x ; shift;;
 	--) shift ; break ;;
 	-*) echo "unknown option: $1"; exit 1;;
@@ -71,7 +79,9 @@ while true ; do
     esac
 done
 
-
+if [ -z ${variables["config"]} ]; then
+    variables["config"]=ha-${variables["deployment"]}
+fi
 
 if [ ${variables["status"]} = 1 ]; then
     if [ ${variables["deployment"]} != "collapsed" ]; then
@@ -95,7 +105,7 @@ fi
 for scenario in $scenarios; do
     if [ ${variables["deployment"]} = "collapsed" ]; then
 	case $scenario in 
-	    baremetal|gateway|virt-hosts)
+	    baremetal|gateway|virt-hosts|compute-common|compute-managed)
 		;;
 	    *) 
 		# Overwrite the node list to be the nodes of our collapsed cluster
@@ -112,9 +122,9 @@ for scenario in $scenarios; do
     elif [ ${variables["deployment"]} != "collapsed" ]; then
 	: prep a new cluster for ${scenario}
 	echo "$(date) :: Initializing cluster for scenario $scenario"
-	phd_exec -s ./pcmk/basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/ha-${variables["deployment"]}.variables
+	phd_exec -s ./pcmk/basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/${variables["config"]}.variables
     fi
 
     echo "$(date) :: Beginning scenario $scenario"
-    phd_exec -s ./pcmk/${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/ha-${variables["deployment"]}.variables
+    phd_exec -s ./pcmk/${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/${variables["config"]}.variables
 done
