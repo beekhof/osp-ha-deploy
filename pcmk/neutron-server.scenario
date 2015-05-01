@@ -66,12 +66,8 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_passwo
 openstack-config --set /etc/neutron/neutron.conf database connection  mysql://neutron:neutrontest@vip-db:3306/neutron
 openstack-config --set /etc/neutron/neutron.conf database max_retries -1
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-   openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts rdo${PHD_VAR_osp_major}-node1,rdo${PHD_VAR_osp_major}-node2,rdo${PHD_VAR_osp_major}-node3
-else
-   openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts rdo${PHD_VAR_osp_major}-rabbitmq1,rdo${PHD_VAR_osp_major}-rabbitmq2,rdo${PHD_VAR_osp_major}-rabbitmq3
-fi
-
+openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues true
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
 
