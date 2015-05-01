@@ -49,7 +49,7 @@ target=all
 ....
 # Configure the API service
 
-openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:glancetest@vip-mysql/glance
+openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:glancetest@vip-db/glance
 openstack-config --set /etc/glance/glance-api.conf database max_retries -1
 
 openstack-config --set /etc/glance/glance-api.conf paste_deploy flavor keystone
@@ -69,7 +69,7 @@ openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host $(ip addr s
 
 # Configure the registry service
 
-openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@vip-mysql/glance
+openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@vip-db/glance
 openstack-config --set /etc/glance/glance-registry.conf database max_retries -1
 openstack-config --set /etc/glance/glance-registry.conf DEFAULT registry_host vip-glance
 openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
@@ -87,17 +87,17 @@ mkdir -p $PHD_VAR_osp_configdir/glance
 
 target=$PHD_ENV_nodes1
 ....
-su keystone -s /bin/sh -c "keystone-manage db_sync"
-
-# populate the glance db entries
-
-su glance -s /bin/sh -c "glance-manage db_sync"
-
 # Now have pacemaker mount the NFS share as service.
 pcs resource create glance-fs Filesystem  device="${PHD_VAR_network_internal}.1:$PHD_VAR_osp_configdir/glance"   directory="/var/lib/glance"  fstype="nfs" options="v3" --clone
 
 # wait for glance-fs to be started and running
+sleep 5
+
+# Make sure it's writable
 chown glance:nobody /var/lib/glance
+
+# Now populate the database
+su glance -s /bin/sh -c "glance-manage db_sync"
 
 pcs resource create glance-registry systemd:openstack-glance-registry --clone
 pcs resource create glance-api systemd:openstack-glance-api --clone
