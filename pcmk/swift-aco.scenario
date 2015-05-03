@@ -48,7 +48,7 @@ mkdir -p /local/swiftstorage/target
 truncate --size=1G /local/swift.img
 losetup /dev/loop0 /local/swift.img
 mkfs.xfs /dev/loop0
-mount /dev/loop0 /local/swiftstorage
+mount /dev/loop0 /local/swiftstorage/target
 chown -R swift:swift /local
 umount /dev/loop0
 
@@ -70,10 +70,7 @@ openstack-config --set /etc/swift/object-server.conf DEFAULT mount_check false
 openstack-config --set /etc/swift/account-server.conf DEFAULT mount_check false
 openstack-config --set /etc/swift/container-server.conf DEFAULT mount_check false
 
-mkdir -p /tmp/keystone-signing-swift
-
 chown -R root:swift /etc/swift
-chown -R swift:swift /tmp/keystone-signing-swift
 ....
 
 target=all
