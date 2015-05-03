@@ -1,0 +1,69 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_deployment
+PHD_VAR_network_internal
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+mkdir -p /etc/swift
+# ceilometer hook
+cat >> /etc/swift/swift.conf << EOF
+[filter:ceilometer]
+use = egg:ceilometer#swift
+[pipeline:main]
+pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
+EOF
+
+chown -R root:swift /etc/swift
+
+....
+
+target=local
+....
+# Invoke like this so that we can calculate the prefix and suffic once and set everywhere
+# TODO: Make this a variable
+
+pathprefix=$(openssl rand -hex 10)
+pathsuffix=$(openssl rand -hex 10)
+
+for node in $PHD_ENV_nodes; do
+    ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_prefix ${pathprefix};
+    ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix ${pathsuffix};
+    ssh $node -- chown -R root:swift /etc/swift;
+done
+....
