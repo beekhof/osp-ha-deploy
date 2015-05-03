@@ -40,35 +40,11 @@ nodes: 1
 
 target=all
 ....
-yum install -y openstack-swift-proxy openstack-utils python-swiftclient openstack-swift-container
+yum install -y openstack-swift-proxy openstack-utils python-swiftclient
 ....
 
-target=all
+target=$PHD_ENV_nodes1
 ....
-openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host vip-keystone
-openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
-openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
-openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
-openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
-
-openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
-
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211
-    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node1:11211
-else
-    openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211
-    openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers   rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211,rdo${PHD_VAR_osp_major}-memcache1:11211
-fi
-
-# ceilometer hook
-cat >> /etc/swift/swift.conf << EOF
-[filter:ceilometer]
-use = egg:ceilometer#swift
-[pipeline:main]
-pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
-EOF
-
 # NOTE: you MUST refer to the swift-ring-builder documentation in order to 
 #             configure prope data redundancy and set those values properly.
 #             This is just a generic example that will store 3 copies of the same data for
@@ -82,45 +58,44 @@ swift-ring-builder /etc/swift/account.builder create 16 3 24
 # 'target' here comes from the swift-fs resource created on the proxy
 # pcs resource create swift-fs Filesystem device="/local/swiftsource" directory="/local/swiftstorage/target" fstype="none" options="bind"
 
-swift-ring-builder /etc/swift/account.builder add z1-${PHD_VAR_network_internal}.76:6202/target 10
-swift-ring-builder /etc/swift/container.builder add z1-${PHD_VAR_network_internal}.76:6201/target 10
-swift-ring-builder /etc/swift/object.builder add z1-${PHD_VAR_network_internal}.76:6200/target 10
+if [ $PHD_VAR_deployment = collapsed ]; then
+	baseip=102
+else
+	baseip=75
+fi
 
-swift-ring-builder /etc/swift/account.builder add z2-${PHD_VAR_network_internal}.77:6202/target 10
-swift-ring-builder /etc/swift/container.builder add z2-${PHD_VAR_network_internal}.77:6201/target 10
-swift-ring-builder /etc/swift/object.builder add z2-${PHD_VAR_network_internal}.77:6200/target 10
-
-swift-ring-builder /etc/swift/account.builder add z3-${PHD_VAR_network_internal}.78:6202/target 10
-swift-ring-builder /etc/swift/container.builder add z3-${PHD_VAR_network_internal}.78:6201/target 10
-swift-ring-builder /etc/swift/object.builder add z3-${PHD_VAR_network_internal}.78:6200/target 10
+for i in 1 2 3; do
+	target=$((baseip + $i))
+	swift-ring-builder /etc/swift/account.builder add z$i-${PHD_VAR_network_internal}.${target}:6202/target 10
+	swift-ring-builder /etc/swift/container.builder add z$i-${PHD_VAR_network_internal}.${target}:6201/target 10
+	swift-ring-builder /etc/swift/object.builder add z$i-${PHD_VAR_network_internal}.${target}:6200/target 10
+done
 
 swift-ring-builder /etc/swift/account.builder rebalance
 swift-ring-builder /etc/swift/container.builder rebalance
 swift-ring-builder /etc/swift/object.builder rebalance
 
+mkdir -p $PHD_VAR_osp_configdir/swift
+cp /etc/swift/*.builder /etc/swift/*.gz $PHD_VAR_osp_configdir/swift/
+
+....
+
+target=all
+....
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host vip-keystone
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
+openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+
+openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
+
+openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers ${PHD_VAR_network_hosts_memcache}
+
+cp $PHD_VAR_osp_configdir/swift/*.builder $PHD_VAR_osp_configdir/swift/*.gz /etc/swift/
 chown -R root:swift /etc/swift
-chown -R swift:swift /tmp/keystone-signing-swift
-chown -R swift:swift /local
 
-# is this still required?
-mkdir -p /tmp/keystone-signing-swift
-chown -R swift:swift /tmp/keystone-signing-swift
-chmod 700 /tmp/keystone-signing-swift
-....
-
-target=local
-....
-# Invoke like this so that we can calculate the prefix and suffic once and set everywhere
-# TODO: Make this a variable
-
-pathprefix=$(openssl rand -hex 10)
-pathsuffix=$(openssl rand -hex 10)
-
-for node in $PHD_ENV_nodes; do
-    ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_prefix ${pathprefix};
-    ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix ${pathsuffix};
-    ssh $node -- chown -R root:swift /etc/swift;
-done
 ....
 
 target=$PHD_ENV_nodes1
