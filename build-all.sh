@@ -24,7 +24,7 @@ variables["deployment"]="collapsed"
 variables["status"]=0
 variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
 variables["scenarios-segregated"]="baremetal gateway virt-hosts hacks lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
-variables["scenarios-collapsed"]="baremetal gateway virt-hosts hacks basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-common swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-managed"
+variables["scenarios-collapsed"]="baremetal gateway virt-hosts hacks basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-common swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
 
 function create_phd_definition() {
     scenario=$1
@@ -105,7 +105,7 @@ fi
 for scenario in $scenarios; do
     if [ ${variables["deployment"]} = "collapsed" ]; then
 	case $scenario in 
-	    baremetal|gateway|virt-hosts|compute-common|compute-managed)
+	    baremetal|gateway|virt-hosts|compute-common|compute-managed|compute-cluster)
 		;;
 	    *) 
 		# Overwrite the node list to be the nodes of our collapsed cluster
