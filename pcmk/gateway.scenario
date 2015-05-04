@@ -80,13 +80,13 @@ frontend vip-horizon-ext
     default_backend vip-horizon-int
 backend vip-horizon-int
     balance roundrobin
-    server vip-horizon ${PHD_VAR_network_internal}.208:80 check inter 10s
+    server vip-horizon ${PHD_VAR_network_internal}.211:80 check inter 10s
 frontend vip-nova-ext
     bind ${ext_ip}:6080
     default_backend vip-nova-int
 backend vip-nova-int
     balance roundrobin
-    server vip-nova ${PHD_VAR_network_internal}.207:6080 check inter 10s
+    server vip-nova ${PHD_VAR_network_internal}.210:6080 check inter 10s
 EOF
 service haproxy start
 ....
