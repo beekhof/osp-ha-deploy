@@ -44,6 +44,7 @@ target=all
 ....
 
 openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_ha_queues true
 openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers ${PHD_VAR_network_hosts_memcache}
 
 
