@@ -92,3 +92,5 @@ The configuration steps can be divided into:
     -   [Ceilometer](ceilometer-config.md)
     -   [Heat](heat-config.md)
     -   [Horizon](horizon-config.md)
+    -   [Trove](trove-config.md) **(this is currently WIP)**
+    -   [Sahara](sahara-config.md) **(this is currently WIP)**
