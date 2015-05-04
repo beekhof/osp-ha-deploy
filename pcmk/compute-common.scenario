@@ -39,14 +39,6 @@ PHD_VAR_osp_configdir
 
 target=all
 ....
-cat > /etc/yum.repos.d/osp-${PHD_VAR_osp_major}.repo << EOT
-[OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle]
-name=OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle
-baseurl=http://${PHD_VAR_osp_download}/${PHD_VAR_osp_base}
-gpgcheck=0
-enabled=1
-EOT
-
 yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached
 
 # Until this makes it upstream
@@ -57,6 +49,15 @@ chmod a+x /usr/lib/ocf/resource.d/openstack/NovaCompute
 
 target=all
 ....
+
+systemctl disable firewalld
+systemctl stop firewalld
+ 
+systemctl enable pcsd
+systemctl start pcsd
+ 
+echo ${PHD_VAR_env_password} | passwd --stdin hacluster
+
 systemctl enable openvswitch
 systemctl start openvswitch
 
@@ -70,7 +71,7 @@ openstack-config    --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_addr
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
 
 # NOTE: same consideration as nova configuration applies here. They need to match.
-openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${PHD_VAR_network_hosts_gateway}${PHD_VAR_network_domain}:6080/vnc_auto.html
+openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${PHD_VAR_network_hosts_gateway}.${PHD_VAR_network_domain}:6080/vnc_auto.html
 
 openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@vip-db/nova
 openstack-config --set /etc/nova/nova.conf database max_retries -1
@@ -79,15 +80,18 @@ openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 
 openstack-config --set /etc/nova/nova.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
 openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_ha_queues true
 
+# FIX ME: nova doesn't like hostnames anymore?
+# openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host 192.168.124.210
 
-openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
 openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen 0.0.0.0
 openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 8775
 openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
 openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
 
-openstack-config --set /etc/nova/nova.conf DEFAULT glance_host vip-glance
+openstack-config --set /etc/nova/nova.conf glance host vip-glance
 
 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 openstack-config --set /etc/nova/nova.conf neutron url http://vip-neutron:9696/
@@ -118,8 +122,12 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host vi
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri http://vip-keystone:35357/v2.0/
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri http://vip-keystone:5000/
 
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
+
 
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
@@ -151,14 +159,9 @@ openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node2:11211,rdo${PHD_VAR_osp_major}-node3:11211
-    openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts  rdo${PHD_VAR_osp_major}-node1:11211,rdo${PHD_VAR_osp_major}-node2:11211,rdo${PHD_VAR_osp_major}-node3:11211
-else
-    openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
-    openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
-fi
-
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
 
 
 openstack-config --set /etc/ceilometer/ceilometer.conf publisher telemetry_secret ceilometersecret

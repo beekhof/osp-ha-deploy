@@ -44,6 +44,7 @@ target=all
 ....
 
 openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_ha_queues true
 openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers ${PHD_VAR_network_hosts_memcache}
 
 
@@ -59,12 +60,14 @@ openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_listen $(ip add
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${PHD_VAR_network_hosts_gateway}.${PHD_VAR_network_domain}:6080/vnc_auto.html
 
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
-openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
+# FIX ME: nova doesn't like hostnames anymore?
+# openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host 192.168.124.210
 openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 8775
 
 openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
 openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
-openstack-config --set /etc/nova/nova.conf DEFAULT glance_host vip-glance
+openstack-config --set /etc/nova/nova.conf glance host vip-glance
 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 openstack-config --set /etc/nova/nova.conf neutron url http://vip-neutron:9696/
 openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name services

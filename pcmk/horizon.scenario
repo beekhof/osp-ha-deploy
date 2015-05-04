@@ -45,6 +45,11 @@ target=all
 yum install -y mod_wsgi httpd mod_ssl openstack-dashboard
 ....
 
+target=local
+....
+openssl rand -hex 10 > $PHD_VAR_osp_configdir/horizon_key
+....
+
 target=all
 ....
 # NOTE this is a rather scary sed and replace operation to configure horizon
@@ -56,39 +61,25 @@ target=all
 #             connect with keystone for authentication
 #             fix a LOCAL_PATH to point to the correct location.
 
-if [ $PHD_VAR_deployment = collapsed ]; then
-   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rdo${PHD_VAR_osp_major}-node1:11211', 'rdo${PHD_VAR_osp_major}-node2:11211',  'rdo${PHD_VAR_osp_major}-node3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
-else
-   sed   -i -e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" -e   "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" -e   "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : [   'rdo${PHD_VAR_osp_major}-memcache1:11211', 'rdo${PHD_VAR_osp_major}-memcache2:11211',  'rdo${PHD_VAR_osp_major}-memcache3:11211', ]#g" -e  's#OPENSTACK_HOST =.*#OPENSTACK_HOST =  "vip-keystone"#g' -e  "s#^LOCAL_PATH.*#LOCAL_PATH =  '/var/lib/openstack-dashboard'#g"   /etc/openstack-dashboard/local_settings
-fi
+horizonsecret=$(cat $PHD_VAR_osp_configdir/horizon_key)
+
+horizonememcachenodes=$(echo ${PHD_VAR_network_hosts_memcache} | sed -e "s#,#', '#g" -e "s#^#[ '#g" -e "s#\$#', ]#g")
+
+sed -i \
+	-e "s#ALLOWED_HOSTS.*#ALLOWED_HOSTS = ['*',]#g" \
+	-e "s#^CACHES#SESSION_ENGINE =   'django.contrib.sessions.backends.cache'\nCACHES#g#" \
+	-e "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : $horizonememcachenodes#g" \
+	-e 's#OPENSTACK_HOST =.*#OPENSTACK_HOST = "vip-keystone"#g' \
+	-e "s#^LOCAL_PATH.*#LOCAL_PATH = '/var/lib/openstack-dashboard'#g" \
+	-e "s#SECRET_KEY.*#SECRET_KEY = '$horizonsecret'#g#" \
+	/etc/openstack-dashboard/local_settings
+
+# workaround buggy packages
+echo "COMPRESS_OFFLINE = True" >> /etc/openstack-dashboard/local_settings 
+python /usr/share/openstack-dashboard/manage.py compress
 
 # NOTE: fix apache config to listen only on a given interface (internal)
 sed  -i -e 's/^Listen.*/Listen '$(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')':80/g'  /etc/httpd/conf/httpd.conf 
-....
-
-target=$PHD_ENV_nodes1
-....
-
-# NOTE: horizon requires a secret key to be generated and distributed across all
-#              nodes. It does not matter how it is distributed, but generation process is 
-#              important.
-
-service httpd stop
-service httpd start
-curl http://$(hostname)/dashboard >/dev/null 2>&1
-service httpd stop
-
-mkdir -p $PHD_VAR_osp_configdir
-cp /var/lib/openstack-dashboard/.secret_key_store $PHD_VAR_osp_configdir/horizon_secret_key_store 
-....
-
-target=all
-....
-# the cookie has to be the same across all nodes. Copy around as preferred, I am 
-# using my NFS commodity storage. Also check for file permission/ownership. I 
-# workaround that step by using 'cat' vs cp.
-cat $PHD_VAR_osp_configdir/horizon_secret_key_store > /var/lib/openstack-dashboard/.secret_key_store
-chown apache:apache /var/lib/openstack-dashboard/.secret_key_store
 
 # NOTE: enable server-status. this is required by pacemaker to verify apache is 
 #              responding. Only allow from localhost.
