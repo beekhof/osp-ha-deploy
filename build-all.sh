@@ -64,6 +64,7 @@ while true ; do
 	-s|--segregated) variables["deployment"]="segregated"; shift;;
 	-S|--status)     variables["status"]=1; shift;;
 	--mrg)
+	    variables["network_domain"]="mpc.lab.eng.bos.redhat.com"
 	    variables["config"]="mrg";
 	    nodeMap["baremetal"]="mrg-01 mrg-02 mrg-03 mrg-04 mrg-07 mrg-08 mrg-09"
 	    nodeMap["gateway"]="mrg-01"
