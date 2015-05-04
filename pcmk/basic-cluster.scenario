@@ -48,7 +48,7 @@ target=all
 ....
 
 # install the packages
-yum install -y pcs pacemaker corosync fence-agents-all resource-agents nfs-utils
+yum install -y pcs pacemaker corosync fence-agents-all resource-agents nfs-utils ntp ntpdate
 
 # enable pcsd
 systemctl enable pcsd
@@ -57,9 +57,30 @@ systemctl start pcsd
 systemctl disable firewalld
 systemctl stop firewalld
 
+# The cluster shouldn't need NTP configured, but without it the
+# network goes bye-bye when using DHCP
+#
+# Must point to clock.redhat.com to work internally
+sed -i s/^server.*// /etc/ntp.conf
+echo "server $PHD_VAR_network_clock iburst" >> /etc/ntp.conf
+echo $PHD_VAR_network_clock > /etc/ntp/step-tickers
+
+#sync_to_hardware clock
+echo "SYNC_HWCLOCK=yes" >> /etc/sysconfig/ntpdate
+
+systemctl ntpdate enable
+systemctl ntpdate start
+
+systemctl ntpd enable
+systemctl ntpd start
+
 # set a password for hacluster user. password should be the same on all nodes
 echo ${PHD_VAR_env_password} | passwd --stdin hacluster
 ....
+
+
+
+
 
 target=all
 ....
