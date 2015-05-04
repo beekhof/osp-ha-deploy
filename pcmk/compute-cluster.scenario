@@ -34,11 +34,25 @@ nodes: 1
 
 target=all
 ....
+# make sure we are not running on a controller node
 pcs resource show swift-fs > /dev/null 2>&1
 if [ $? != 0 ]; then
 
+    pcs resource show computenode > /dev/null 2>&1
+    if [ $? = 0 ]; then
+	exit 0
+    fi
+
     # We must be either the first node to run, or configuring
     # single-node clusters for a segregated deployment
+
+    pcs cluster auth $(hostname -s) -u hacluster -p ${PHD_VAR_env_password} --force
+
+    pcs cluster setup --name $(hostname -s)-compute $(hostname -s)
+    pcs cluster enable --all
+    pcs cluster start --all
+
+    sleep 30
 
     # hack!! IPMI does not work from localhost to localhost on those test nodes!. Use 
     # proper fencing settings!
