@@ -289,7 +289,7 @@ sleep 1200
 target=all
 ....
 
-if [ $(host $(hostname -s) | awk '{print $4}') = $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
+if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{print $1}') ]; then
     : Everyone except the first node needs to run the commands below
     exit 0
 fi
@@ -307,7 +307,7 @@ fi
 target=all
 ....
 
-if [ $(host $(hostname -s) | awk '{print $4}') = $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
+if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{print $1}') ]; then
     : Everyone except the first node needs to run the commands below
     exit 0
 fi
