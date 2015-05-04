@@ -67,7 +67,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 8775
 
 openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
 openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
-openstack-config --set /etc/nova/nova.conf DEFAULT glance_host vip-glance
+openstack-config --set /etc/nova/nova.conf glance host vip-glance
 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 openstack-config --set /etc/nova/nova.conf neutron url http://vip-neutron:9696/
 openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name services
