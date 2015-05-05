@@ -45,9 +45,9 @@ target=all
 yum install -y mod_wsgi httpd mod_ssl openstack-dashboard
 ....
 
-target=local
+target=$PHD_ENV_nodes1
 ....
-openssl rand -hex 10 > $PHD_VAR_osp_configdir/horizon_key
+openssl rand -hex 10 > ${PHD_VAR_osp_configdir}/horizon_key
 ....
 
 target=all
@@ -61,7 +61,7 @@ target=all
 #             connect with keystone for authentication
 #             fix a LOCAL_PATH to point to the correct location.
 
-horizonsecret=$(cat $PHD_VAR_osp_configdir/horizon_key)
+horizonsecret=$(cat ${PHD_VAR_osp_configdir}/horizon_key)
 
 horizonememcachenodes=$(echo ${PHD_VAR_network_hosts_memcache} | sed -e "s#,#', '#g" -e "s#^#[ '#g" -e "s#\$#', ]#g")
 
