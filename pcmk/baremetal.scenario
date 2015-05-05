@@ -82,7 +82,6 @@ case $distro_major in
 	sed -i s#rhel-${distro}-z#RHEL-${distro}-Z#g /etc/yum.repos.d/redhat-${distro}.repo
 	;;
     7)
-	sed -i s#HighAvailability#addons/HighAvailability#g /etc/yum.repos.d/redhat-${distro}.repo
 	sed -i s#RHEL-${distro}-Z#rhel-${distro}-z#g /etc/yum.repos.d/redhat-${distro}.repo
 
 	# ethX will do nicely thankyou
