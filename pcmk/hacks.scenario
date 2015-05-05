@@ -81,7 +81,4 @@ rm -f /etc/yum.repos.d/osp-7.repo
 
 yum update -y
 
-# No galera packages found, go direct to brew
-#yum install -y  http://download.devel.redhat.com/brewroot/packages/mariadb-galera/5.5.41/3.el7ost/x86_64/mariadb-galera-common-5.5.41-3.el7ost.x86_64.rpm http://download.devel.redhat.com/brewroot/packages/mariadb-galera/5.5.41/3.el7ost/x86_64/mariadb-galera-server-5.5.41-3.el7ost.x86_64.rpm http://download.devel.redhat.com/brewroot/packages/galera/25.3.5/7.el7ost/x86_64/galera-25.3.5-7.el7ost.x86_64.rpm
-
 ....
