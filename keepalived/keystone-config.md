@@ -6,7 +6,7 @@ The following commands will be executed on all controller nodes, unless otherwis
 Install software
 ----------------
 
-    yum install -y openstack-keystone openstack-utils openstack-selinux
+    yum install -y openstack-keystone openstack-utils openstack-selinux httpd mod_wsgi python-openstackclient
 
 Create service token and distribute to the other controllers
 ------------------------------------------------------------
@@ -17,6 +17,73 @@ On node 1:
     echo $SERVICE_TOKEN > /root/keystone_service_token
     scp /root/keystone_service_token root@hacontroller2:/root
     scp /root/keystone_service_token root@hacontroller3:/root
+
+Configure Apache web server for Keystone
+----------------------------------------
+
+**NOTE:** running Keystone under eventlet has been deprecated as of the Kilo release. Support for utilizing eventlet will be removed as of the M-release. Thus, instructions are provided to run Keystone under the Apache web server, as a WSGI process.
+
+On all nodes:
+```
+mkdir /var/www/cgi-bin/keystone
+chown keystone:keystone /var/www/cgi-bin/keystone
+ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/admin
+ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/main
+restorecon -R /var/www/cgi-bin/keystone /etc/httpd 
+
+cat > /etc/httpd/conf.d/10-keystone_wsgi_admin.conf << EOF
+&lt;VirtualHost *:35357>
+  ServerName hacontrollerX
+  ## Vhost docroot
+  DocumentRoot "/var/www/cgi-bin/keystone"
+
+  ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
+
+  &lt;Directory "/var/www/cgi-bin/keystone">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride None
+    Require all granted
+  &lt;/Directory>
+
+  ## Logging
+  ErrorLog "/var/log/httpd/keystone_wsgi_admin_error.log"
+  ServerSignature Off
+  CustomLog "/var/log/httpd/keystone_wsgi_admin_access.log" combined 
+  WSGIDaemonProcess keystone_admin group=keystone processes=1 threads=1 user=keystone
+  WSGIProcessGroup keystone_admin
+  WSGIScriptAlias / "/var/www/cgi-bin/keystone/admin"
+&lt;/VirtualHost>
+EOF
+
+cat > /etc/httpd/conf.d/10-keystone_wsgi_main.conf << EOF
+&lt;VirtualHost *:5000>
+  ServerName hacontrollerX
+  ## Vhost docroot
+  DocumentRoot "/var/www/cgi-bin/keystone"
+
+  ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
+
+  &lt;Directory "/var/www/cgi-bin/keystone">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride None
+    Require all granted
+  &lt;/Directory>
+
+  ## Logging
+  ErrorLog "/var/log/httpd/keystone_wsgi_main_error.log"
+  ServerSignature Off
+  CustomLog "/var/log/httpd/keystone_wsgi_main_access.log" combined 
+  WSGIDaemonProcess keystone_main group=keystone processes=1 threads=1 user=keystone
+  WSGIProcessGroup keystone_main
+  WSGIScriptAlias / "/var/www/cgi-bin/keystone/main"
+&lt;/VirtualHost>
+EOF
+
+
+sed -i -e 's/^Listen.*/Listen 192.168.1.22X:80/g' /etc/httpd/conf/httpd.conf 
+echo 'Listen 192.168.1.22X:5000' >> /etc/httpd/conf/httpd.conf
+echo 'Listen 192.168.1.22X:35357' >> /etc/httpd/conf/httpd.conf
+```
 
 Configure Keystone
 ------------------
@@ -33,6 +100,7 @@ On all nodes:
     openstack-config --set /etc/keystone/keystone.conf database max_retries -1
     openstack-config --set /etc/keystone/keystone.conf DEFAULT public_bind_host 192.168.1.22X
     openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_bind_host 192.168.1.22X
+    openstack-config --set /etc/keystone/keystone.conf token driver  keystone.token.persistence.backends.sql.Token
 
 Create and distribute PKI setup, manage DB
 ------------------------------------------
@@ -40,7 +108,7 @@ Create and distribute PKI setup, manage DB
 On node 1:
 
     keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
-    chown -R keystone:keystone /var/log/keystone/etc/keystone/ssl/
+    chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
     su keystone -s /bin/sh -c "keystone-manage db_sync"
     cd /etc/keystone/ssl
     tar cvfz /tmp/keystone_ssl.tgz *
@@ -55,7 +123,7 @@ On nodes 2 and 3:
     mkdir -p /etc/keystone/ssl
     cd /etc/keystone/ssl
     tar xvfz /tmp/keystone_ssl.tgz 
-    chown -R keystone:keystone /var/log/keystone/etc/keystone/ssl/
+    chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
     restorecon -Rv /etc/keystone/ssl
 
 Start services and open firewall ports
@@ -63,71 +131,83 @@ Start services and open firewall ports
 
 On all nodes;
 
-    systemctl start openstack-keystone
-    systemctl enable openstack-keystone
     firewall-cmd --add-port=5000/tcp
     firewall-cmd --add-port=5000/tcp --permanent
     firewall-cmd --add-port=35357/tcp
     firewall-cmd --add-port=35357/tcp --permanent
+    systemctl start httpd
+    systemctl enable httpd
 
 Create endpoints, services and users for all API services
 ---------------------------------------------------------
 
 On node 1:
 
-    export SERVICE_ENDPOINT=http://controller-vip.example.com:35357/v2.0
-    keystone service-create --name=keystone --type=identity --description="Keystone Identity Service"
-    keystone endpoint-create --service keystone --publicurl 'http://controller-vip.example.com:5000/v2.0' --adminurl 'http://controller-vip.example.com:35357/v2.0' --internalurl 'http://controller-vip.example.com:5000/v2.0'
-    keystone user-create --name admin --pass keystonetest
-    keystone role-create --name admin
-    keystone tenant-create --name admin
-    keystone user-role-add --user admin --role admin --tenant admin
-    keystone user-create --name demo --pass redhat
-    keystone role-create --name _member_
-    keystone tenant-create --name demo
-    keystone user-role-add --user demo --role _member_ --tenant demo
-    keystone tenant-create --name services --description "Services Tenant"
+    export OS_TOKEN=$(cat /root/keystone_service_token)
+    export OS_URL=http://controller-vip.example.com:35357/v2.0
+    export OS_REGION_NAME=regionOne
+    openstack service create --name=keystone --description="Keystone Identity Service" identity
+    openstack endpoint create --publicurl 'http://controller-vip.example.com:5000/v2.0' --adminurl 'http://controller-vip.example.com:35357/v2.0' --internalurl 'http://controller-vip.example.com:5000/v2.0' --region regionOne keystone
+    openstack user create --password keystonetest admin
+    openstack role create admin
+    openstack project create admin
+    openstack role add --project admin --user admin admin
+    openstack user create --password redhat demo
+    openstack role create _member_
+    openstack project create demo
+    openstack role add --project demo --user demo _member_
+    openstack project create --description "Services Tenant" services
     # glance
-    keystone user-create --name glance --pass glancetest
-    keystone user-role-add --user glance --role admin --tenant services
-    keystone service-create --name glance --type image --description "Glance Image Service"
-    keystone endpoint-create --service glance --publicurl "http://controller-vip.example.com:9292" --adminurl "http://controller-vip.example.com:9292" --internalurl "http://controller-vip.example.com:9292"
+    openstack user create --password glancetest glance
+    openstack role add --project services --user glance admin
+    openstack service create --name=glance --description="Glance Image Service" image
+    openstack endpoint create --publicurl 'http://controller-vip.example.com:9292' --adminurl 'http://controller-vip.example.com:9292' --internalurl 'http://controller-vip.example.com:9292' --region regionOne glance
     # cinder
-    keystone user-create --name cinder --pass cindertest
-    keystone user-role-add --user cinder --role admin --tenant services
-    keystone service-create --name cinder --type volume --description "Cinder Volume Service"
-    keystone endpoint-create --service cinder --publicurl "http://controller-vip.example.com:8776/v1/\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8776/v1/\$(tenant_id)s" --internalurl "http://controller-vip.example.com:8776/v1/\$(tenant_id)s"
-    keystone service-create --name cinderv2 --type volumev2 --description "OpenStack Block Storage"
-    keystone endpoint-create --service cinderv2  --publicurl http://controller-vip.example.com:8776/v2/%\(tenant_id\)s  --internalurl http://controller-vip.example.com:8776/v2/%\(tenant_id\)s --adminurl http://controller-vip.example.com:8776/v2/%\(tenant_id\)s
+    openstack user create --password cindertest cinder
+    openstack role add --project services --user cinder admin
+    openstack service create --name=cinder --description="Cinder Volume Service" volume
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8776/v1/\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8776/v1/\$(tenant_id)s" --internalurl "http://controller-vip.example.com:8776/v1/\$(tenant_id)s" --region regionOne cinder
+    openstack service create --name=cinderv2 --description="OpenStack Block Storage" volumev2
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8776/v2/\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8776/v2/\$(tenant_id)s" --internalurl "http://controller-vip.example.com:8776/v2/\$(tenant_id)s" --region regionOne cinderv2
     # swift
-    keystone user-create --name swift --pass swifttest
-    keystone user-role-add --user swift --role admin --tenant services
-    keystone service-create --name swift --type object-store --description "Swift Storage Service"
-    keystone endpoint-create --service swift --publicurl "http://controller-vip.example.com:8080/v1/AUTH_\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8080/v1" --internalurl "http://controller-vip.example.com:8080/v1/AUTH_\$(tenant_id)s"
+    openstack user create --password swifttest swift
+    openstack role add --project services --user swift admin
+    openstack service create --name=swift --description="Swift Storage Service" object-store
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8080/v1/AUTH_\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8080/v1" --internalurl "http://controller-vip.example.com:8080/v1/AUTH_\$(tenant_id)s" --region regionOne swift
     # neutron
-    keystone user-create --name neutron --pass neutrontest
-    keystone user-role-add --user neutron --role admin --tenant services
-    keystone service-create --name neutron --type network --description "OpenStack Networking Service"
-    keystone endpoint-create --service neutron --publicurl "http://controller-vip.example.com:9696" --adminurl "http://controller-vip.example.com:9696" --internalurl "http://controller-vip.example.com:9696"
+    openstack user create --password neutrontest neutron
+    openstack role add --project services --user neutron admin
+    openstack service create --name=neutron --description="OpenStack Networking Service" network
+    openstack endpoint create --publicurl "http://controller-vip.example.com:9696" --adminurl "http://controller-vip.example.com:9696" --internalurl "http://controller-vip.example.com:9696" --region regionOne neutron
     # nova
-    keystone user-create --name compute --pass novatest
-    keystone user-role-add --user compute --role admin --tenant services
-    keystone service-create --name compute --type compute --description "OpenStack Compute Service"
-    keystone endpoint-create  --service compute --publicurl "http://controller-vip.example.com:8774/v2/\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8774/v2/\$(tenant_id)s" --internalurl "http://controller-vip.example.com:8774/v2/\$(tenant_id)s"
+    openstack user create --password novatest compute
+    openstack role add --project services --user compute admin
+    openstack service create --name=compute --description="OpenStack Compute Service" compute
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8774/v2/\$(tenant_id)s" --adminurl "http://controller-vip.example.com:8774/v2/\$(tenant_id)s" --internalurl "http://controller-vip.example.com:8774/v2/\$(tenant_id)s" --region regionOne compute
     # heat
-    keystone user-create --name=heat --pass=heattest
-    keystone user-role-add --user heat --role admin --tenant services
-    keystone service-create --name heat --type orchestration
-    keystone endpoint-create --service heat --publicurl "http://controller-vip.example.com:8004/v1/%(tenant_id)s" --adminurl "http://controller-vip.example.com:8004/v1/%(tenant_id)s" --internalurl "http://controller-vip.example.com:8004/v1/%(tenant_id)s"
-    keystone service-create --name heat-cfn --type cloudformation
-    keystone endpoint-create --service heat-cfn --publicurl "http://controller-vip.example.com:8000/v1" --adminurl "http://controller-vip.example.com:8000/v1" --internalurl "http://controller-vip.example.com:8000/v1"
+    openstack user create --password heattest heat
+    openstack role add --project services --user heat admin
+    openstack service create --name=heat --description="Heat Orchestration Service" orchestration
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8004/v1/%(tenant_id)s" --adminurl "http://controller-vip.example.com:8004/v1/%(tenant_id)s" --internalurl "http://controller-vip.example.com:8004/v1/%(tenant_id)s" --region regionOne heat
+    openstack service create --name=heat-cfn --description="Heat CloudFormation Service" cloudformation
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8000/v1" --adminurl "http://controller-vip.example.com:8000/v1" --internalurl "http://controller-vip.example.com:8000/v1" --region regionOne heat-cfn
     # ceilometer
-    keystone user-create --name ceilometer --pass ceilometertest --email test@redhat.com
-    keystone user-role-add --user ceilometer --role admin --tenant services
-    keystone role-create --name ResellerAdmin
-    keystone user-role-add --user ceilometer --role ResellerAdmin --tenant services
-    keystone service-create --name ceilometer --type metering --description="OpenStack Telemetry Service"
-    keystone endpoint-create --service ceilometer --publicurl "http://controller-vip.example.com:8777" --adminurl "http://controller-vip.example.com:8777" --internalurl "http://controller-vip.example.com:8777"
+    openstack user create --password ceilometertest ceilometer
+    openstack role add --project services --user ceilometer admin
+    openstack role create ResellerAdmin
+    openstack role add --project services --user ceilometer ResellerAdmin
+    openstack service create --name=ceilometer --description="OpenStack Telemetry Service" metering
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8777" --adminurl "http://controller-vip.example.com:8777" --internalurl "http://controller-vip.example.com:8777" --region regionOne ceilometer
+    # sahara
+    openstack user create --password saharatest sahara
+    openstack role add --project services --user sahara admin
+    openstack service create --name=sahara --description="Sahara Data Processing" data-processing
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8386/v1.1/%(tenant_id)s" --adminurl "http://controller-vip.example.com:8386/v1.1/%(tenant_id)s" --internalurl "http://controller-vip.example.com:8386/v1.1/%(tenant_id)s" --region regionOne sahara
+    # trove
+    openstack user create --password trovetest trove
+    openstack role add --project services --user trove admin
+    openstack service create --name=trove --description="OpenStack Database Service" database
+    openstack endpoint create --publicurl "http://controller-vip.example.com:8779/v1.0/%(tenant_id)s" --adminurl "http://controller-vip.example.com:8779/v1.0/%(tenant_id)s" --internalurl "http://controller-vip.example.com:8779/v1.0/%(tenant_id)s" --region regionOne trove
 
 Create keystonerc files for simplicity
 --------------------------------------
@@ -137,6 +217,8 @@ On all nodes:
     cat > /root/keystonerc_admin << EOF
     export OS_USERNAME=admin 
     export OS_TENANT_NAME=admin
+    export OS_PROJECT_NAME=admin
+    export OS_REGION_NAME=regionOne
     export OS_PASSWORD=keystonetest
     export OS_AUTH_URL=http://controller-vip.example.com:35357/v2.0/
     export PS1='[\u@\h \W(keystone_admin)]\$ '
@@ -145,6 +227,8 @@ On all nodes:
     cat > /root/keystonerc_demo << EOF
     export OS_USERNAME=demo
     export OS_TENANT_NAME=demo
+    export OS_PROJECT_NAME=demo
+    export OS_REGION_NAME=regionOne
     export OS_PASSWORD=redhat
     export OS_AUTH_URL=http://controller-vip.example.com:5000/v2.0/
     export PS1='[\u@\h \W(keystone_user)]\$ '

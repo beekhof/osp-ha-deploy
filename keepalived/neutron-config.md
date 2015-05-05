@@ -26,11 +26,11 @@ Configure Neutron server
     openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
     openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:neutrontest@controller-vip.example.com:3306/neutron
     openstack-config --set /etc/neutron/neutron.conf database max_retries -1
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts hacontroller1,hacontroller2,hacontroller3
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues true
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
     openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://controller-vip.example.com:8774/v2
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_region_name regionOne
+    openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
+    openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
+    openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
 
     # The tenant_id below is the services tenant ID
     openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id 3d16c7ec4ec949f489de4b9ada991ad3
@@ -40,7 +40,7 @@ Configure Neutron server
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes True
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes True
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.ml2.plugin.Ml2Plugin
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router,firewall,lbaas
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router
     openstack-config --set /etc/neutron/neutron.conf DEFAULT router_scheduler_driver neutron.scheduler.l3_agent_scheduler.ChanceScheduler
     openstack-config --set /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network 2
     openstack-config --set /etc/neutron/neutron.conf DEFAULT api_workers 2
@@ -48,8 +48,6 @@ Configure Neutron server
     openstack-config --set /etc/neutron/neutron.conf DEFAULT l3_ha True
     openstack-config --set /etc/neutron/neutron.conf DEFAULT min_l3_agents_per_router 2
     openstack-config --set /etc/neutron/neutron.conf DEFAULT max_l3_agents_per_router 2
-    openstack-config --set /etc/neutron/fwaas_driver.ini fwaas enabled True
-    openstack-config --set /etc/neutron/fwaas_driver.ini fwaas driver neutron.services.firewall.drivers.linux.iptables_fwaas.IptablesFwaasDriver
 
 ### ML2 configuration
 
@@ -66,9 +64,18 @@ Configure Neutron server
 
 ### LBaaS configuration (optional)
 
+    yum -y install openstack-neutron-lbaas
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router,lbaas
     openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
-    openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutron.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver
+    openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutron_lbaas.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver
     openstack-config --set /etc/neutron/lbaas_agent.ini haproxy user_group haproxy 
+
+### FWaaS configuration (optional)
+
+    yum -y install openstack-neutron-fwaas
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router,firewall,lbaas
+    openstack-config --set /etc/neutron/fwaas_driver.ini fwaas enabled True
+    openstack-config --set /etc/neutron/fwaas_driver.ini fwaas driver neutron_fwaas.services.firewall.drivers.linux.iptables_fwaas.IptablesFwaasDriver
 
 Manage DB
 ---------
@@ -170,7 +177,7 @@ Start services and open VXLAN firewall port
     firewall-cmd --add-port=4789/udp
     firewall-cmd --add-port=4789/udp --permanent
 
-**NOTE: ** During a full cluster reboot, since Galera does not start cleanly neutron-server will wait for some time, then fail due to a service startup timeout (see [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1188198) for details). We can fix that by creating a file named `/etc/systemd/system/neutron-server.service.d/restart.conf` with the following contents:
+**NOTE:** During a full cluster reboot, since Galera does not start cleanly neutron-server will wait for some time, then fail due to a service startup timeout (see [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1188198) for details). We can fix that by creating a file named `/etc/systemd/system/neutron-server.service.d/restart.conf` with the following contents:
 
     [Service]
     Restart=on-failure
@@ -183,5 +190,5 @@ Create provider network
 On node 1:
 
     . /root/keystonerc_admin
-    neutron net-create public --provider:network_type flat --provider:physical_network physnet1 --router:external=True
+    neutron net-create public --provider:network_type flat --provider:physical_network physnet1 --router:external
     neutron subnet-create --gateway 10.10.10.1 --allocation-pool start=10.10.10.100,end=10.10.10.150 --disable-dhcp --name public_subnet public 10.10.10.0/24

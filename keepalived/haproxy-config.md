@@ -37,7 +37,7 @@ Configure HAProxy
         stats enable
         stats uri /admin
         stats realm Haproxy\ Statistics
-        stats authroot:redhat
+        stats auth root:redhat
         stats refresh 5s
 
     frontend vip-db
@@ -49,9 +49,9 @@ Configure HAProxy
         stick-table type ip size 2
         stick on dst
         timeout server 90m
-        server rhos6-node1 192.168.1.221:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-        server rhos6-node2 192.168.1.222:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-        server rhos6-node3 192.168.1.223:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+        server rhos7-node1 192.168.1.221:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+        server rhos7-node2 192.168.1.222:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+        server rhos7-node3 192.168.1.223:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
 
     # Note the RabbitMQ entry is only needed for CloudForms compatibility
     # and should be removed in the future
@@ -64,9 +64,9 @@ Configure HAProxy
         option srvtcpka
         balance roundrobin
         timeout server 900m
-        server rhos6-node1 192.168.1.221:5672 check inter 1s
-        server rhos6-node2 192.168.1.222:5672 check inter 1s
-        server rhos6-node3 192.168.1.223:5672 check inter 1s
+        server rhos7-node1 192.168.1.221:5672 check inter 1s
+        server rhos7-node2 192.168.1.222:5672 check inter 1s
+        server rhos7-node3 192.168.1.223:5672 check inter 1s
 
     frontend vip-keystone-admin
         bind 192.168.1.220:35357
@@ -75,9 +75,9 @@ Configure HAProxy
     backend keystone-admin-vms
         balance roundrobin
         timeout server 600s
-        server rhos6-node1 192.168.1.221:35357 check inter 1s on-marked-down shutdown-sessions
-        server rhos6-node2 192.168.1.222:35357 check inter 1s on-marked-down shutdown-sessions
-        server rhos6-node3 192.168.1.223:35357 check inter 1s on-marked-down shutdown-sessions
+        server rhos7-node1 192.168.1.221:35357 check inter 1s on-marked-down shutdown-sessions
+        server rhos7-node2 192.168.1.222:35357 check inter 1s on-marked-down shutdown-sessions
+        server rhos7-node3 192.168.1.223:35357 check inter 1s on-marked-down shutdown-sessions
 
     frontend vip-keystone-public
         bind 192.168.1.220:5000
@@ -86,81 +86,81 @@ Configure HAProxy
     backend keystone-public-vms
         balance roundrobin
         timeout server 600s
-        server rhos6-node1 192.168.1.221:5000 check inter 1s on-marked-down shutdown-sessions
-        server rhos6-node2 192.168.1.222:5000 check inter 1s on-marked-down shutdown-sessions
-        server rhos6-node3 192.168.1.223:5000 check inter 1s on-marked-down shutdown-sessions
+        server rhos7-node1 192.168.1.221:5000 check inter 1s on-marked-down shutdown-sessions
+        server rhos7-node2 192.168.1.222:5000 check inter 1s on-marked-down shutdown-sessions
+        server rhos7-node3 192.168.1.223:5000 check inter 1s on-marked-down shutdown-sessions
 
     frontend vip-glance-api
         bind 192.168.1.220:9191
         default_backend glance-api-vms
     backend glance-api-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:9191 check inter 1s
-        server rhos6-node2 192.168.1.222:9191 check inter 1s
-        server rhos6-node3 192.168.1.223:9191 check inter 1s
+        server rhos7-node1 192.168.1.221:9191 check inter 1s
+        server rhos7-node2 192.168.1.222:9191 check inter 1s
+        server rhos7-node3 192.168.1.223:9191 check inter 1s
 
     frontend vip-glance-registry
         bind 192.168.1.220:9292
         default_backend glance-registry-vms
     backend glance-registry-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:9292 check inter 1s
-        server rhos6-node2 192.168.1.222:9292 check inter 1s
-        server rhos6-node3 192.168.1.223:9292 check inter 1s
+        server rhos7-node1 192.168.1.221:9292 check inter 1s
+        server rhos7-node2 192.168.1.222:9292 check inter 1s
+        server rhos7-node3 192.168.1.223:9292 check inter 1s
 
     frontend vip-cinder
         bind 192.168.1.220:8776
         default_backend cinder-vms
     backend cinder-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8776 check inter 1s
-        server rhos6-node2 192.168.1.222:8776 check inter 1s
-        server rhos6-node3 192.168.1.223:8776 check inter 1s
+        server rhos7-node1 192.168.1.221:8776 check inter 1s
+        server rhos7-node2 192.168.1.222:8776 check inter 1s
+        server rhos7-node3 192.168.1.223:8776 check inter 1s
 
     frontend vip-swift
         bind 192.168.1.220:8080
         default_backend swift-vms
     backend swift-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8080 check inter 1s
-        server rhos6-node2 192.168.1.222:8080 check inter 1s
-        server rhos6-node3 192.168.1.223:8080 check inter 1s
+        server rhos7-node1 192.168.1.221:8080 check inter 1s
+        server rhos7-node2 192.168.1.222:8080 check inter 1s
+        server rhos7-node3 192.168.1.223:8080 check inter 1s
 
     frontend vip-neutron
         bind 192.168.1.220:9696
         default_backend neutron-vms
     backend neutron-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:9696 check inter 1s
-        server rhos6-node2 192.168.1.222:9696 check inter 1s
-        server rhos6-node3 192.168.1.223:9696 check inter 1s
+        server rhos7-node1 192.168.1.221:9696 check inter 1s
+        server rhos7-node2 192.168.1.222:9696 check inter 1s
+        server rhos7-node3 192.168.1.223:9696 check inter 1s
 
     frontend vip-nova-vnc-novncproxy
         bind 192.168.1.220:6080
         default_backend nova-vnc-novncproxy-vms
     backend nova-vnc-novncproxy-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:6080 check inter 1s
-        server rhos6-node2 192.168.1.222:6080 check inter 1s
-        server rhos6-node3 192.168.1.223:6080 check inter 1s
+        server rhos7-node1 192.168.1.221:6080 check inter 1s
+        server rhos7-node2 192.168.1.222:6080 check inter 1s
+        server rhos7-node3 192.168.1.223:6080 check inter 1s
 
     frontend nova-metadata-vms
         bind 192.168.1.220:8775
         default_backend nova-metadata-vms
     backend nova-metadata-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8775 check inter 1s
-        server rhos6-node2 192.168.1.222:8775 check inter 1s
-        server rhos6-node3 192.168.1.223:8775 check inter 1s
+        server rhos7-node1 192.168.1.221:8775 check inter 1s
+        server rhos7-node2 192.168.1.222:8775 check inter 1s
+        server rhos7-node3 192.168.1.223:8775 check inter 1s
 
     frontend vip-nova-api
         bind 192.168.1.220:8774
         default_backend nova-api-vms
     backend nova-api-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8774 check inter 1s
-        server rhos6-node2 192.168.1.222:8774 check inter 1s
-        server rhos6-node3 192.168.1.223:8774 check inter 1s
+        server rhos7-node1 192.168.1.221:8774 check inter 1s
+        server rhos7-node2 192.168.1.222:8774 check inter 1s
+        server rhos7-node3 192.168.1.223:8774 check inter 1s
 
     frontend vip-horizon
         bind 192.168.1.220:80
@@ -171,36 +171,36 @@ Configure HAProxy
         timeout server 180s
         mode http
         cookie SERVERID insert indirect nocache
-        server rhos6-node1 192.168.1.221:80 check inter 1s cookie rhos6-horizon1 on-marked-down shutdown-sessions
-        server rhos6-node2 192.168.1.222:80 check inter 1s cookie rhos6-horizon2 on-marked-down shutdown-sessions
-        server rhos6-node3 192.168.1.223:80 check inter 1s cookie rhos6-horizon3 on-marked-down shutdown-sessions
+        server rhos7-node1 192.168.1.221:80 check inter 1s cookie rhos7-horizon1 on-marked-down shutdown-sessions
+        server rhos7-node2 192.168.1.222:80 check inter 1s cookie rhos7-horizon2 on-marked-down shutdown-sessions
+        server rhos7-node3 192.168.1.223:80 check inter 1s cookie rhos7-horizon3 on-marked-down shutdown-sessions
 
     frontend vip-heat-cfn
         bind 192.168.1.220:8000
         default_backend heat-cfn-vms
     backend heat-cfn-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8000 check inter 1s
-        server rhos6-node2 192.168.1.222:8000 check inter 1s
-        server rhos6-node3 192.168.1.223:8000 check inter 1s
+        server rhos7-node1 192.168.1.221:8000 check inter 1s
+        server rhos7-node2 192.168.1.222:8000 check inter 1s
+        server rhos7-node3 192.168.1.223:8000 check inter 1s
 
     frontend vip-heat-cloudw
         bind 192.168.1.220:8003
         default_backend heat-cloudw-vms
     backend heat-cloudw-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8003 check inter 1s
-        server rhos6-node2 192.168.1.222:8003 check inter 1s
-        server rhos6-node3 192.168.1.223:8003 check inter 1s
+        server rhos7-node1 192.168.1.221:8003 check inter 1s
+        server rhos7-node2 192.168.1.222:8003 check inter 1s
+        server rhos7-node3 192.168.1.223:8003 check inter 1s
 
     frontend vip-heat-srv
         bind 192.168.1.220:8004
         default_backend heat-srv-vms
     backend heat-srv-vms
         balance roundrobin
-        server rhos6-node1 192.168.1.221:8004 check inter 1s
-        server rhos6-node2 192.168.1.222:8004 check inter 1s
-        server rhos6-node3 192.168.1.223:8004 check inter 1s
+        server rhos7-node1 192.168.1.221:8004 check inter 1s
+        server rhos7-node2 192.168.1.222:8004 check inter 1s
+        server rhos7-node3 192.168.1.223:8004 check inter 1s
 
     frontend vip-ceilometer
         bind 192.168.1.220:8777
@@ -209,10 +209,27 @@ Configure HAProxy
     backend ceilometer-vms
         balance roundrobin
         timeout server 90s
-        server rhos6-node1 192.168.1.221:8777 check inter 1s
-        server rhos6-node2 192.168.1.222:8777 check inter 1s
-        server rhos6-node3 192.168.1.223:8777 check inter 1s
+        server rhos7-node1 192.168.1.221:8777 check inter 1s
+        server rhos7-node2 192.168.1.222:8777 check inter 1s
+        server rhos7-node3 192.168.1.223:8777 check inter 1s
 
+    frontend vip-sahara
+        bind 192.168.1.220:8386
+        default_backend sahara-vms
+    backend sahara-vms
+        balance roundrobin
+        server rhos7-node1 192.168.1.221:8386 check inter 1s
+        server rhos7-node2 192.168.1.222:8386 check inter 1s
+        server rhos7-node3 192.168.1.223:8386 check inter 1s
+
+    frontend vip-trove
+        bind 192.168.1.220:8779
+        default_backend trove-vms
+    backend trove-vms
+        balance roundrobin
+        server rhos7-node1 192.168.1.221:8779 check inter 1s
+        server rhos7-node2 192.168.1.222:8779 check inter 1s
+        server rhos7-node3 192.168.1.223:8779 check inter 1s
     EOF
 
 Note we are **not** starting haproxy yet.

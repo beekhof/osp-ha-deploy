@@ -159,6 +159,10 @@ Create users and databases
     MariaDB [mysql]> GRANT ALL ON nova.* TO 'nova'@'%' IDENTIFIED BY 'novatest';
     MariaDB [mysql]> CREATE DATABASE heat;
     MariaDB [mysql]> GRANT ALL ON heat.* TO 'heat'@'%' IDENTIFIED BY 'heattest';
+    MariaDB [mysql]> CREATE DATABASE sahara;
+    MariaDB [mysql]> GRANT ALL ON sahara.* TO 'sahara'@'%' IDENTIFIED BY 'saharatest';
+    MariaDB [mysql]> CREATE DATABASE trove;
+    MariaDB [mysql]> GRANT ALL ON trove.* TO 'trove'@'%' IDENTIFIED BY 'trovetest';
     MariaDB [mysql]> FLUSH PRIVILEGES;
     MariaDB [mysql]> quit
 

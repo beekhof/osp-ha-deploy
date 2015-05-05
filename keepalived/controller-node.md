@@ -46,14 +46,14 @@ All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then running t
 -   For RDO Juno, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
 -   For the [Red Hat Enterprise Linux OpenStack Platform](http://www.redhat.com/openstack), run the following commands to enable the required repositories:
 
-    subscription-manager register --username=${RHSMUSER} --password=${RHSMPASS} 
-    subscription-manager attach --auto
-    subscription-manager repos --disable \* 
-    subscription-manager repos --enable rhel-7-server-rpms 
-    subscription-manager repos --enable rhel-7-server-rh-common-rpms 
-    subscription-manager repos --enable rhel-7-server-openstack-6.0-rpms
-    yum -y update 
-    reboot
+<pre>subscription-manager register --username=${RHSMUSER} --password=${RHSMPASS} 
+subscription-manager attach --auto
+subscription-manager repos --disable \* 
+subscription-manager repos --enable rhel-7-server-rpms 
+subscription-manager repos --enable rhel-7-server-rh-common-rpms 
+subscription-manager repos --enable rhel-7-server-openstack-6.0-rpms
+yum -y update 
+reboot</pre>
 
 The systems also had NetworkManager disabled:
 
@@ -92,3 +92,5 @@ The configuration steps can be divided into:
     -   [Ceilometer](ceilometer-config.md)
     -   [Heat](heat-config.md)
     -   [Horizon](horizon-config.md)
+    -   [Trove](trove-config.md) **(this is currently WIP)**
+    -   [Sahara](sahara-config.md) **(this is currently WIP)**
