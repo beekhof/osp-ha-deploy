@@ -110,12 +110,16 @@ if [ ! -e $PHD_VAR_osp_configdir/fence_xvm.key ]; then
     echo $(openssl rand -hex 10) > $PHD_VAR_osp_configdir/fence_xvm.key
 fi
 
+mkdir /etc/cluster/
 cp $PHD_VAR_osp_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
 
 # XXX remember to file a bug
 chkconfig --add fence_virtd
 chkconfig  fence_virtd on
 service fence_virtd start
+
+chkconfig libvirtd on
+service libvirtd start
 ....
 
 
@@ -201,6 +205,13 @@ EOT
 # Prevent DHCPNAK by removing stale leases
 # Occurs if we clone the guest and change NICs
 rm -f /var/lib/NetworkManager/dhclient-*.lease
+
+# If hostname is anything other than 'localhost.localdomain', then
+# NetworkManager wont bother looking up DNS/DHCP for the host name
+# when the node boots:
+#
+# May  5 11:04:15 localhost NetworkManager[676]: <info>  Setting system hostname to 'rdo7-node1.vmnet.mpc.lab.eng.bos.redhat.com' (from address lookup)
+hostnamectl set-hostname localhost.localdomain
 
 cat > /etc/yum.repos.d/redhat-${distro}.repo << EOT
 [redhat-${distro}]
