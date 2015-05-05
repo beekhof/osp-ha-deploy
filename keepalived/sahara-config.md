@@ -1,14 +1,12 @@
 Introduction
 ------------
 
-**Note: This section is still work in progress. It does not work 100%, so expect changes during the next few days.**
+**Important:** this configuration assumes that the controller nodes can access the floating IP network (10.10.10.0/24 in the example configuration). This was not the case on [the controller node configuration](controller-node.md), because the NIC used for the provider network did not have an IP address. You can accomplish this by setting up routes in the default gateway (192.168.1.1), or creating a separate route on the controller nodes.
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
 Install software
 ----------------
-
-**Note: packages are currently not in Kilo RC2, they are expected to be ready for RDO Kilo GA. In the meantime, they can be fetched from https://cbs.centos.org/koji/buildinfo?buildID=1122**
 
     yum install -y openstack-sahara-api openstack-sahara-engine openstack-sahara-common openstack-sahara
 
@@ -51,3 +49,7 @@ Start services, open firewall ports
     systemctl start openstack-sahara-api
     systemctl start openstack-sahara-engine
 
+Testing
+-------
+
+Testing Sahara requires creating a specific virtual machine image, which is outside the scope of this document. You can find instructions on [the Sahara wiki](http://docs.openstack.org/developer/sahara/devref/quickstart.html#upload-an-image-to-the-image-service).
