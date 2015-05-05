@@ -12,8 +12,8 @@ network:
     forwarders: 10.16.36.29 10.11.5.19 10.5.30.160
   nic:
     base: 54:52:00
-    external: enp1s0 eth0
-    internal: enp2s0 eth1
+    external: em1 eno1 enp1s0 eth0
+    internal: em2 eno2 enp2s0 eth1
   hosts:
     gateway:  mrg-01
 
