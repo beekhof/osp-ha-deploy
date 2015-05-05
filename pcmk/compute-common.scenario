@@ -39,7 +39,7 @@ PHD_VAR_osp_configdir
 
 target=all
 ....
-yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached
+yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached wget openstack-neutron
 
 # Until this makes it upstream
 mkdir /usr/lib/ocf/resource.d/openstack/
