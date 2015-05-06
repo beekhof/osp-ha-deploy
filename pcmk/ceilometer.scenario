@@ -36,11 +36,15 @@ PHD_VAR_deployment
 
 target=all
 ....
-yum install -y openstack-ceilometer-api openstack-ceilometer-central   openstack-ceilometer-collector openstack-ceilometer-common  openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
+yum install -y openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient redis
 ....
 
 target=all
 ....
+
+# have redis listen on all IPs
+sed -i "s/\s*bind \(.*\)$/#bind \1/" /etc/redis.conf
+
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_host vip-keystone
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_port 35357
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_protocol http
@@ -52,6 +56,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers 
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
 
+openstack-config --set /etc/ceilometer/ceilometer.conf coordination backend_url 'redis://vip-redis:6379'
 
 openstack-config --set /etc/ceilometer/ceilometer.conf publisher telemetry_secret ceilometersecret
 
@@ -60,7 +65,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_us
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ceilometertest
 
-openstack-config  --set /etc/ceilometer/ceilometer.conf database connection     mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
+openstack-config  --set /etc/ceilometer/ceilometer.conf database connection mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf database max_retries -1
 
 # keep last 5 days data only (value is in secs). Don't set to retain all data indefinetely.
@@ -71,7 +76,10 @@ openstack-config --set  /etc/ceilometer/ceilometer.conf api host $(ip addr show 
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create ceilometer-central systemd:openstack-ceilometer-central 
+
+pcs resource create redis redis wait_last_known_master=true --master meta notify=true ordered=true interleave=true
+pcs resource create vip-redis IPaddr2 ip=${PHD_VAR_network_internal}.217
+pcs resource create ceilometer-central systemd:openstack-ceilometer-central --clone interleave=true
 pcs resource create ceilometer-collector systemd:openstack-ceilometer-collector --clone interleave=true
 pcs resource create ceilometer-api systemd:openstack-ceilometer-api --clone interleave=true
 pcs resource create ceilometer-delay Delay startdelay=10 --clone interleave=true
@@ -79,7 +87,10 @@ pcs resource create ceilometer-alarm-evaluator systemd:openstack-ceilometer-alar
 pcs resource create ceilometer-alarm-notifier systemd:openstack-ceilometer-alarm-notifier --clone interleave=true
 pcs resource create ceilometer-notification systemd:openstack-ceilometer-notification  --clone interleave=true
 
-pcs constraint order start ceilometer-central then ceilometer-collector-clone
+pcs constraint order promote redis-master then start vip-redis
+pcs constraint colocation add vip-redis with master redis-master
+pcs constraint order start vip-redis then ceilometer-central-clone
+pcs constraint order start ceilometer-central-clone then ceilometer-collector-clone
 pcs constraint order start ceilometer-collector-clone then ceilometer-api-clone
 pcs constraint colocation add ceilometer-api-clone with ceilometer-collector-clone 
 pcs constraint order start ceilometer-api-clone then ceilometer-delay-clone
