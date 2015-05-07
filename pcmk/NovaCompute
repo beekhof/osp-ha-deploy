@@ -183,10 +183,12 @@ nova_start() {
 }
 
 nova_stop() {
+    trap 'rm ${lockfile}' EXIT
     pid=`nova_pid`
 
     nova_monitor
     if [ $? = $OCF_SUCCESS ]; then
+	touch ${lockfile}
 	if [ 0 = 1 ]; then
 	    # Apparently this is a bad idea...
 	    #
@@ -218,16 +220,10 @@ nova_stop() {
 	# Then stop
 	su nova -c "kill -TERM $pid" -s /bin/bash
 	
-	nova_monitor
-	rc=$
-	while [ $rc = $OCF_SUCCESS ]; do
-	    nova_monitor
-	    rc=$?
+	while [ "x$pid" != x ]; do
+	    sleep 1
+	    pid=`nova_pid`
 	done
-
-	if [ $rc != $OCF_NOT_RUNNING ]; then
-	    return $OCF_ERR_GENERIC
-	fi
     fi
 
     rm -f ${statefile}
@@ -239,6 +235,11 @@ nova_monitor() {
     #    nova service-list --host $(hostname)
 
     pid=`nova_pid`
+
+    #nova is stopping - consider it is running as long as lockfile exists
+    if [ -e ${lockfile} ]; then
+	return $OCF_SUCCESS
+    fi
 
     if [ "x$pid" != x ]; then
 	touch $statefile
@@ -272,6 +273,7 @@ nova_validate() {
 }
 
 statefile="${HA_RSCTMP}/nova-compute"
+lockfile="${HA_RSCTMP}/nova-compute-lock"
 nova_options=""
 
 if [ -z "${OCF_RESKEY_auth_url}" ]; then
