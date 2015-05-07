@@ -37,7 +37,6 @@ describe the operational mode of services in a cluster:
 In this document, all components are currently modelled as
 active/active with the exception of:
 
-- openstack-ceilometer-central 
 - openstack-heat-engine 
 - cinder-volume
 - qpid (optional)
@@ -719,10 +718,6 @@ The Ceilometer project aims to deliver a unique point of contact for
 billing systems to acquire all of the measurements they need to
 establish customer billing, across all current OpenStack core
 components with work underway to support future OpenStack components.
-
-Currently `openstack-ceilometer-central` is run in an active/passive
-configuration because [TODO]. A move to an active/active configuration
-is planned but will likely require a switch from `mongodb` to `redis`.
 
 If you are performing a segregated deployment, follow the [basic
 cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
