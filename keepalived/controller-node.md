@@ -14,8 +14,9 @@ The basic requirements for this environment include 5 nodes, with the network se
 
 -   The external network is used by the Neutron floating IPs, and for any external access. The hypervisor nodes (hacompute1 and hacompute2) do not need to be connected to this network, but in the demo setup they are connected for testing purposes.
 -   The internal network will carry all other traffic: API traffic, tenant networks and storage traffic.
+-   A router will provide connectivity between the internal and external networks, as required by Trove and Sahara for instance management. If these services are not used, the router is not required.
 
-Please note this is a minimum test setup. Any production setup should separate internal and external API traffic, tenant networks and storage traffic in different network segments.
+Please note this is a minimum test setup. Any production setup should separate internal and external API traffic, tenant networks and storage traffic in different network segments, and route traffic between instances and the controller nodes via a firewall.
 
 ### Node setup
 
@@ -43,7 +44,7 @@ Please note that the current document uses a single virtual IP for the whole sta
 
 All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then running the enabling the required software channels.
 
--   For RDO Juno, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
+-   For RDO Kilo, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
 -   For the [Red Hat Enterprise Linux OpenStack Platform](http://www.redhat.com/openstack), run the following commands to enable the required repositories:
 
 <pre>subscription-manager register --username=${RHSMUSER} --password=${RHSMPASS} 
@@ -51,7 +52,7 @@ subscription-manager attach --auto
 subscription-manager repos --disable \* 
 subscription-manager repos --enable rhel-7-server-rpms 
 subscription-manager repos --enable rhel-7-server-rh-common-rpms 
-subscription-manager repos --enable rhel-7-server-openstack-6.0-rpms
+subscription-manager repos --enable rhel-7-server-openstack-7.0-rpms
 yum -y update 
 reboot</pre>
 
