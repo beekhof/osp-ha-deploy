@@ -1,8 +1,9 @@
 Introduction
 ------------
 
+**WARNING:** this configuration uses the same RabbitMQ instance as the rest of the OpenStack services. This is not recommended for a production environment, because it creates a security risk (see [this e-mail thread](http://lists.openstack.org/pipermail/openstack-dev/2015-April/061759.html) for details). Because of that, this configuration assumes that virtual machine instances can access the controller node management network (192.168.1.0/24 in the example configuration). This requires setting up the required routes and firewall rules to ensure this is possible. Those firewall rules should allow access from the floating IP network (10.10.10.0/24) to the controller node management network.
 
-**Important:** this configuration assumes that virtual machine instances can access the controller node management network (192.168.1.0/24 in the example configuration). This requires setting up the required routes and firewall rules to ensure this is possible. Those firewall rules should allow access from the floating IP network (10.10.10.0/24) to the controller node management network.
+**Important:** On a production environment, a separate RabbitMQ instance should be deployed for Trove, so you should adjust the rabbit_* configuration lines accordingly.
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 

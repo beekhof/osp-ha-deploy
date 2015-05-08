@@ -125,19 +125,13 @@ There are currently concerns over the cinder-volume service ability to run as a 
 
 The current design of the Neutron LBaaS agent using the HAProxy driver does not allow high availability for the tenant load balancers. The neutron-lbaas-agent service will be enabled and running on all controllers, allowing for load balancers to be distributed across all nodes. However, a controller node failure will stop all load balancers running on that node until the service is recovered or the load balancer is manually removed and created again.
 
-### Configuration specifics for active-active operation in certain services
-
-Some OpenStack API services have specific requirements that enable them to support an active-active operation in some configurations, but not on others:
-
--   Heat: heat-engine can run in an active/active configuration, but it requires `OS::Ceilometer::Alarm` in templates and for Ceilometer to be functional before starting Heat.
-
 ### Service monitoring and recovery required
 
 An external service monitoring infrastructure is required to check the OpenStack service health, and notify operators in case of any failure. This architecture does not provide any facility for that, so it would be necessary to integrate the OpenStack deployment with any existing monitoring environment.
 
 ### Manual recovery after a full cluster restart
 
-Some support services used by RHEL OSP use their own form of application clustering. Usually, these services maintain a cluster quorum, that may be lost in case of a simultaneous restart of all cluster nodes, e.g. during a power outage. Each service will require its own procedure to regain quorum:
+Some support services used by RDO / RHEL OSP use their own form of application clustering. Usually, these services maintain a cluster quorum, that may be lost in case of a simultaneous restart of all cluster nodes, e.g. during a power outage. Each service will require its own procedure to regain quorum:
 
 -   Galera: [Galera bootstrap instructions](keepalived/galera-bootstrap.md)
 -   RabbitMQ: [RabbitMQ cluster restart](keepalived/rabbitmq-restart.md)
