@@ -37,7 +37,6 @@ describe the operational mode of services in a cluster:
 In this document, all components are currently modelled as
 active/active with the exception of:
 
-- openstack-heat-engine 
 - cinder-volume
 - qpid (optional)
 
@@ -747,14 +746,8 @@ scripting to handle system configuration. A template may create and
 configure a large list of resources thus supporting complex
 application stacks.
 
-`heat-engine` can run in an active/active configuration but requires
-`OS::Ceilometer::Alarm` in templates and for `ceilometer` to be
-functional before starting `heat`.
-
-The ordering is no issue for a collapsed deployment, however it is yet
-to be determined what the behaviour is if somebody overrides a
-template.  For this reason we limit `heat-engine` to an active/passive
-configuration.
+`heat` autoscale functionality requires ceilometer to be active prior
+to `heat` and `OS::Ceilometer::Alarm` in `heat` templates.
 
 If you are performing a segregated deployment, follow the [basic
 cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
