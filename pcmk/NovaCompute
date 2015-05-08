@@ -183,12 +183,10 @@ nova_start() {
 }
 
 nova_stop() {
-    trap 'rm ${lockfile}' EXIT
     pid=`nova_pid`
 
     nova_monitor
     if [ $? = $OCF_SUCCESS ]; then
-	touch ${lockfile}
 	if [ 0 = 1 ]; then
 	    # Apparently this is a bad idea...
 	    #
@@ -236,11 +234,6 @@ nova_monitor() {
 
     pid=`nova_pid`
 
-    #nova is stopping - consider it is running as long as lockfile exists
-    if [ -e ${lockfile} ]; then
-	return $OCF_SUCCESS
-    fi
-
     if [ "x$pid" != x ]; then
 	touch $statefile
 
@@ -273,7 +266,6 @@ nova_validate() {
 }
 
 statefile="${HA_RSCTMP}/nova-compute"
-lockfile="${HA_RSCTMP}/nova-compute-lock"
 nova_options=""
 
 if [ -z "${OCF_RESKEY_auth_url}" ]; then
