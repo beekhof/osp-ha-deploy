@@ -75,49 +75,25 @@ gpgcheck=0
 enabled=1
 EOF
 
-case $distro_major in
-	# Account for the location differences between RHEL/CentOS 6 and 7
-    6)
-	sed -i s#addons/HighAvailability#HighAvailability#g /etc/yum.repos.d/redhat-${distro}.repo
-	sed -i s#rhel-${distro}-z#RHEL-${distro}-Z#g /etc/yum.repos.d/redhat-${distro}.repo
-	;;
-    7)
-	sed -i s#RHEL-${distro}-Z#rhel-${distro}-z#g /etc/yum.repos.d/redhat-${distro}.repo
-
-	# ethX will do nicely thankyou
-	rm -f /lib/udev/rules.d/75-persistent-net-generator.rules
-	rm -f /etc/udev/rules.d/70-persistent-net.rules
-	;;
-esac
-
 yum clean all
 yum update -y
-yum install -y pacemaker fence-agents resource-agents pcs cman ccs libvirt qemu-kvm bind-utils
+yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump
 sed -i -e 's/=enforcing/=disabled/g' /etc/sysconfig/selinux
 sed -i -e 's/=enforcing/=disabled/g' /etc/selinux/config
 
 [ -f /etc/cron.d/rhn-virtualization.cron ] && sed -i -e 's/^0/#0/g' /etc/cron.d/rhn-virtualization.cron
 
-case $distro_major in
-    6)
-	chkconfig acpid off
-	chkconfig iptables off
-	chkconfig ip6tables off
-	;;
-    7)
-	chkconfig firewalld off
-	;;
-esac
-chkconfig libvirtd on
-service libvirtd start
+systemctl disable firewalld
+
+systemctl enable libvirtd
+systemctl start libvirtd
+virsh net-destroy default
+virsh net-undefine default
 ....
 
 target=all
 ....
 lastoct="$(hostname -s | sed -e 's#^[a-z]*-##g' -e 's#^0*##g')"
-
-virsh net-destroy default
-virsh net-undefine default
 
 cat > /etc/sysconfig/network-scripts/ifcfg-ext0 << EOF
 DEVICE=ext0
@@ -141,7 +117,6 @@ IPADDR=${PHD_VAR_network_internal}.$lastoct
 NETMASK=255.255.255.0
 NETWORK=${PHD_VAR_network_internal}.0
 EOF
-
 
 for device in `ls -1 /sys/class/net`; do
     case ${PHD_VAR_network_nic_external} in
@@ -183,16 +158,18 @@ chmod +x /etc/rc.d/rc.local
 
 target=all
 ....
-umount /home
+# in rhel7 we need to make this a two stage commit
+# since there are daemons that can hold locks on mountpoint
 sed -i -e 's#.*home.*##g' /etc/fstab 
-lvremove -f /dev/mapper/*home
-lvresize -f -l+100%FREE /dev/mapper/*root
-resize2fs /dev/mapper/*root || xfs_growfs /dev/mapper/*-root
 ....
 
 target=all
 ....
 # Turn off auto-generation of resolv.conf so we can override it 
+# make a backup that we will need for gateway scenario otherwise
+# we have a catch 22
+rm -f /etc/resolv.conf.backup
+cp /etc/resolv.conf /etc/resolv.conf.backup
 echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
 echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
 echo nameserver ${PHD_VAR_network_internal}.1 >> /etc/resolv.conf
@@ -214,3 +191,9 @@ for node in $(echo $PHD_ENV_nodes); do
     phd_cmd_exec "uptime" "$node"
 done
 ....
+
+target=all
+....
+lvremove -f /dev/mapper/*home
+lvresize -f -l+100%FREE /dev/mapper/*root
+xfs_growfs /dev/mapper/*-root
