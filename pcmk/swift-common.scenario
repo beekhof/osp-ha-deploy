@@ -42,14 +42,12 @@ target=all
 ....
 mkdir -p /etc/swift
 # ceilometer hook
-cat >> /etc/swift/swift.conf << EOF
+cat > /etc/swift/swift.conf << EOF
 [filter:ceilometer]
 use = egg:ceilometer#swift
 [pipeline:main]
 pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
 EOF
-
-chown -R root:swift /etc/swift
 
 ....
 
@@ -64,6 +62,5 @@ pathsuffix=$(openssl rand -hex 10)
 for node in $PHD_ENV_nodes; do
     ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_prefix ${pathprefix};
     ssh $node -- openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix ${pathsuffix};
-    ssh $node -- chown -R root:swift /etc/swift;
 done
 ....

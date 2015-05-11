@@ -97,6 +97,11 @@ The detailed high availability strategy for the OpenStack services is defined in
 | Swift            |openstack-swift-account     | A/A    | HAProxy     |
 | Swift            |openstack-swift-container   | A/A    | HAProxy     |
 | Swift            |openstack-swift-object      | A/A    | HAProxy     |
+| Sahara           |openstack-sahara-api        | A/A    | HAProxy     |
+| Sahara           |openstack-sahara-engine     | A/A    |             |
+| Trove            |openstack-trove-api         | A/A    | HAProxy     |
+| Trove            |openstack-trove-engine      | A/A    |             |
+| Trove            |openstack-trove-conductor   | A/A    |             |
 
 **Notes:**
 
@@ -114,17 +119,11 @@ In case of a network partitioning, there is a chance that two or more nodes runn
 
 ### Cinder-volume as a single point of failure
 
-There are currently concerns over the cinder-volume service ability to run as a fully active-active service. During the Kilo timeframe, this is being worked on, see [1](https://etherpad.openstack.org/p/cinder-kilo-stabilisation-work). Thus, cinder-volume will only be running on one of the controller nodes, even if it will be configured on all nodes. In case of a failure in the node running cinder-volume, it should be started in a surviving controller node.
+There are currently concerns over the cinder-volume service ability to run as a fully active-active service. During the Liberty timeframe, this is being worked on, see [1](https://github.com/Akrog/test-cinder-atomic-states). Thus, cinder-volume will only be running on one of the controller nodes, even if it will be configured on all nodes. In case of a failure in the node running cinder-volume, it should be started in a surviving controller node.
 
 ### Neutron-lbaas-agent as a single point of failure
 
 The current design of the Neutron LBaaS agent using the HAProxy driver does not allow high availability for the tenant load balancers. The neutron-lbaas-agent service will be enabled and running on all controllers, allowing for load balancers to be distributed across all nodes. However, a controller node failure will stop all load balancers running on that node until the service is recovered or the load balancer is manually removed and created again.
-
-### Configuration specifics for active-active operation in certain services
-
-Some OpenStack API services have specific requirements that enable them to support an active-active operation in some configurations, but not on others:
-
--   Heat: heat-engine can run in an active/active configuration, but it requires `OS::Ceilometer::Alarm` in templates and for Ceilometer to be functional before starting Heat.
 
 ### Service monitoring and recovery required
 
@@ -132,7 +131,7 @@ An external service monitoring infrastructure is required to check the OpenStack
 
 ### Manual recovery after a full cluster restart
 
-Some support services used by RHEL OSP use their own form of application clustering. Usually, these services maintain a cluster quorum, that may be lost in case of a simultaneous restart of all cluster nodes, e.g. during a power outage. Each service will require its own procedure to regain quorum:
+Some support services used by RDO / RHEL OSP use their own form of application clustering. Usually, these services maintain a cluster quorum, that may be lost in case of a simultaneous restart of all cluster nodes, e.g. during a power outage. Each service will require its own procedure to regain quorum:
 
 -   Galera: [Galera bootstrap instructions](keepalived/galera-bootstrap.md)
 -   RabbitMQ: [RabbitMQ cluster restart](keepalived/rabbitmq-restart.md)

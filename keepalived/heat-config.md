@@ -52,6 +52,7 @@ Configure Heat
     openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_ha_queues true
     openstack-config --set /etc/heat/heat.conf DEFAULT rpc_backend rabbit
     openstack-config --set /etc/heat/heat.conf DEFAULT notification_driver heat.openstack.common.notifier.rpc_notifier
+    openstack-config --set /etc/heat/heat.conf DEFAULT enable_cloud_watch_lite false
 
 Manage DB
 ---------

@@ -80,6 +80,8 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volu
 # Create the directory on the server
 mkdir -p $PHD_VAR_osp_configdir/cinder
 
+chown -R cinder:cinder $PHD_VAR_osp_configdir/cinder
+
 cat > /etc/cinder/nfs_exports << EOF
 ${PHD_VAR_network_internal}.1:$PHD_VAR_osp_configdir/cinder
 EOF

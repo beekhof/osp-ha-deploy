@@ -16,6 +16,7 @@ The network configuration was previously discussed in the [Controller node imple
 
 -   The external network is used by the Neutron floating IPs, and for any external access. The hypervisor nodes (hacompute1 and hacompute2) do not need to be connected to this network, but in the demo setup they are connected for testing purposes.
 -   The internal network will carry all other traffic: API traffic, tenant networks and storage traffic.
+-   The router providing connectivity between the internal and external networks is only needed if Trove and/or Sahara are being deployed.
 
 Remember this is a minimum test setup. Any production setup should separate internal and external API traffic, tenant networks and storage traffic in different network segments.
 

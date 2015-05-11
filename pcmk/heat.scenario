@@ -68,6 +68,10 @@ openstack-config --set /etc/heat/heat.conf DEFAULT heat_watch_server_url vip-hea
 openstack-config --set /etc/heat/heat.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu
 
 openstack-config --set /etc/heat/heat.conf DEFAULT notification_driver heat.openstack.common.notifier.rpc_notifier
+
+# disable CWLiteAlarm that is incompatible with A/A
+openstack-config --set /etc/heat/heat.conf DEFAULT enable_cloud_watch_lite false
+
 ....
 
 target=$PHD_ENV_nodes1
@@ -80,17 +84,14 @@ target=$PHD_ENV_nodes1
 pcs resource create heat-api systemd:openstack-heat-api --clone interleave=true
 pcs resource create heat-api-cfn systemd:openstack-heat-api-cfn  --clone interleave=true
 pcs resource create heat-api-cloudwatch systemd:openstack-heat-api-cloudwatch --clone interleave=true
-
-# We currently limit heat-engine to an active/passive deployment
-# See ha-openstack.md for further discussion
-pcs resource create heat-engine systemd:openstack-heat-engine 
+pcs resource create heat-engine systemd:openstack-heat-engine --clone interleave=true
 
 pcs constraint order start heat-api-clone then heat-api-cfn-clone
 pcs constraint colocation add heat-api-cfn-clone with heat-api-clone
 pcs constraint order start heat-api-cfn-clone then heat-api-cloudwatch-clone
 pcs constraint colocation add heat-api-cloudwatch-clone with heat-api-cfn-clone
-pcs constraint order start heat-api-cloudwatch-clone then heat-engine
-pcs constraint colocation add heat-engine with heat-api-cloudwatch-clone
+pcs constraint order start heat-api-cloudwatch-clone then heat-engine-clone
+pcs constraint colocation add heat-engine-clone with heat-api-cloudwatch-clone
 
 if [ $PHD_VAR_deployment = collapsed ]; then
     pcs constraint order start ceilometer-notification-clone then heat-api-clone

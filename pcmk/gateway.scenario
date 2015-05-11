@@ -184,6 +184,10 @@ for section in ${PHD_VAR_components}; do
     oct=$((oct + 1))
 done
 
+# add vip-redis outside of PHD_VAR_components because it should not be load balanced
+echo "${oct}         IN      PTR     vip-redis.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa
+echo "vip-redis      IN      A       ${PHD_VAR_network_internal}.${oct}" >> /etc/named/vmnet.${PHD_VAR_network_domain}
+
 oct=240
 while [ $oct -lt 254 ]; do
     echo "${oct}         IN      PTR     dhcp${oct}.vmnet.${PHD_VAR_network_domain}." >> /etc/named/${reverse_dns_net}.arpa

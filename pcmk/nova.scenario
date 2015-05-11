@@ -62,7 +62,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 # FIX ME: nova doesn't like hostnames anymore?
 # openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
-openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host 192.168.124.210
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host ${PHD_VAR_network_internal}.210
 openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 8775
 
 openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True

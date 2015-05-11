@@ -110,7 +110,7 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     # on the same hosts.  We do this with constraints.
 
     pcs constraint order start lb-haproxy-clone then keystone-clone
-    pcs constraint order start galera-master then keystone-clone
+    pcs constraint order promote galera-master then keystone-clone
     pcs constraint order start rabbitmq-server-clone then keystone-clone
     pcs constraint order start memcached-clone then keystone-clone
 fi
