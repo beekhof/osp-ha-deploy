@@ -210,7 +210,7 @@ target=local
 # Reboot each node and wait for it to return
 for node in $(echo $PHD_ENV_nodes); do
     phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
-    phd_wait_connection 300 $node
+    phd_wait_connection 600 $node
     phd_cmd_exec "uptime" "$node"
 done
 ....
