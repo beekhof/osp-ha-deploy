@@ -47,25 +47,36 @@ packages=yum
 
 target=$PHD_ENV_nodes1
 ....
+# temporary restore original resolv.conf
+rm -f /etc/resolv.conf.new
+cp /etc/resolv.conf /etc/resolv.conf.new
+rm -f /etc/resolv.conf
+cp /etc/resolv.conf.backup /etc/resolv.conf
+....
+
+target=$PHD_ENV_nodes1
+....
 yum install -y nfs-utils
 echo "/srv ${PHD_VAR_network_internal}.0/255.255.255.0(rw,sync,no_root_squash,subtree_check,fsid=10)" > /etc/exports
-chkconfig nfs on
-chkconfig nfslock on
-service nfs start
+systemctl enable nfs-server
+systemctl start nfs-server
 ....
 
 target=$PHD_ENV_nodes1
 ....
 ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
 echo "ext: $ext_ip"
-service iptables stop
 iptables -t nat -A POSTROUTING -s ${PHD_VAR_network_internal}.0/24 -o ext0 -j SNAT --to-source ${ext_ip}
-service iptables save
-chkconfig iptables on
-service iptables start
+echo "iptables -t nat -A POSTROUTING -s ${PHD_VAR_network_internal}.0/24 -o ext0 -j SNAT --to-source ${ext_ip}" >> /etc/rc.local
+....
 
+target=$PHD_ENV_nodes1
+....
 yum install -y haproxy
-chkconfig haproxy on
+
+ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
+echo "ext: $ext_ip"
+
 cat <<-EOF > /etc/haproxy/haproxy.cfg 
 global
     daemon
@@ -88,7 +99,9 @@ backend vip-nova-int
     balance roundrobin
     server vip-nova ${PHD_VAR_network_internal}.210:6080 check inter 10s
 EOF
-service haproxy start
+
+systemctl enable haproxy
+systemctl start haproxy
 ....
 
 target=$PHD_ENV_nodes1
@@ -198,8 +211,8 @@ done
 chown root:named /etc/named -R
 chmod 750 /etc/named
 chmod 640 /etc/named/*
-chkconfig named on
-service named start
+systemctl enable named
+systemctl start named
 ....
 
 target=$PHD_ENV_nodes1
@@ -245,17 +258,11 @@ EOF
     sequence=$((sequence + 1))
 done
 
-chkconfig dhcpd on
-service dhcpd start
-....
+systemctl enable dhcpd
+systemctl start dhcpd
 
-target=all
-....
-ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
-
-# Turn off auto-generation of resolv.conf so we can override it 
-echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
-echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
-echo nameserver ${ext_ip} >> /etc/resolv.conf
-ifdown ext0 && ifup ext0
+# restore resolve.conf now that we can use it
+rm -f /etc/resolv.conf
+cp /etc/resolv.conf.new /etc/resolv.conf
+rm -f /etc/resolv.conf.new
 ....
