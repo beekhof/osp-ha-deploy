@@ -40,6 +40,7 @@ PHD_VAR_deployment
 PHD_VAR_network_internal
 PHD_VAR_network_nic_base
 PHD_VAR_rpm_download
+PHD_VAR_secrets_fence_xvm
 PHD_VAR_osp_configdir
 PHD_VAR_osp_major
 PHD_VAR_rpm_major
@@ -106,20 +107,11 @@ backends {
 }
 EOF
 
-if [ ! -e $PHD_VAR_osp_configdir/fence_xvm.key ]; then
-    echo $(openssl rand -hex 10) > $PHD_VAR_osp_configdir/fence_xvm.key
-fi
+mkdir -p /etc/cluster/
+echo ${PHD_VAR_secrets_fence_xvm} > /etc/cluster/fence_xvm.key
 
-mkdir /etc/cluster/
-cp $PHD_VAR_osp_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
-
-# XXX remember to file a bug
-chkconfig --add fence_virtd
-chkconfig  fence_virtd on
-service fence_virtd start
-
-chkconfig libvirtd on
-service libvirtd start
+systemctl enable fence_virtd
+systemctl start fence_virtd
 ....
 
 
@@ -299,6 +291,8 @@ sleep 1200
 
 target=all
 ....
+
+yum install -y rsync
 
 if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{print $1}') ]; then
     : Everyone except the first node needs to run the commands below
