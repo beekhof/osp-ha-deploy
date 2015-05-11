@@ -146,7 +146,7 @@ done
 if grep -q ip_forward /etc/sysctl.conf; then
     sed -i -e 's#ip_forward.*#ip_forward = 1#g' /etc/sysctl.conf
 else
-   echo "ip_forward = 1" >> /etc/sysctl.conf
+   echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 fi
 
 echo "echo 1 > /sys/class/net/ext0/bridge/multicast_querier" >> /etc/rc.d/rc.local
