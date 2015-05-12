@@ -36,6 +36,8 @@ nodes: 1
 ######################
 = SCRIPTS =
 
+# hack to set hostnames till we figure out why it doesn't work
+# from kickstart anymore
 target=local
 ....
 for node in $(echo $PHD_ENV_nodes); do
@@ -47,45 +49,9 @@ done
 target=all
 ....
 
-# Hack to get pre-release kilo
-yum install -y https://repos.fedorapeople.org/repos/openstack/openstack-kilo/rdo-release-kilo-0.noarch.rpm http://ftp-stud.hs-esslingen.de/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-release-latest.noarch.rpm
 
-cat > /etc/yum.repos.d/deloran.repo << EOF
-[delorean-kilo]
-name=delorean-kilo-openstack-glance-93b0d5fce3a41e4a3a549f98f78b6681cbc3ea95
-baseurl=https://repos.fedorapeople.org/repos/openstack/openstack-trunk/epel-7/rc2
-enabled=1
-gpgcheck=0
-priority=1
-EOF
-
-cat > /etc/yum.repos.d/rhel-7-server-extras-rpms.repo << EOF
-[rhel-7-server-extras-rpms]
-name = Red Hat Enterprise Linux 7 Server - Extras (RPMs)
-baseurl =   http://download.lab.bos.redhat.com/composes/nightly/latest-EXTRAS-7-RHEL-7/compose/Server/x86_64/os/
-enabled = 1
-gpgcheck = 0
-EOF
-
-cat > /etc/yum.repos.d/redhat-7.1.repo << EOF
-[redhat-7.1]
-name=redhat-7.1
-baseurl=http://download.devel.redhat.com/rel-eng/latest-RHEL-7/compose/Server/x86_64/os/
-gpgcheck=0
-enabled=1
-[redhat-ha]
-name=redhat-7.1-ha
-baseurl=http://download.devel.redhat.com/rel-eng/latest-RHEL-7/compose/Server/x86_64/os/addons/HighAvailability/
-gpgcheck=0
-enabled=1
-[redhat-z]
-name=redhat-7.1-z
-baseurl=http://download.devel.redhat.com/brewroot/repos/rhel-7.1-z-build/latest/x86_64
-gpgcheck=0
-enabled=1
-EOF
-
-rm -f /etc/yum.repos.d/osp-7.repo
+rhos-release 7
 
 yum update -y
 
