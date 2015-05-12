@@ -197,3 +197,4 @@ target=all
 lvremove -f /dev/mapper/*home
 lvresize -f -l+100%FREE /dev/mapper/*root
 xfs_growfs /dev/mapper/*-root
+....
