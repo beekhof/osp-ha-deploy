@@ -154,6 +154,8 @@ grep
 gawk
 bind-utils
 vi
+net-tools
+tcpdump
 %end
 
 %post
@@ -194,6 +196,13 @@ BOOTPROTO=dhcp
 TYPE=Ethernet
 EOT
 
+mkdir /root/.ssh
+cat <<__EOT__ >> /root/.ssh/authorized_keys
+ssh-rsa ${PHD_VAR_vm_key} admin
+__EOT__
+
+chmod 600 /root/.ssh/authorized_keys
+
 # Prevent DHCPNAK by removing stale leases
 # Occurs if we clone the guest and change NICs
 rm -f /var/lib/NetworkManager/dhclient-*.lease
@@ -204,39 +213,6 @@ rm -f /var/lib/NetworkManager/dhclient-*.lease
 #
 # May  5 11:04:15 localhost NetworkManager[676]: <info>  Setting system hostname to 'rdo7-node1.vmnet.mpc.lab.eng.bos.redhat.com' (from address lookup)
 hostnamectl set-hostname localhost.localdomain
-
-cat > /etc/yum.repos.d/redhat-${distro}.repo << EOT
-[redhat-${distro}]
-name=redhat-${distro}
-baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_base}
-gpgcheck=0
-enabled=1
-[redhat-ha]
-name=redhat-${distro}-ha
-baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_cluster}
-gpgcheck=0
-enabled=1
-[redhat-z]
-name=redhat-${distro}-z
-baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_updates}
-gpgcheck=0
-enabled=1
-EOT
-
-cat > /etc/yum.repos.d/osp-${PHD_VAR_osp_major}.repo << EOT
-[OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle]
-name=OpenStack-${PHD_VAR_osp_major}-redhat-${PHD_VAR_rpm_major}-Puddle
-baseurl=http://${PHD_VAR_osp_download}/${PHD_VAR_osp_base}
-gpgcheck=0
-enabled=1
-EOT
-
-mkdir /root/.ssh
-cat <<__EOT__ >> /root/.ssh/authorized_keys
-ssh-rsa ${PHD_VAR_vm_key} admin
-__EOT__
-
-chmod 600 /root/.ssh/authorized_keys
 
 %end
 EOF
