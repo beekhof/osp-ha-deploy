@@ -53,35 +53,16 @@ nodes: 9
 target=all
 ....
 
-distro=$(cat /etc/redhat-release | sed s/.*release\ // | awk '{print $1}')
-distro_major=$(cat /etc/redhat-release | sed s/.*release\ // | awk -F. '{print $1}')
-echo "Installing repos for $distro"
+yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-release-latest.noarch.rpm
 
-cat > /etc/yum.repos.d/redhat-${distro}.repo << EOF
-[redhat-${distro}]
-name=redhat-${distro}
-baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_base}
-gpgcheck=0
-enabled=1
-[redhat-ha]
-name=redhat-${distro}-ha
-baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_cluster}
-gpgcheck=0
-enabled=1
-[redhat-z]
-name=redhat-${distro}-z
-baseurl=http://${PHD_VAR_rpm_download}/${PHD_VAR_rpm_updates}
-gpgcheck=0
-enabled=1
-EOF
+rhos-release 7
 
 yum clean all
 yum update -y
 yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump
+
 sed -i -e 's/=enforcing/=disabled/g' /etc/sysconfig/selinux
 sed -i -e 's/=enforcing/=disabled/g' /etc/selinux/config
-
-[ -f /etc/cron.d/rhn-virtualization.cron ] && sed -i -e 's/^0/#0/g' /etc/cron.d/rhn-virtualization.cron
 
 systemctl disable firewalld
 
