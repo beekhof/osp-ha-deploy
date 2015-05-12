@@ -36,6 +36,14 @@ nodes: 1
 ######################
 = SCRIPTS =
 
+target=local
+....
+for node in $(echo $PHD_ENV_nodes); do
+    phd_cmd_exec "hostnamectl set-hostname $node" "$node"
+    phd_cmd_exec "hostname" "$node"
+done
+....
+
 target=all
 ....
 
