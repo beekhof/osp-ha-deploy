@@ -156,6 +156,7 @@ bind-utils
 vi
 net-tools
 tcpdump
+wget
 %end
 
 %post
