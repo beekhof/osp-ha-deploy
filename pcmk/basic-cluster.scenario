@@ -105,12 +105,9 @@ fi
 target=all
 ....
 # Set up the authkey
-if [ ! -e $PHD_VAR_osp_configdir/fence_xvm.key ]; then
-    echo $(openssl rand -hex 10) > $PHD_VAR_osp_configdir/fence_xvm.key
-fi
-
 mkdir -p /etc/cluster
-cp $PHD_VAR_osp_configdir/fence_xvm.key /etc/cluster/fence_xvm.key
+echo ${PHD_VAR_secrets_fence_xvm} > /etc/cluster/fence_xvm.key
+
 ....
 
 target=$PHD_ENV_nodes1
