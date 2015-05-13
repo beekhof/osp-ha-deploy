@@ -24,8 +24,8 @@ variables["network_domain"]="lab.bos.redhat.com"
 variables["deployment"]="collapsed"
 variables["status"]=0
 variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
-variables["scenarios-segregated"]="baremetal gateway virt-hosts hacks lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
-variables["scenarios-collapsed"]="baremetal gateway virt-hosts hacks basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-common swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
+variables["scenarios-segregated"]="beaker baremetal gateway virt-hosts hacks lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
+variables["scenarios-collapsed"]="beaker baremetal gateway virt-hosts hacks basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-common swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
 
 function create_phd_definition() {
     scenario=$1
@@ -72,6 +72,7 @@ while true ; do
 	    nodeMap["gateway"]="mrg-01"
 	    nodeMap["virt-hosts"]="mrg-01 mrg-02 mrg-03 mrg-04"
 	    nodeMap["compute-common"]="mrg-07 mrg-08 mrg-09"
+	    nodeMap["compute-cluster"]="mrg-07 mrg-08 mrg-09"
 	    nodeMap["compute-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet mrg-07 mrg-08 mrg-09"
 	    shift;;
 	-x) set -x ; shift;;
