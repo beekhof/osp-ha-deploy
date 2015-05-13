@@ -103,7 +103,7 @@ pcs constraint order start ceilometer-alarm-notifier-clone then ceilometer-notif
 pcs constraint colocation add ceilometer-notification-clone with ceilometer-alarm-notifier-clone
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    pcs constraint order start mongodb-clone then ceilometer-central
-    pcs constraint order start keystone-clone then ceilometer-central
+    pcs constraint order start mongodb-clone then ceilometer-central-clone
+    pcs constraint order start keystone-clone then ceilometer-central-clone
 fi
 ....
