@@ -53,6 +53,7 @@ function create_phd_definition() {
     cat ${definition}
 }
 
+generate=0
 scenarios=""
 
 while true ; do
@@ -64,6 +65,7 @@ while true ; do
 	-c|--collapsed)  variables["deployment"]="collapsed";  shift;;
 	-s|--segregated) variables["deployment"]="segregated"; shift;;
 	-S|--status)     variables["status"]=1; shift;;
+	-g|--generate)   generate=1; shift;;
 	--mrg)
 	    variables["network_domain"]="mpc.lab.eng.bos.redhat.com"
 	    variables["config"]="mrg";
@@ -106,6 +108,19 @@ if [ "x${scenarios}" = x ]; then
     scenarios=${variables[${deploy}]}
 fi
 
+function run_phd() {
+    
+    if [ ${generate} = 1 ]; then
+	scripts=$(phd_exec -s ./pcmk/${1}.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/${variables["config"]}.variables -p | grep PHD_SCPT | sort | awk -F= '{print $2}')
+	for script in $scripts; do
+	    echo "#### $script"
+	    more "$script"
+	done
+    else
+	phd_exec -s ./pcmk/${1}.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/${variables["config"]}.variables
+    fi
+}
+
 for scenario in $scenarios; do
     if [ ${variables["deployment"]} = "collapsed" ]; then
 	case $scenario in 
@@ -126,9 +141,9 @@ for scenario in $scenarios; do
     elif [ ${variables["deployment"]} != "collapsed" ]; then
 	: prep a new cluster for ${scenario}
 	echo "$(date) :: Initializing cluster for scenario $scenario"
-	phd_exec -s ./pcmk/basic-cluster.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/${variables["config"]}.variables
+	run_phd basic-cluster
     fi
 
     echo "$(date) :: Beginning scenario $scenario"
-    phd_exec -s ./pcmk/${scenario}.scenario -d ${HOME}/phd.${scenario}.conf -V ./pcmk/${variables["config"]}.variables
+    run_phd ${scenario}
 done
