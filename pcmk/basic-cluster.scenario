@@ -76,14 +76,8 @@ systemctl ntpd start
 
 # set a password for hacluster user. password should be the same on all nodes
 echo ${PHD_VAR_env_password} | passwd --stdin hacluster
-....
 
 
-
-
-
-target=all
-....
 # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
 # prevents NFS mounts from succeeding by default prior to a reboot
 
@@ -100,10 +94,7 @@ else
     echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
     mount /srv
 fi
-....
 
-target=all
-....
 # Set up the authkey
 mkdir -p /etc/cluster
 echo ${PHD_VAR_secrets_fence_xvm} > /etc/cluster/fence_xvm.key
@@ -126,10 +117,7 @@ pcs cluster auth $short_nodes -u hacluster -p ${PHD_VAR_env_password} --force
 pcs cluster setup --force --name $(echo $PHD_ENV_nodes1 | sed -e s/[0-9]//g -e s/\\..*//g )  ${short_nodes}
 pcs cluster enable --all
 pcs cluster start --all
-....
 
-target=$PHD_ENV_nodes1
-....
 # Assumes bare metal nodes are:
 # - named with a trailing offset
 # - numbered sequentially

@@ -49,10 +49,7 @@ if [ -z $(pidof pacemakerd) ]; then
 
     yum install -y pacemaker-remote resource-agents pcs nfs-utils
 fi
-....
 
-target=all
-....
 # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
 # prevents NFS mounts from succeeding by default prior to a reboot
 
@@ -69,10 +66,7 @@ else
     echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
     mount /srv
 fi
-....
 
-target=all
-....
 if [ ! -e $PHD_VAR_osp_configdir/pcmk-authkey ]; then
    dd if=/dev/urandom of=$PHD_VAR_osp_configdir/pcmk-authkey bs=4096 count=1
 fi
@@ -178,6 +172,9 @@ pcs --force stonith create fence-nova fence_compute domain=${PHD_VAR_network_dom
 # we need nova operational for fencing to work
 pcs constraint order start nova-conductor-clone then fence-nova
 
+#pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;" --force
+pcs stonith create fence-compute fence_apc_snmp ipaddr=apc-ap7941-l2h3.mgmt.lab.eng.bos.redhat.com pcmk_host_map="mrg-07:10;mrg-08:12;mrg-09:14"
+
 for node in ${PHD_ENV_nodes}; do
     found=0
     short_node=$(echo ${node} | sed s/\\..*//g)
@@ -208,8 +205,6 @@ for node in ${PHD_ENV_nodes}; do
     fi
 done
 
-pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;"
-#pcs stonith create fence-compute fence_apc_snmp ipaddr=apc-ap7941-l2h3.mgmt.lab.eng.bos.redhat.com pcmk_host_map="mrg-07:10;mrg-08:12;mrg-09:14"
 
 pcs resource enable keystone
 pcs resource enable neutron-openvswitch-agent-compute

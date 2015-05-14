@@ -41,11 +41,6 @@ target=all
 ....
 yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached wget openstack-neutron
 
-....
-
-target=all
-....
-
 systemctl disable firewalld
 systemctl stop firewalld
  

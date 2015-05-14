@@ -42,10 +42,7 @@ nodes: 1
 target=all
 ....
 yum install -y openstack-keystone openstack-utils 
-....
 
-target=all
-....
 mkdir -p $PHD_VAR_osp_configdir
 if [ ! -e $PHD_VAR_osp_configdir/ks_admin_token ]; then
    openssl rand -hex 10 > $PHD_VAR_osp_configdir/ks_admin_token
@@ -114,11 +111,7 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     pcs constraint order start rabbitmq-server-clone then keystone-clone
     pcs constraint order start memcached-clone then keystone-clone
 fi
-....
 
-
-target=$PHD_ENV_nodes1
-....
 export SERVICE_TOKEN=$(cat ${PHD_VAR_osp_configdir}/ks_admin_token)
 export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
 

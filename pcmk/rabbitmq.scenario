@@ -53,16 +53,12 @@ EOF
 # required to generate the cookies
 systemctl start rabbitmq-server
 systemctl stop rabbitmq-server
-....
 
-target=$PHD_ENV_nodes1
-....
 mkdir -p $PHD_VAR_osp_configdir
-cp /var/lib/rabbitmq/.erlang.cookie $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie
-....
+if [ ! -e $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie ]; then
+    cp /var/lib/rabbitmq/.erlang.cookie $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie
+fi
 
-target=all
-....
 # the cookie has to be the same across all nodes. Copy around as preferred, I am 
 # using my NFS commodity storage. Also check for file permission/ownership. I 
 # workaround that step by using 'cat' vs cp.

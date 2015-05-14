@@ -138,10 +138,7 @@ if [ $PHD_VAR_deployment = collapsed ]; then
    # Now we can re-enable the proxy
    pcs resource enable lb-haproxy
 fi
-....
 
-target=$PHD_ENV_nodes1
-....
 # wait for galera to start and become promoted
 loop=0; while ! clustercheck > /dev/null 2>&1 && [ "$loop" -lt 60 ]; do
 	echo waiting galera to be promoted

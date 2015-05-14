@@ -52,26 +52,17 @@ rm -f /etc/resolv.conf.new
 cp /etc/resolv.conf /etc/resolv.conf.new
 rm -f /etc/resolv.conf
 cp /etc/resolv.conf.backup /etc/resolv.conf
-....
 
-target=$PHD_ENV_nodes1
-....
 yum install -y nfs-utils
 echo "/srv ${PHD_VAR_network_internal}.0/255.255.255.0(rw,sync,no_root_squash,subtree_check,fsid=10)" > /etc/exports
 systemctl enable nfs-server
 systemctl start nfs-server
-....
 
-target=$PHD_ENV_nodes1
-....
 ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
 echo "ext: $ext_ip"
 iptables -t nat -A POSTROUTING -s ${PHD_VAR_network_internal}.0/24 -o ext0 -j SNAT --to-source ${ext_ip}
 echo "iptables -t nat -A POSTROUTING -s ${PHD_VAR_network_internal}.0/24 -o ext0 -j SNAT --to-source ${ext_ip}" >> /etc/rc.local
-....
 
-target=$PHD_ENV_nodes1
-....
 yum install -y haproxy
 
 ext_ip=$(host $PHD_ENV_nodes1 | awk '{print $4}')
@@ -102,10 +93,7 @@ EOF
 
 systemctl enable haproxy
 systemctl start haproxy
-....
 
-target=$PHD_ENV_nodes1
-....
 yum install -y bind
 sed -i -e 's#127.0.0.1#any#g' -e 's#::1#any#g' -e 's#allow-query#//allow-query#g' /etc/named.conf 
 sed -i -e 's#dnssec-enable yes;#dnssec-enable no;#g' -e 's#dnssec-validation yes;#dnssec-validation no;#g' /etc/named.conf 
@@ -213,10 +201,7 @@ chmod 750 /etc/named
 chmod 640 /etc/named/*
 systemctl enable named
 systemctl start named
-....
 
-target=$PHD_ENV_nodes1
-....
 yum install -y dhcp
 
 echo "DHCDPARGS=vmnet0" > /etc/sysconfig/dhcpd

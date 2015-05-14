@@ -37,10 +37,7 @@ PHD_VAR_deployment
 target=all
 ....
 yum install -y openstack-swift-object openstack-swift-container openstack-swift-account openstack-utils rsync xfsprogs
-....
 
-target=all
-....
 # If you have a dedicated device, format it here and have the cluster mount it as per 'swift-fs' below
 # We don't, but swift wants a different partition than /, so we'll create a loopback file and mount that for 'swift-fs'
 
@@ -71,10 +68,7 @@ openstack-config --set /etc/swift/account-server.conf DEFAULT mount_check false
 openstack-config --set /etc/swift/container-server.conf DEFAULT mount_check false
 
 chown -R root:swift /etc/swift
-....
 
-target=all
-....
 pcs resource show swift-fs > /dev/null 2>&1
 if [ $? != 0 ]; then
 

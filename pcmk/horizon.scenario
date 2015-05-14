@@ -43,15 +43,11 @@ nodes: 1
 target=all
 ....
 yum install -y mod_wsgi httpd mod_ssl openstack-dashboard
-....
 
-target=$PHD_ENV_nodes1
-....
-openssl rand -hex 10 > ${PHD_VAR_osp_configdir}/horizon_key
-....
+if [ ! -e ${PHD_VAR_osp_configdir}/horizon_key ]; then
+    openssl rand -hex 10 > ${PHD_VAR_osp_configdir}/horizon_key
+fi
 
-target=all
-....
 # NOTE this is a rather scary sed and replace operation to configure horizon
 #             in one shot, scriptable way.
 #             Keypoints:

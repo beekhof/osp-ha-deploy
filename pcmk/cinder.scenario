@@ -42,10 +42,7 @@ nodes: 1
 target=all
 ....
 yum install -y openstack-cinder openstack-utils python-memcached python-keystonemiddleware
-....
 
-target=all
-....
 openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:cindertest@vip-db/cinder
 openstack-config --set /etc/cinder/cinder.conf database max_retries -1
 

@@ -51,10 +51,7 @@ target=all
 #              neutron-server requires neutron-agents and viceversa
 
 yum install -y openstack-neutron openstack-neutron-openvswitch openstack-neutron-ml2 
-....
 
-target=all
-....
 openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone

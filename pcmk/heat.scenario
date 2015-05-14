@@ -37,10 +37,7 @@ PHD_VAR_deployment
 target=all
 ....
 yum install -y openstack-heat-engine openstack-heat-api openstack-heat-api-cfn openstack-heat-api-cloudwatch python-heatclient openstack-utils python-glanceclient
-....
 
-target=all
-....
 openstack-config --set /etc/heat/heat.conf database connection mysql://heat:heattest@vip-db/heat
 openstack-config --set /etc/heat/heat.conf database database max_retries -1
 
@@ -77,10 +74,7 @@ openstack-config --set /etc/heat/heat.conf DEFAULT enable_cloud_watch_lite false
 target=$PHD_ENV_nodes1
 ....
 su heat -s /bin/sh -c "heat-manage db_sync"
-....
 
-target=$PHD_ENV_nodes1
-....
 pcs resource create heat-api systemd:openstack-heat-api --clone interleave=true
 pcs resource create heat-api-cfn systemd:openstack-heat-api-cfn  --clone interleave=true
 pcs resource create heat-api-cloudwatch systemd:openstack-heat-api-cloudwatch --clone interleave=true

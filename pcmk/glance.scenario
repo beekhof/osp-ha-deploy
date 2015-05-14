@@ -43,10 +43,7 @@ nodes: 1
 target=all
 ....
 yum install -y openstack-glance openstack-utils
-....
 
-target=all
-....
 # Configure the API service
 
 openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:glancetest@vip-db/glance

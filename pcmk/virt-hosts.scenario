@@ -78,10 +78,7 @@ else
     echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
 fi  
 mount -a
-....
 
-target=all
-....
 # Not required on the gateway, but wont hurt either
 
 yum install -y fence-virtd fence-virtd-multicast fence-virtd-libvirt
@@ -302,10 +299,6 @@ if [ ! -e /localvms/${PHD_VAR_vm_base} ]; then
     # This takes a loooong time, skip it if we already have an image
     rsync -avz --progress ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base} /localvms/
 fi
-....
-
-target=all
-....
 
 if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{print $1}') ]; then
     : Everyone except the first node needs to run the commands below

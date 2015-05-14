@@ -40,10 +40,7 @@ nodes: 1
 target=all
 ....
 yum install -y openstack-neutron openstack-neutron-openvswitch openvswitch
-....
 
-target=all
-....
 systemctl enable openvswitch
 systemctl start openvswitch
 

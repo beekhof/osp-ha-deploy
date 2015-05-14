@@ -37,10 +37,6 @@ PHD_VAR_deployment
 target=all
 ....
 yum install -y openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient redis
-....
-
-target=all
-....
 
 # have redis listen on all IPs
 sed -i "s/\s*bind \(.*\)$/#bind \1/" /etc/redis.conf
