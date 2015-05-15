@@ -275,28 +275,28 @@ statefile="${HA_RSCTMP}/nova-compute"
 nova_options=""
 
 if [ -z "${OCF_RESKEY_auth_url}" ]; then
-    OCF_RESKEY_auth_url=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_auth_url)
+    OCF_RESKEY_auth_url=$(openstack-config --get /etc/nova/nova.conf neutron admin_auth_url)
 fi
 if [ ! -z "${OCF_RESKEY_auth_url}" ]; then
     nova_options="${nova_options} --os-auth-url ${OCF_RESKEY_auth_url}"
 fi
 
 if [ -z "${OCF_RESKEY_user_name}" ]; then
-    OCF_RESKEY_user_name=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_username)
+    OCF_RESKEY_user_name=$(openstack-config --get /etc/nova/nova.conf neutron admin_username)
 fi
 if [ ! -z "${OCF_RESKEY_user_name}" ]; then
     nova_options="${nova_options} --os-username ${OCF_RESKEY_user_name}"
 fi
 
 if [ -z "${OCF_RESKEY_password}" ]; then
-    OCF_RESKEY_password=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_password)
+    OCF_RESKEY_password=$(openstack-config --get /etc/nova/nova.conf neutron admin_password)
 fi
 if [ ! -z "${OCF_RESKEY_password}" ]; then
     nova_options="${nova_options} --os-password ${OCF_RESKEY_password}"
 fi
 
 if [ -z "${OCF_RESKEY_tenant_name}" ]; then
-    OCF_RESKEY_tenant_name=$(openstack-config --get /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name)
+    OCF_RESKEY_tenant_name=$(openstack-config --get /etc/nova/nova.conf neutron admin_tenant_name)
 fi
 if [ ! -z "${OCF_RESKEY_tenant_name}" ]; then
     nova_options="${nova_options} --os-tenant-name ${OCF_RESKEY_tenant_name}"
