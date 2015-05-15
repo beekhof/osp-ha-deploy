@@ -130,4 +130,13 @@ pcs cluster start --all
 pcs stonith create fence1 fence_xvm multicast_address=225.0.0.2
 pcs stonith create fence2 fence_xvm multicast_address=225.0.0.3
 pcs stonith create fence3 fence_xvm multicast_address=225.0.0.4
+
+# For clones this is not so important
+#
+# However we really don't wan't VIPs moving around as it can cause
+# fencing to fail (eg. if vip-db is stopped, then keystone won't
+# function and we can't confirm if nova recognized the compute node is
+# down)
+pcs resource defaults resource-stickiness=INFINITY
+
 ....
