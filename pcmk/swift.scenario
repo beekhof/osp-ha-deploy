@@ -86,6 +86,8 @@ openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host v
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken identity_uri http://vip-keystone:35357/
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_uri http://vip-keystone:5000/
 openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
 openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
