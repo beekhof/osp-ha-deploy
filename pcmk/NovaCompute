@@ -218,16 +218,10 @@ nova_stop() {
 	# Then stop
 	su nova -c "kill -TERM $pid" -s /bin/bash
 	
-	nova_monitor
-	rc=$
-	while [ $rc = $OCF_SUCCESS ]; do
-	    nova_monitor
-	    rc=$?
+	while [ "x$pid" != x ]; do
+	    sleep 1
+	    pid=`nova_pid`
 	done
-
-	if [ $rc != $OCF_NOT_RUNNING ]; then
-	    return $OCF_ERR_GENERIC
-	fi
     fi
 
     rm -f ${statefile}
