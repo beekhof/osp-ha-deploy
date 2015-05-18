@@ -132,7 +132,7 @@ target=$PHD_ENV_nodes1
 # (ie. no domains) and there can't be a trailing comma (hence the
 # extra weird sed command)
 node_list=$(echo $PHD_ENV_nodes | sed -e s/.vmnet.${PHD_VAR_network_domain}\ /,/g -e s/.vmnet.${PHD_VAR_network_domain}//)
-pcs resource create galera galera enable_creation=true wsrep_cluster_address="gcomm://${node_list}" meta master-max=3 ordered=true op promote timeout=300s on-fail=block --master
+pcs resource create galera galera enable_creation=true wsrep_cluster_address="gcomm://${node_list}" additional_parameters='--open-files-limit=16384' meta master-max=3 ordered=true op promote timeout=300s on-fail=block --master
 
 if [ $PHD_VAR_deployment = collapsed ]; then
    # Now we can re-enable the proxy
