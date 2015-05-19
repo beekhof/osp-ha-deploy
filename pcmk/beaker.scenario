@@ -56,7 +56,11 @@ done
 # wait at least 10 minutes for beaker to kick in, otherwise we ssh
 # straight into the machine before it's even rebooted
 sleep 600
+
+# disable set -e when calling phd_cmd_* because
+# phd doesn't manage all return codes properly
+set +e
 for node in $(echo $PHD_ENV_nodes); do
-    phd_wait_connection 2400 $node
+    phd_wait_connection 2400 $node || exit 1
 done
 ....
