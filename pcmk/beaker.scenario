@@ -57,6 +57,6 @@ done
 # straight into the machine before it's even rebooted
 sleep 600
 for node in $(echo $PHD_ENV_nodes); do
-    phd_wait_connection 1800 $node
+    phd_wait_connection 2400 $node
 done
 ....
