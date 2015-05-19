@@ -58,6 +58,5 @@ done
 sleep 600
 for node in $(echo $PHD_ENV_nodes); do
     phd_wait_connection 1800 $node
-    phd_cmd_exec "uptime" "$node"
 done
 ....
