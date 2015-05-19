@@ -66,6 +66,8 @@ while true ; do
 	-n|--node)  variables["nodes"]="${variables["nodes"]} $2";  shift; shift;;
 	-c|--collapsed)  variables["deployment"]="collapsed";  shift;;
 	-s|--segregated) variables["deployment"]="segregated"; shift;;
+	-f|--from)       fromscenario=$2; shift; shift;;
+	-t|--to)         toscenario=$2; shift; shift;;
 	-S|--status)     variables["status"]=1; shift;;
 	-g|--generate)   generate=1; shift;;
 	--mrg)
@@ -123,7 +125,21 @@ function run_phd() {
     fi
 }
 
+inscenario=0
+
 for scenario in $scenarios; do
+
+    if [ -n "$fromscenario" ]; then
+        echo "Will start processing from scenario: $fromscenario (current: $scenario)"
+	if [ "$fromscenario" = "${scenario}" ]; then
+		inscenario=1
+	fi
+	if [ "$inscenario" = 0 ]; then
+		echo "Skipping $scenario"
+		continue;
+	fi
+    fi
+
     if [ ${variables["deployment"]} = "collapsed" ]; then
 	case $scenario in 
 	    beaker|baremetal|gateway|virt-hosts|compute-common|compute-managed|compute-cluster)
@@ -148,4 +164,10 @@ for scenario in $scenarios; do
 
     echo "$(date) :: Beginning scenario $scenario"
     run_phd ${scenario}
+
+    if [ -n "$toscenario" ] && [ "$toscenario" = ${scenario} ]; then
+	echo "$(date) :: Reached $scenario. Stop processing"
+	break;
+    fi
+
 done
