@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 declare -A nodeMap
 declare -A variables
 declare -A cluster
