@@ -28,6 +28,10 @@ nodes: 1
 = VARIABLES =
 
 PHD_VAR_deployment
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_hosts_mongodb
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_internal
 
 ######################
 # Deployment Scripts #

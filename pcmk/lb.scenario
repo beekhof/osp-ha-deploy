@@ -30,6 +30,8 @@
 
 PHD_VAR_network_internal
 PHD_VAR_deployment
+PHD_VAR_components
+PHD_VAR_osp_major
 
 #################################
 # Scenario Requirements Section #

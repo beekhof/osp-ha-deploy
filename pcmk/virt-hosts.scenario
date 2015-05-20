@@ -50,6 +50,11 @@ PHD_VAR_vm_cpus
 PHD_VAR_vm_disk
 PHD_VAR_vm_key
 PHD_VAR_vm_ram
+PHD_VAR_components
+PHD_VAR_rpm_base
+PHD_VAR_rpm_cluster
+PHD_VAR_rpm_download
+PHD_VAR_rpm_updates
 
 #################################
 # Scenario Requirements Section #

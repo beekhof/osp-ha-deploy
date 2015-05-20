@@ -32,6 +32,9 @@
 = VARIABLES =
 
 PHD_VAR_env_password
+PHD_VAR_network_clock
+PHD_VAR_network_internal
+PHD_VAR_secrets_fence_xvm
 
 #################################
 # Scenario Requirements Section #
