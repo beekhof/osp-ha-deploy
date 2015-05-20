@@ -28,6 +28,8 @@ nodes: 3
 = VARIABLES =
 
 PHD_VAR_deployment
+PHD_VAR_secrets_swift_prefix
+PHD_VAR_secrets_swift_suffix
 
 ######################
 # Deployment Scripts #
@@ -53,6 +55,11 @@ umount /dev/loop0
 echo "losetup /dev/loop0 /local/swift.img" >> /etc/rc.d/rc.local 
 chmod a+x /etc/rc.d/rc.local 
 
+openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_prefix ${PHD_VAR_secrets_swift_prefix}
+openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix ${PHD_VAR_secrets_swift_suffix}
+openstack-config --set /etc/swift/swift.conf filter:ceilometer use egg:ceilometer#swift
+openstack-config --set /etc/swift/swift.conf pipeline:main pipeline "healthcheck cache authtoken keystoneauth proxy-server ceilometer"
+
 openstack-config --set /etc/swift/object-server.conf DEFAULT bind_ip 0.0.0.0
 openstack-config --set /etc/swift/object-server.conf DEFAULT devices /local/swiftstorage
 openstack-config --set /etc/swift/object-server.conf DEFAULT mount_check false
@@ -68,9 +75,11 @@ openstack-config --set /etc/swift/account-server.conf DEFAULT mount_check false
 openstack-config --set /etc/swift/container-server.conf DEFAULT mount_check false
 
 chown -R root:swift /etc/swift
+....
 
-pcs resource show swift-fs > /dev/null 2>&1
-if [ $? != 0 ]; then
+target=all
+....
+if ! pcs resource show swift-fs > /dev/null 2>&1; then
 
     # We must be either the first node to run, or configuring
     # single-node clusters for a segregated deployment
