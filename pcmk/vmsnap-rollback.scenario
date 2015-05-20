@@ -1,0 +1,136 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# We start with 3 (or more, up to 16) nodes running a minimal CentOS 6
+#
+# Tasks to be performed include:
+# - setting up the required repositories from which to download Openstack and the HA-Addon
+# - disabling firewalls and SElinux. This is a necessary evil until the proper policies can be written.
+# - creating network bridges for use by VMs hosting OpenStack services
+# - normalizing network interface names
+# - fixing multicast
+# - removing /home and making the root partition as large as possible to maximumize the amount of space available to openstack
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+PHD_ENV_snapshot_name
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+# get list of all VMs configured on a given host
+vmlist=$(virsh list --all --name)
+
+for vm in $vmlist; do
+	# if the requested snapshot doesn't exist, don't continue with
+	# disruptive actions
+	if [ ! -f /localvms/${vm}-${PHD_ENV_snapshot_name}.cow ]; then
+		echo "ERROR: Snapshot ${PHD_ENV_snapshot_name} does not exists"
+		exit 1
+	fi
+
+	current=$(virsh snapshot-current --name $vm)
+	if [ "$current" = ${PHD_ENV_snapshot_name} ]; then
+		echo "ERROR: We are already at snapshot: ${PHD_ENV_snapshot_name}"
+		exit 1
+	fi
+
+	# make sure that the we are rolling back to a snap
+	# that is parent of the current
+	snaplist=$(virsh snapshot-list --tree $vm | sed -e 's#.*|.*##g' -e 's#.*+- ##g')
+	for snap in $snaplist; do
+		if [ "$snap" = "${PHD_ENV_snapshot_name}" ]; then
+			# we found requested snap before current and we are good
+			echo "found snap ${PHD_ENV_snapshot_name}"
+			break;
+		fi
+		if [ "$snap" = "$current" ]; then
+			# current is before the requested snap, error
+			echo "ERROR: Requested snap ${PHD_ENV_snapshot_name} is not a parent of current $current snap"
+			exit 1
+		fi
+	done
+done
+
+....
+
+target=all
+....
+# to roll back we need to kill hard the VMs but we want to make
+# sure that the other nodes won't fence before we get to
+# revert properly
+systemctl stop fence_virtd
+
+vmlist=$(virsh list --all --name)
+for vm in $vmlist; do
+	rollback=""
+
+	virsh destroy $vm
+
+	snaplist=$(virsh snapshot-list --tree $vm | sed -e 's#.*|.*##g' -e 's#.*+- ##g')
+
+	# we need to proceed from the bottom of the list
+	for snap in $snaplist; do
+		rollback="$snap $rollback"
+	done
+
+	# kill all disks
+	for snap in $rollback; do
+		if [ "$snap" = "${PHD_ENV_snapshot_name}" ]; then
+			break;
+		fi
+		rm -f /localvms/${vm}-${snap}.cow
+	done
+
+	# drop all childs
+	virsh snapshot-delete --domain $vm ${PHD_ENV_snapshot_name} --metadata --children-only
+
+	virsh detach-disk $vm vda --config
+	virsh attach-disk $vm /localvms/$vm-${PHD_ENV_snapshot_name}.cow vda \
+		--sourcetype file --type disk \
+		--driver qemu --subdriver qcow2 \
+		--config
+
+done
+
+....
+
+target=all
+....
+
+systemctl start fence_virtd
+# get list of all VMs configured on a given host
+vmlist=$(virsh list --all --name)
+
+for vm in $vmlist; do
+	virsh start $vm
+done
+....

@@ -16,6 +16,7 @@ nodeMap["swift-aco"]="rdo7-swift-brick1.vmnet rdo7-swift-brick2.vmnet rdo7-swift
 nodeMap["compute-common"]="east-05 east-06 east-07"
 nodeMap["compute-cluster"]="east-05 east-06 east-07"
 nodeMap["compute-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet east-05 east-06 east-07"
+nodeMap["vmsnap"]="east-02 east-03 east-04"
 
 cluster["baremetal"]=0
 cluster["gateway"]=0
@@ -26,12 +27,13 @@ variables["network_domain"]="lab.bos.redhat.com"
 variables["deployment"]="collapsed"
 variables["status"]=0
 variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
-variables["scenarios-segregated"]="beaker baremetal gateway virt-hosts hacks lb galera rabbitmq memcached mongodb keystone glance cinder swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
-variables["scenarios-collapsed"]="beaker baremetal gateway virt-hosts hacks basic-cluster lb galera rabbitmq memcached mongodb keystone glance cinder swift-common swift-aco swift neutron-server neutron-agents nova ceilometer heat horizon compute-common compute-cluster"
+variables["scenarios-segregated"]="beaker baremetal gateway virt-hosts vmsnap-hacks hacks vmsnap-lb lb vmsnap-galera galera vmsnap-rabbitmq rabbitmq vmsnap-memcached memcached vmsnap-mongodb mongodb vmsnap-keystone keystone vmsnap-glance glance vmsnap-cinder cinder vmsnap-swift-aco swift-aco vmsnap-swift swift vmsnap-neutron-server neutron-server vmsnap-neutron-agents neutron-agents vmsnap-nova nova vmsnap-ceilometer ceilometer vmsnap-heat heat vmsnap-horizon horizon compute-common compute-cluster"
+variables["scenarios-collapsed"]="beaker baremetal gateway virt-hosts vmsnap-hacks hacks vmsnap-basic-cluster basic-cluster vmsnap-lb lb vmsnap-galera galera vmsnap-rabbitmq rabbitmq vmsnap-memcached memcached vmsnap-mongodb mongodb vmsnap-keystone keystone vmsnap-glance glance vmsnap-cinder cinder vmsnap-swift-common swift-common vmsnap-swift-aco swift-aco vmsnap-swift swift vmsnap-neutron-server neutron-server vmsnap-neutron-agents neutron-agents vmsnap-nova nova vmsnap-ceilometer ceilometer vmsnap-heat heat vmsnap-horizon horizon compute-common compute-cluster"
 
 function create_phd_definition() {
     scenario=$1
     definition=$2
+    snapshot_name=$3
     rm -f ${definition}
 
     nodes=${variables["nodes"]}
@@ -52,6 +54,9 @@ function create_phd_definition() {
     done
 
     echo "$nodelist" >> ${definition}
+    if [ -n "${snapshot_name}" ]; then
+       echo "snapshot_name=${snapshot_name}" >> ${definition}
+    fi
     cat ${definition}
 }
 
@@ -77,6 +82,7 @@ while true ; do
 	    nodeMap["baremetal"]="mrg-01 mrg-02 mrg-03 mrg-04 mrg-07 mrg-08 mrg-09"
 	    nodeMap["gateway"]="mrg-01"
 	    nodeMap["virt-hosts"]="mrg-01 mrg-02 mrg-03 mrg-04"
+	    nodeMap["vmsnap"]="mrg-02 mrg-03 mrg-04"
 	    nodeMap["compute-common"]="mrg-07 mrg-08 mrg-09"
 	    nodeMap["compute-cluster"]="mrg-07 mrg-08 mrg-09"
 	    nodeMap["compute-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet mrg-07 mrg-08 mrg-09"
@@ -141,7 +147,16 @@ for scenario in $scenarios; do
     fi
 
     if [ ${variables["deployment"]} = "collapsed" ]; then
-	case $scenario in 
+	case $scenario in
+	    vmsnap-rollback-*)
+		snapshot_name=$(echo $scenario | sed -e 's/vmsnap-rollback-//g')
+		scenario=vmsnap-rollback
+		nodeMap[$scenario]=${nodeMap[vmsnap]}
+		;;
+	    vmsnap-*)
+		snapshot_name=$(echo $scenario | sed -e 's/vmsnap-//g')
+		scenario=vmsnap
+		;;
 	    beaker|baremetal|gateway|virt-hosts|compute-common|compute-managed|compute-cluster)
 		;;
 	    *) 
@@ -151,7 +166,7 @@ for scenario in $scenarios; do
 	esac
     fi
 
-    create_phd_definition ${scenario} ${HOME}/phd.${scenario}.conf
+    create_phd_definition ${scenario} ${HOME}/phd.${scenario}.conf ${snapshot_name}
 
     if [ x${cluster[${scenario}]} = x0 ]; then
 	: no need to bootstrap a cluster

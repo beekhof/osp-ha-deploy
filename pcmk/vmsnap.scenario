@@ -1,0 +1,65 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# We start with 3 (or more, up to 16) nodes running a minimal CentOS 6
+#
+# Tasks to be performed include:
+# - setting up the required repositories from which to download Openstack and the HA-Addon
+# - disabling firewalls and SElinux. This is a necessary evil until the proper policies can be written.
+# - creating network bridges for use by VMs hosting OpenStack services
+# - normalizing network interface names
+# - fixing multicast
+# - removing /home and making the root partition as large as possible to maximumize the amount of space available to openstack
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+PHD_ENV_snapshot_name
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 3
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+# links to snapshot management:
+# https://kashyapc.fedorapeople.org/virt/infra.next-2015/Advanced-Snapshots-with-libvirt-and-QEMU.pdf
+# http://lists.openstack.org/pipermail/openstack-dev/2013-June/010212.html
+# https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html-single/Virtualization_Deployment_and_Administration_Guide/index.html#warning-live-snapshots
+
+target=all
+....
+# get list of all VMs configured on a given host
+vmlist=$(virsh list --all --name)
+
+# check if snapshot already exists, otherwise take the snapshot
+for vm in $vmlist; do
+	if [ -f /localvms/${vm}-${PHD_ENV_snapshot_name}.cow ]; then
+		echo "Snapshot ${PHD_ENV_snapshot_name} already exists"
+		exit 0
+	fi
+	virsh snapshot-create-as --domain $vm ${PHD_ENV_snapshot_name} --diskspec vda,file=/localvms/${vm}-${PHD_ENV_snapshot_name}.cow,snapshot=external --disk-only --atomic
+done
+....
