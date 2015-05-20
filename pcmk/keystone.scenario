@@ -116,11 +116,12 @@ fi
 export SERVICE_TOKEN=$(cat ${PHD_VAR_osp_configdir}/ks_admin_token)
 export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
 
+while ! keystone service-list; do
+    echo "Waiting for keystone to be active"
+    sleep 1
+done
+
 keystone service-create --name=keystone --type=identity --description="Keystone Identity Service"
-if [ $? != 0 ]; then
-    echo "Keystone service creation failed. Aborting"
-    exit 1
-fi
 
 keystone endpoint-create --service keystone --publicurl 'http://vip-keystone:5000/v2.0' --adminurl 'http://vip-keystone:35357/v2.0' --internalurl 'http://vip-keystone:5000/v2.0'
 
