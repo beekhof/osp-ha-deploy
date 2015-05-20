@@ -44,6 +44,8 @@ Configure backend
 
 For this setup, NFS will be used. Add the NFS mount to `/etc/fstab`, making sure it is mounted on `/var/lib/glance`. Be aware the last two columns in `fstab` need to be "0 0" on RHEL/CentOS 7, due to [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1120367).
 
+Also, note there is currently a known SELinux issue when using an NFS backend for Glance. See [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1219406) for a description and fix.
+
 On all nodes:
 
     chown glance:nobody /var/lib/glance
