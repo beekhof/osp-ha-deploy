@@ -59,7 +59,24 @@ rhos-release 7
 
 yum clean all
 yum update -y
-yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump
+yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump ntp ntpdate
+
+# The cluster shouldn't need NTP configured, but without it the
+# network goes bye-bye when using DHCP
+#
+# Must point to clock.redhat.com to work internally
+sed -i s/^server.*// /etc/ntp.conf
+echo "server $PHD_VAR_network_clock iburst" >> /etc/ntp.conf
+echo $PHD_VAR_network_clock > /etc/ntp/step-tickers
+
+#sync_to_hardware clock
+echo "SYNC_HWCLOCK=yes" >> /etc/sysconfig/ntpdate
+
+systemctl enable ntpdate
+systemctl start ntpdate
+
+systemctl enable ntpd
+systemctl start ntpd
 
 sed -i -e 's/=enforcing/=disabled/g' /etc/sysconfig/selinux
 sed -i -e 's/=enforcing/=disabled/g' /etc/selinux/config
@@ -156,10 +173,13 @@ echo nameserver ${PHD_VAR_network_internal}.1 >> /etc/resolv.conf
 target=local
 ....
 # Reboot each node and wait for it to return
+
+# disable set -e when calling phd_cmd_* because
+# phd doesn't manage all return codes properly
+set +e
 for node in $(echo $PHD_ENV_nodes); do
     phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
-    phd_wait_connection 600 $node
-    phd_cmd_exec "uptime" "$node"
+    phd_wait_connection 2400 $node || exit 1
 done
 ....
 

@@ -50,6 +50,12 @@ nodes: 1
 target=all
 ....
 
+yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-release-latest.noarch.rpm
+
+rhos-release 7
+
+yum update -y
+
 # install the packages
 yum install -y pcs pacemaker corosync fence-agents-all resource-agents nfs-utils ntp ntpdate
 
@@ -71,11 +77,11 @@ echo $PHD_VAR_network_clock > /etc/ntp/step-tickers
 #sync_to_hardware clock
 echo "SYNC_HWCLOCK=yes" >> /etc/sysconfig/ntpdate
 
-systemctl ntpdate enable
-systemctl ntpdate start
+systemctl enable ntpdate
+systemctl start ntpdate
 
-systemctl ntpd enable
-systemctl ntpd start
+systemctl enable ntpd
+systemctl start ntpd
 
 # set a password for hacluster user. password should be the same on all nodes
 echo ${PHD_VAR_env_password} | passwd --stdin hacluster

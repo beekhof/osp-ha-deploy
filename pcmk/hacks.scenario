@@ -45,14 +45,3 @@ for node in $(echo $PHD_ENV_nodes); do
     phd_cmd_exec "hostname" "$node"
 done
 ....
-
-target=all
-....
-
-yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-release-latest.noarch.rpm
-
-rhos-release 7
-
-yum update -y
-
-....

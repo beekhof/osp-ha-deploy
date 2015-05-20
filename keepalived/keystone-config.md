@@ -125,6 +125,8 @@ On nodes 2 and 3:
     tar xvfz /tmp/keystone_ssl.tgz 
     chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
     restorecon -Rv /etc/keystone/ssl
+    touch /var/log/keystone/keystone.log
+    chown keystone:keystone /var/log/keystone/keystone.log 
 
 Start services and open firewall ports
 --------------------------------------

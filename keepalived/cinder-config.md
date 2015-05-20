@@ -24,7 +24,7 @@ Configure
     openstack-config --set /etc/cinder/cinder.conf DEFAULT control_exchange cinder
     openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host controller-vip.example.com
     openstack-config --set /etc/cinder/cinder.conf DEFAULT memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
-    openstack-config --set /etc/cinder/cinder.conf DEFAULT host rhos6-cinder
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT host rhos7-cinder
     openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_listen 192.168.1.22X
     openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_ha_queues true

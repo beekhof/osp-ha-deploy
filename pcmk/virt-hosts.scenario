@@ -240,8 +240,8 @@ EOF
 
 
 yum install -y virt-install 
-virsh destroy rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base  &>/dev/null
-virsh undefine rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base &>/dev/null
+virsh destroy rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base  &>/dev/null || true
+virsh undefine rdo${PHD_VAR_osp_major}-rhel${PHD_VAR_rpm_major}-base &>/dev/null || true
 
 #Create the qcow2 disk image with preallocation and 'facllocate'(which pre-allocates all the blocks to a file) it for max. performance
 echo "Creating qcow2 disk image.."
@@ -289,7 +289,7 @@ sleep 1200
 target=all
 ....
 
-yum install -y rsync
+which rsync >/dev/null 2>&1 || yum install -y rsync
 
 if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{print $1}') ]; then
     : Everyone except the first node needs to run the commands below
@@ -297,17 +297,11 @@ if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{
 fi
 
 mkdir -p /localvms
-mkdir -p /allinone
 
 # cp /srv/vms/rhos4-base.img /localvms/
 if [ ! -e /localvms/${PHD_VAR_vm_base} ]; then
     # This takes a loooong time, skip it if we already have an image
     rsync -avz --progress ${PHD_VAR_osp_configdir}/${PHD_VAR_vm_base} /localvms/
-fi
-
-if [ $(hostname -s | awk -F. '{print $1}') = $(echo $PHD_ENV_nodes1 | awk -F. '{print $1}') ]; then
-    : Everyone except the first node needs to run the commands below
-    exit 0
 fi
 
 # The internal network must go first so that hostname can be set by
@@ -373,8 +367,8 @@ for section in ${PHD_VAR_components}; do
 
     sequence=$((sequence + 1))
 
-    virsh destroy  $target > /dev/null 2>&1
-    virsh undefine $target > /dev/null 2>&1
+    virsh destroy  $target > /dev/null 2>&1 || true
+    virsh undefine $target > /dev/null 2>&1 || true
 
     if [ $PHD_VAR_deployment = collapsed ]; then
         case $section in 
@@ -392,20 +386,15 @@ for section in ${PHD_VAR_components}; do
     sed -i.sed s#EXTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:00:${octet}#g ${target}.xml
     sed -i.sed s#INTERNAL_MAC#${PHD_VAR_network_nic_base}:0${lastoct}:01:${octet}#g ${target}.xml
     sed -i.sed s:source\ file.*\/:source\ file=\'/localvms/${target}.cow\'\/:g ${target}.xml
-    diff -u template.xml ${target}.xml
+    diff -u template.xml ${target}.xml || true
 
     rm -f /localvms/${target}.cow
     qemu-img create -b /localvms/${PHD_VAR_vm_base} -f qcow2 /localvms/${target}.cow
 
     virsh define ${target}.xml
-    if [ $? != 0 ]; then exit 1; fi
     virsh start ${target}
-    if [ $? != 0 ]; then exit 1; fi
 
-    rm ${target}.xml.sed ${target}.xml
+    rm -f ${target}.xml.sed ${target}.xml
 done
 
-#truncate --size=10G /localvms/rdo${PHD_VAR_osp_major}-swift-brick1_data.img
-#truncate --size=10G /allinone/rdo${PHD_VAR_osp_major}-node1_data.img
-#truncate --size=10G /allinone/rdo${PHD_VAR_osp_major}-mbayer1_data.img
 ....
