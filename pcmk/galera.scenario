@@ -146,9 +146,10 @@ loop=0; while ! clustercheck > /dev/null 2>&1 && [ "$loop" -lt 60 ]; do
 	sleep 5
 done
 
+# this one can fail depending on who bootstrapped the cluster
 for node in $PHD_ENV_nodes; do
-	mysql -e "DROP USER ''@'${node}';"
-	mysql -e "DROP USER 'root'@'${node}';"
+	mysql -e "DROP USER ''@'${node}';" || true
+	mysql -e "DROP USER 'root'@'${node}';" || true
 done
 
 galera_script=galera.setup
