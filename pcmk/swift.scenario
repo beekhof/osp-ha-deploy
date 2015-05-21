@@ -29,6 +29,8 @@ PHD_VAR_network_internal
 PHD_VAR_network_hosts_memcache
 PHD_VAR_osp_configdir
 PHD_VAR_osp_major
+PHD_VAR_secrets_swift_prefix
+PHD_VAR_secrets_swift_suffix
 
 #################################
 # Scenario Requirements Section #
@@ -85,6 +87,12 @@ cp /etc/swift/*.builder /etc/swift/*.gz $PHD_VAR_osp_configdir/swift/
 
 target=all
 ....
+
+openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_prefix ${PHD_VAR_secrets_swift_prefix}
+openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix ${PHD_VAR_secrets_swift_suffix}
+openstack-config --set /etc/swift/swift.conf filter:ceilometer use egg:ceilometer#swift
+openstack-config --set /etc/swift/swift.conf pipeline:main pipeline "healthcheck cache authtoken keystoneauth proxy-server ceilometer"
+
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host vip-keystone
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift

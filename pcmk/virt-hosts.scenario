@@ -368,7 +368,7 @@ for section in ${PHD_VAR_components}; do
     sequence=$((sequence + 1))
 
     virsh destroy  $target > /dev/null 2>&1 || true
-    virsh undefine $target > /dev/null 2>&1 || true
+    virsh undefine $target --snapshots-metadata > /dev/null 2>&1 || true
 
     if [ $PHD_VAR_deployment = collapsed ]; then
         case $section in 
@@ -388,7 +388,7 @@ for section in ${PHD_VAR_components}; do
     sed -i.sed s:source\ file.*\/:source\ file=\'/localvms/${target}.cow\'\/:g ${target}.xml
     diff -u template.xml ${target}.xml || true
 
-    rm -f /localvms/${target}.cow
+    rm -f /localvms/${target}.cow /localvms/${target}-*.cow
     qemu-img create -b /localvms/${PHD_VAR_vm_base} -f qcow2 /localvms/${target}.cow
 
     virsh define ${target}.xml
