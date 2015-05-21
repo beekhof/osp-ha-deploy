@@ -12,6 +12,7 @@ from fencing import fail_usage, is_executable, run_command, run_delay
 
 try:
     from novaclient import client as nova_client
+    from requests.exceptions import ConnectionError
 except ImportError:
     fail_usage("nova not found or not accessible")
 
@@ -206,6 +207,12 @@ def main():
                                   options["--password"],
                                   options["--tenant-name"],
                                   options["--auth-url"])
+
+        try:
+            nova.services.list(host=options["--plug"])
+        except requests.exceptions.ConnectionError as (err):
+            logging.warning("Nova connection failed: "+err.response)
+            sys.exit(0)
 
         if options["--action"] in ["off", "reboot"]:
                 # Pretend we're 'on' so that the fencing library will always call set_power_status(off)
