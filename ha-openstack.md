@@ -756,6 +756,10 @@ cluster on the guests intended to contain `heat`.
 After verifying the (collapsed or newly created) cluster is
 functional, you can then [deploy heat](pcmk/heat.scenario) into it.
 
+To verify the installation was successful, perform the following [test
+actions](pcmk/heat-test.sh) from one of the nodes. NOTE that heat test
+requires functional compute nodes.
+
 ### Horizon
 
 Horizon is the dashboard behind OpenStack that provides administrators
