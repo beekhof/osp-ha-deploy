@@ -37,6 +37,7 @@ Manage DB
 ---------
 
 On node 1:
+
     sahara-db-manage --config-file /etc/sahara/sahara.conf upgrade head
 
 
