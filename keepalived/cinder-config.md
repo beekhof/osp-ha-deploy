@@ -88,6 +88,7 @@ Test
 
 On any node:
 
+    . /root/keystonerc_demo
     cinder create --display-name test 1
     cinder extend test 4
     cinder delete test
