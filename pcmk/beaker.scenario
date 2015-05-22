@@ -51,11 +51,15 @@ target=local
 # Reboot each node and wait for it to return
 # REQUIRES kinit and we don't check for completition yet
 for node in $(echo $PHD_ENV_nodes); do
+    loop=0
     bkr system-provision --distro-tree ${PHD_VAR_beaker_disttree} $node
+    while [ "$(ping $node -c 3 -q | grep 'packets transmitted' | sed -e 's#.*transmitted, ##g' -e 's# received.*##g')" != 0 ] && \
+	  [ "$loop" -lt 180 ]; do
+	loop=$((loop + 1))
+	echo "Waiting for beaker to kick in ($loop)"
+	sleep 1
+    done
 done
-# wait at least 10 minutes for beaker to kick in, otherwise we ssh
-# straight into the machine before it's even rebooted
-sleep 600
 
 # disable set -e when calling phd_cmd_* because
 # phd doesn't manage all return codes properly
