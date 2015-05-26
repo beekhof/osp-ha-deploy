@@ -127,6 +127,9 @@ pcs cluster setup --force --name $(echo $PHD_ENV_nodes1 | sed -e s/[0-9]//g -e s
 pcs cluster enable --all
 pcs cluster start --all
 
+# Give the cluster a moment to come up
+sleep 5
+
 # Assumes bare metal nodes are:
 # - named with a trailing offset
 # - numbered sequentially
