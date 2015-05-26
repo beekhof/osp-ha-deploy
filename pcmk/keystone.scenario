@@ -26,6 +26,7 @@
 
 PHD_VAR_deployment
 PHD_VAR_osp_configdir
+PHD_VAR_secrets_keystone_secret
 PHD_VAR_network_internal
 PHD_VAR_network_hosts_rabbitmq
 
@@ -44,12 +45,9 @@ target=all
 ....
 yum install -y openstack-keystone openstack-utils 
 
-mkdir -p $PHD_VAR_osp_configdir
-if [ ! -e $PHD_VAR_osp_configdir/ks_admin_token ]; then
-   openssl rand -hex 10 > $PHD_VAR_osp_configdir/ks_admin_token
-fi
+mkdir -p ${PHD_VAR_osp_configdir}
 
-export SERVICE_TOKEN=$(cat $PHD_VAR_osp_configdir/ks_admin_token)
+export SERVICE_TOKEN=${PHD_VAR_secrets_keystone_secret}
 
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
@@ -82,10 +80,10 @@ openstack-config --set /etc/keystone/keystone.conf eventlet_server admin_bind_ho
 # workaround for buggy packaging (ayoung is informed)
 openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.persistence.backends.sql.Token
 
-if [ ! -e $PHD_VAR_osp_configdir/keystone_ssl.tar ]; then
+if [ ! -e ${PHD_VAR_osp_configdir}/keystone_ssl.tar ]; then
     keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
     cd /etc/keystone/ssl
-    tar cvp -f $PHD_VAR_osp_configdir/keystone_ssl.tar *
+    tar cvp -f ${PHD_VAR_osp_configdir}/keystone_ssl.tar *
 fi
 
 mkdir -p /etc/keystone/ssl
@@ -113,7 +111,7 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     pcs constraint order start memcached-clone then keystone-clone
 fi
 
-export SERVICE_TOKEN=$(cat ${PHD_VAR_osp_configdir}/ks_admin_token)
+export SERVICE_TOKEN=${PHD_VAR_secrets_keystone_secret}
 export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
 
 while ! keystone service-list; do
