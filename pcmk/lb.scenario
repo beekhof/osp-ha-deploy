@@ -166,12 +166,12 @@ backend qpid-vms
 
 backend db-vms-galera
     option httpchk
-    stick-table type ip size 2
+    stick-table type ip size 1000
     stick on dst
     timeout server 90s
-    server rdo${PHD_VAR_osp_major}-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-    server rdo${PHD_VAR_osp_major}-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-    server rdo${PHD_VAR_osp_major}-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+    server rdo${PHD_VAR_osp_major}-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
+    server rdo${PHD_VAR_osp_major}-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
+    server rdo${PHD_VAR_osp_major}-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
 
 backend rabbitmq-vms
     option srvtcpka
