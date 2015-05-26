@@ -255,3 +255,16 @@ if [ -e /etc/resolv.conf.new ]; then
     rm -f /etc/resolv.conf.new
 fi
 ....
+
+target=local
+....
+# Reboot each node and wait for it to return
+
+# disable set -e when calling phd_cmd_* because
+# phd doesn't manage all return codes properly
+set +e
+for node in $(echo $PHD_ENV_nodes); do
+     phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
+     phd_wait_connection 2400 $node || exit 1
+done
+....
