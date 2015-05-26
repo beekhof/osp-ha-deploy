@@ -82,6 +82,14 @@ Note that with Keystone V3 tenant names are only unique within a domain.
 <content type="string" default="" />
 </parameter>
 
+<parameter name="domain" unique="0">
+<longdesc lang="en">
+DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN
+</longdesc>
+<shortdesc lang="en">DNS domain</shortdesc>
+<content type="string" default="" />
+</parameter>
+
 <parameter name="extra" unique="0">
 <longdesc lang="en">
 Additional options to pass on the nova command line
@@ -93,8 +101,8 @@ Additional options to pass on the nova command line
 </parameters>
 
 <actions>
-<action name="start"        timeout="20" />
-<action name="stop"         timeout="20" />
+<action name="start"        timeout="120" />
+<action name="stop"         timeout="300" />
 <action name="monitor"      timeout="20" interval="10" depth="0"/>
 <action name="validate-all" timeout="20" />
 <action name="meta-data"    timeout="5" />
@@ -114,7 +122,7 @@ sigterm_handler() {
 
 nova_usage() {
 	cat <<END
-usage: $0 {start|stop|monitor|migrate_to|migrate_from|validate-all|meta-data}
+usage: $0 {start|stop|monitor|notify|validate-all|meta-data}
 
 Expects to have a fully populated OCF RA-compliant environment set.
 END
@@ -156,22 +164,14 @@ $7~/ing/ { incomplete = 1 }
 
 nova_start() {
     nova_monitor
-    if [ $? =  $OCF_SUCCESS ]; then
+    if [ $? = $OCF_SUCCESS ]; then
 	return $OCF_SUCCESS
     fi
 
-    while [ 1 = 1 ]; do
-	pending=`pending_migrations | wc -l`
-	if [ ${pending} = 0 ]; then
-	    break
-	fi
-	ocf_exit_reason "Waiting on ${pending} migrations"
-	sleep 2
-    done
-
     export LIBGUESTFS_ATTACH_METHOD=appliance
     su nova -s /bin/sh -c /usr/bin/nova-compute &
-    nova ${nova_options} service-enable ${NOVA_HOST} nova-compute
+
+    python -c "nova = novaclient.client.Client('2', os.environ.get('OCF_RESKEY_user_name'), os.environ.get('OCF_RESKEY_password'), os.environ.get('OCF_RESKEY_tenant_name'), os.environ.get('OCF_RESKEY_auth_url')); nova.services.enable(os.environ.get('NOVA_HOST'), 'nova-compute');"
 
     rc=$OCF_NOT_RUNNING
     ocf_exit_reason "Waiting for nova to start"
@@ -237,13 +237,11 @@ nova_monitor() {
     if [ "x$pid" != x ]; then
 	touch $statefile
 
-	state=$(nova ${nova_options} service-list --host ${NOVA_HOST} --binary nova-compute | grep ${NOVA_HOST} | awk -F\| '{print $7}' | tr -d ' ')
-	if [ -z "$state" ]; then
-	    ocf_exit_reason "nova service-list command failed"
-	    return $OCF_ERR_GENERIC
-	elif [ $state = "up" ]; then
+	state=$(fence_compute ${fence_options} -o status -n $NOVA_HOST | grep Status)
+	if [ "x$state" = "xStatus: ON" ]; then
 	    return $OCF_SUCCESS
 	else
+	    ocf_exit_reason "Nova status: $state"
 	    return $OCF_ERR_GENERIC
 	fi
 
@@ -254,25 +252,77 @@ nova_monitor() {
     return $OCF_NOT_RUNNING
 }
 
+nova_notify() {
+
+    if [ "x${OCF_RESKEY_CRM_meta_notify_operation}" != "xstop" ]; then
+	return $OCF_SUCCESS
+    elif [ "x${OCF_RESKEY_CRM_meta_notify_type}" != "xpost" ]; then
+	return $OCF_SUCCESS
+    fi
+
+    # Also repeat for any peer NOT in active_uname somehow?
+    for node in $OCF_RESKEY_CRM_meta_notify_notify_stop_uname; do
+	ocf_exit_reason "Waiting for nova to see $node as down"
+	while [ $(fence_compute ${fence_options} -o status -n $node | grep Status) != "Status: OFF" ];  do
+            # Loop forever if need be.
+            #
+            # Callers such as Pacemaker will have a timer
+            # running and kill us if necessary
+            sleep 1
+	done
+	
+	ocf_exit_reason "Performing evacuations for $node"
+	fence_compute ${fence_options} -o reboot -n $node
+    done
+}
+
 nova_validate() {
     rc=$OCF_SUCCESS
 
-#    if [ "x$OS_USERNAME" = x ]; then
-#        ocf_exit_reason "Nova username not configured in nova.conf"
-#	rc=$OCF_ERR_INSTALLED
-#    fi
+    if [ "x$OCF_RESKEY_auth_url" = x ]; then
+        ocf_exit_reason "Nova username not configured"
+	rc=$OCF_ERR_CONFIGURED
+    fi
+
+    if [ "x$OCF_RESKEY_user_name" = x ]; then
+        ocf_exit_reason "Nova username not configured"
+	rc=$OCF_ERR_CONFIGURED
+    fi
+
+    if [ "x$OCF_RESKEY_password" = x ]; then
+        ocf_exit_reason "Nova password not configured"
+	rc=$OCF_ERR_CONFIGURED
+    fi
+
+    if [ "x$OCF_RESKEY_tenant_name" = x ]; then
+        ocf_exit_reason "Nova tenant not configured"
+	rc=$OCF_ERR_CONFIGURED
+    fi
+
+    if [ "x${OCF_RESKEY_domain}" != x ]; then
+	if [ "x$NOVA_HOST" != "x$(hostname)" ]; then
+            ocf_exit_reason "Invalid Nova host name, must be $(hostname) in order for instance recovery to function"
+	    rc=$OCF_ERR_CONFIGURED
+	fi
+
+    elif [ "x$NOVA_HOST" != "x$(hostname -s)" ]; then
+        ocf_exit_reason "Invalid Nova host name, must be $(hostname -s) in order for instance recovery to function"
+	rc=$OCF_ERR_CONFIGURED
+    fi
 
     return $rc
 }
 
 statefile="${HA_RSCTMP}/nova-compute"
 nova_options=""
+fence_options=""
 
 if [ -z "${OCF_RESKEY_auth_url}" ]; then
     OCF_RESKEY_auth_url=$(openstack-config --get /etc/nova/nova.conf neutron admin_auth_url)
 fi
 if [ ! -z "${OCF_RESKEY_auth_url}" ]; then
     nova_options="${nova_options} --os-auth-url ${OCF_RESKEY_auth_url}"
+    fence_options="${fence_options} -k ${OCF_RESKEY_auth_url}"
 fi
 
 if [ -z "${OCF_RESKEY_user_name}" ]; then
@@ -280,6 +330,7 @@ if [ -z "${OCF_RESKEY_user_name}" ]; then
 fi
 if [ ! -z "${OCF_RESKEY_user_name}" ]; then
     nova_options="${nova_options} --os-username ${OCF_RESKEY_user_name}"
+    fence_options="${fence_options} -l ${OCF_RESKEY_user_name}"
 fi
 
 if [ -z "${OCF_RESKEY_password}" ]; then
@@ -287,6 +338,7 @@ if [ -z "${OCF_RESKEY_password}" ]; then
 fi
 if [ ! -z "${OCF_RESKEY_password}" ]; then
     nova_options="${nova_options} --os-password ${OCF_RESKEY_password}"
+    fence_options="${fence_options} -p ${OCF_RESKEY_password}"
 fi
 
 if [ -z "${OCF_RESKEY_tenant_name}" ]; then
@@ -294,6 +346,11 @@ if [ -z "${OCF_RESKEY_tenant_name}" ]; then
 fi
 if [ ! -z "${OCF_RESKEY_tenant_name}" ]; then
     nova_options="${nova_options} --os-tenant-name ${OCF_RESKEY_tenant_name}"
+    fence_options="${fence_options} -t ${OCF_RESKEY_tenant_name}"
+fi
+
+if [ ! -z "${OCF_RESKEY_domain}" ]; then
+    fence_options="${fence_options} -d ${OCF_RESKEY_domain}"
 fi
 
 if [ ! -z "${OCF_RESKEY_extra}" ]; then
@@ -302,7 +359,11 @@ fi
 
 NOVA_HOST=$(openstack-config --get /etc/nova/nova.conf DEFAULT host 2>/dev/null)
 if [ $? = 1 ]; then
-    NOVA_HOST=$(hostname)
+    if [ "x${OCF_RESKEY_domain}" != x ]; then
+	NOVA_HOST=$(hostname -s)
+    else
+	NOVA_HOST=$(hostname)
+    fi
 fi
 
 case $__OCF_ACTION in
@@ -312,6 +373,7 @@ meta-data)	meta_data
 start)		nova_validate; nova_start;;
 stop)		nova_stop;;
 monitor)	nova_monitor;;
+notify)		nova_notify;;
 validate-all)	nova_validate;;
 usage|help)	nova_usage
 		exit $OCF_SUCCESS
@@ -323,4 +385,3 @@ esac
 rc=$?
 ocf_log debug "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION : $rc"
 exit $rc
-

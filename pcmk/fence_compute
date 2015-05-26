@@ -201,6 +201,10 @@ def main():
 
         run_delay(options)
 
+        # Potentially we should make this a pacemaker feature
+        if options["--action"] != "list" and options["--domain"] != "" and options.has_key("--plug"):
+                options["--plug"] = options["--plug"]+"."+options["--domain"]
+        
         # The first argument is the Nova client version
         nova = nova_client.Client('2',
                                   options["--username"],
@@ -208,11 +212,12 @@ def main():
                                   options["--tenant-name"],
                                   options["--auth-url"])
 
-        try:
-            nova.services.list(host=options["--plug"])
-        except requests.exceptions.ConnectionError as (err):
-            logging.warning("Nova connection failed: "+err.response)
-            sys.exit(0)
+        if options["--action"] in ["on", "off", "reboot" ]:
+            try:
+                nova.services.list(host=options["--plug"])
+            except ConnectionError as (err):
+                logging.warning("Nova connection failed: "+str(err))
+                sys.exit(0)
 
         if options["--action"] in ["off", "reboot"]:
                 # Pretend we're 'on' so that the fencing library will always call set_power_status(off)
@@ -221,10 +226,6 @@ def main():
         if options["--action"] == "on":
                 # Pretend we're 'off' so that the fencing library will always call set_power_status(on)
                 override_status = "off"
-
-        # Potentially we should make this a pacemaker feature
-        if options["--action"] != "list" and options["--domain"] != "" and options.has_key("--plug"):
-                options["--plug"] = options["--plug"]+"."+options["--domain"]
 
         result = fence_action(None, options, set_power_status, get_power_status, get_plugs_list, None)
         sys.exit(result)

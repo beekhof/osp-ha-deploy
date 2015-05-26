@@ -39,7 +39,6 @@ PHD_VAR_network_nic_base
 #################################
 = REQUIREMENTS =
 nodes: 1
-packages=yum
 
 ######################
 # Deployment Scripts #
@@ -49,10 +48,12 @@ packages=yum
 target=$PHD_ENV_nodes1
 ....
 # temporary restore original resolv.conf
-rm -f /etc/resolv.conf.new
-cp /etc/resolv.conf /etc/resolv.conf.new
-rm -f /etc/resolv.conf
-cp /etc/resolv.conf.backup /etc/resolv.conf
+if [ -e /etc/resolv.conf.backup ]; then
+    rm -f /etc/resolv.conf.new
+    cp /etc/resolv.conf /etc/resolv.conf.new
+    rm -f /etc/resolv.conf
+    cp /etc/resolv.conf.backup /etc/resolv.conf
+fi
 
 yum install -y nfs-utils
 echo "/srv ${PHD_VAR_network_internal}.0/255.255.255.0(rw,sync,no_root_squash,subtree_check,fsid=10)" > /etc/exports
@@ -248,7 +249,9 @@ systemctl enable dhcpd
 systemctl start dhcpd
 
 # restore resolve.conf now that we can use it
-rm -f /etc/resolv.conf
-cp /etc/resolv.conf.new /etc/resolv.conf
-rm -f /etc/resolv.conf.new
+if [ -e /etc/resolv.conf.new ]; then
+    rm -f /etc/resolv.conf
+    cp /etc/resolv.conf.new /etc/resolv.conf
+    rm -f /etc/resolv.conf.new
+fi
 ....
