@@ -143,7 +143,7 @@ pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusi
 #
 # Depending on how your environment is set up, you may need to supply
 # these details as parameters to the nova-compute resource instead
-pcs resource create nova-compute ocf:openstack:NovaCompute --clone interleave=true --disabled --force
+pcs resource create nova-compute ocf:openstack:NovaCompute user_name=admin tenant_name=admin password=keystonetest --clone interleave=true --disabled --force
 pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
 pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
@@ -169,10 +169,6 @@ pcs constraint order start nova-conductor-clone then nova-compute-clone require-
 controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
 
 pcs --force stonith create fence-nova fence_compute domain=${PHD_VAR_network_domain} login=admin tenant-name=admin passwd=keystonetest auth-url=http://vip-keystone:35357/v2.0/
-
-# or something :)
-# we need nova operational for fencing to work
-pcs constraint order start nova-conductor-clone then fence-nova
 
 #pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;" --force
 pcs stonith create fence-compute fence_apc_snmp ipaddr=apc-ap7941-l2h3.mgmt.lab.eng.bos.redhat.com power_wait=10 pcmk_host_map="mrg-07:10;mrg-08:12;mrg-09:14"
