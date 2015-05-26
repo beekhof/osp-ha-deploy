@@ -82,6 +82,14 @@ Note that with Keystone V3 tenant names are only unique within a domain.
 <content type="string" default="" />
 </parameter>
 
+<parameter name="domain" unique="0">
+<longdesc lang="en">
+DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN
+</longdesc>
+<shortdesc lang="en">DNS domain</shortdesc>
+<content type="string" default="" />
+</parameter>
+
 <parameter name="extra" unique="0">
 <longdesc lang="en">
 Additional options to pass on the nova command line
@@ -229,7 +237,7 @@ nova_monitor() {
     if [ "x$pid" != x ]; then
 	touch $statefile
 
-	state=$(fence_compute -o status -l ${OCF_RESKEY_user_name} -t ${OCF_RESKEY_tenant_name} -p ${OCF_RESKEY_password} -k ${OCF_RESKEY_auth_url} -n $NOVA_HOST | grep Status)
+	state=$(fence_compute ${fence_options} -o status -n $NOVA_HOST | grep Status)
 	if [ "x$state" = "xStatus: ON" ]; then
 	    return $OCF_SUCCESS
 	else
@@ -255,7 +263,7 @@ nova_notify() {
     # Also repeat for any peer NOT in active_uname somehow?
     for node in $OCF_RESKEY_CRM_meta_notify_notify_stop_uname; do
 	ocf_exit_reason "Waiting for nova to see $node as down"
-	while [ $(fence_compute -o status -l ${OCF_RESKEY_user_name} -t ${OCF_RESKEY_tenant_name} -p ${OCF_RESKEY_password} -k ${OCF_RESKEY_auth_url} -n $node | grep Status) != "Status: OFF" ];  do
+	while [ $(fence_compute ${fence_options} -o status -n $node | grep Status) != "Status: OFF" ];  do
             # Loop forever if need be.
             #
             # Callers such as Pacemaker will have a timer
@@ -264,7 +272,7 @@ nova_notify() {
 	done
 	
 	ocf_exit_reason "Performing evacuations for $node"
-	fence_compute -o reboot -l ${OCF_RESKEY_user_name} -t ${OCF_RESKEY_tenant_name} -p ${OCF_RESKEY_password} -k ${OCF_RESKEY_auth_url} -n $node
+	fence_compute ${fence_options} -o reboot -n $node
     done
 }
 
@@ -290,18 +298,31 @@ nova_validate() {
         ocf_exit_reason "Nova tenant not configured"
 	rc=$OCF_ERR_CONFIGURED
     fi
-    
+
+    if [ "x${OCF_RESKEY_domain}" != x ]; then
+	if [ "x$NOVA_HOST" != "x$(hostname)" ]; then
+            ocf_exit_reason "Invalid Nova host name, must be $(hostname) in order for instance recovery to function"
+	    rc=$OCF_ERR_CONFIGURED
+	fi
+
+    elif [ "x$NOVA_HOST" != "x$(hostname -s)" ]; then
+        ocf_exit_reason "Invalid Nova host name, must be $(hostname -s) in order for instance recovery to function"
+	rc=$OCF_ERR_CONFIGURED
+    fi
+
     return $rc
 }
 
 statefile="${HA_RSCTMP}/nova-compute"
 nova_options=""
+fence_options=""
 
 if [ -z "${OCF_RESKEY_auth_url}" ]; then
     OCF_RESKEY_auth_url=$(openstack-config --get /etc/nova/nova.conf neutron admin_auth_url)
 fi
 if [ ! -z "${OCF_RESKEY_auth_url}" ]; then
     nova_options="${nova_options} --os-auth-url ${OCF_RESKEY_auth_url}"
+    fence_options="${fence_options} -k ${OCF_RESKEY_auth_url}"
 fi
 
 if [ -z "${OCF_RESKEY_user_name}" ]; then
@@ -309,6 +330,7 @@ if [ -z "${OCF_RESKEY_user_name}" ]; then
 fi
 if [ ! -z "${OCF_RESKEY_user_name}" ]; then
     nova_options="${nova_options} --os-username ${OCF_RESKEY_user_name}"
+    fence_options="${fence_options} -l ${OCF_RESKEY_user_name}"
 fi
 
 if [ -z "${OCF_RESKEY_password}" ]; then
@@ -316,6 +338,7 @@ if [ -z "${OCF_RESKEY_password}" ]; then
 fi
 if [ ! -z "${OCF_RESKEY_password}" ]; then
     nova_options="${nova_options} --os-password ${OCF_RESKEY_password}"
+    fence_options="${fence_options} -p ${OCF_RESKEY_password}"
 fi
 
 if [ -z "${OCF_RESKEY_tenant_name}" ]; then
@@ -323,6 +346,11 @@ if [ -z "${OCF_RESKEY_tenant_name}" ]; then
 fi
 if [ ! -z "${OCF_RESKEY_tenant_name}" ]; then
     nova_options="${nova_options} --os-tenant-name ${OCF_RESKEY_tenant_name}"
+    fence_options="${fence_options} -t ${OCF_RESKEY_tenant_name}"
+fi
+
+if [ ! -z "${OCF_RESKEY_domain}" ]; then
+    fence_options="${fence_options} -d ${OCF_RESKEY_domain}"
 fi
 
 if [ ! -z "${OCF_RESKEY_extra}" ]; then
@@ -331,7 +359,11 @@ fi
 
 NOVA_HOST=$(openstack-config --get /etc/nova/nova.conf DEFAULT host 2>/dev/null)
 if [ $? = 1 ]; then
-    NOVA_HOST=$(hostname)
+    if [ "x${OCF_RESKEY_domain}" != x ]; then
+	NOVA_HOST=$(hostname -s)
+    else
+	NOVA_HOST=$(hostname)
+    fi
 fi
 
 case $__OCF_ACTION in

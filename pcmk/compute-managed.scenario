@@ -143,7 +143,7 @@ pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusi
 #
 # Depending on how your environment is set up, you may need to supply
 # these details as parameters to the nova-compute resource instead
-pcs resource create nova-compute ocf:openstack:NovaCompute user_name=admin tenant_name=admin password=keystonetest --clone interleave=true --disabled --force
+pcs resource create nova-compute ocf:openstack:NovaCompute user_name=admin tenant_name=admin password=keystonetest domain=${PHD_VAR_network_domain} --clone interleave=true --disabled --force
 pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
 
 pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
