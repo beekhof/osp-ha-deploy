@@ -210,7 +210,7 @@ def main():
 
         try:
             nova.services.list(host=options["--plug"])
-        except requests.exceptions.ConnectionError as (err):
+        except ConnectionError as (err):
             logging.warning("Nova connection failed: "+err.response)
             sys.exit(0)
 
