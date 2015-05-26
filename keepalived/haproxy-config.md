@@ -46,7 +46,7 @@ Configure HAProxy
         default_backend db-vms-galera
     backend db-vms-galera
         option httpchk
-        stick-table type ip size 2
+        stick-table type ip size 1000
         stick on dst
         timeout server 90m
         server rhos7-node1 192.168.1.221:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
