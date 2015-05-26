@@ -59,6 +59,11 @@ rhos-release 7
 
 yum clean all
 yum update -y
+
+# ntpd conflicts with chrony
+yum erase -y chrony
+rm -f /etc/chrony*
+
 yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump ntp ntpdate
 
 # The cluster shouldn't need NTP configured, but without it the
