@@ -39,17 +39,22 @@ def get_power_status(_, options):
                 return override_status
 
         if nova:
-            services = nova.services.list(host=options["--plug"])
-            for service in services:
-                if service.binary == "nova-compute":
-                    if service.state == "up":
-                        status = "on"
-                    elif service.state == "down":
-                        status = "off"
-                    else:
-                        logging.debug("Unknown status detected from nova: "
-                                      + service.state)
-                    break
+            try:
+                services = nova.services.list(host=options["--plug"])
+                for service in services:
+                    if service.binary == "nova-compute":
+                        if service.state == "up":
+                            status = "on"
+                        elif service.state == "down":
+                            status = "off"
+                        else:
+                            logging.debug("Unknown status detected from nova: "
+                                          + service.state)
+                        break
+
+            except ConnectionError as (err):
+                logging.warning("Nova connection failed: "+str(err))
+
         return status
 
 
