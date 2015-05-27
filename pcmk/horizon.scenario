@@ -24,7 +24,7 @@
 #################################
 = VARIABLES =
 
-PHD_VAR_osp_configdir
+PHD_VAR_secrets_horizon_secret
 PHD_VAR_network_hosts_memcache
 
 #################################
@@ -42,10 +42,6 @@ target=all
 ....
 yum install -y mod_wsgi httpd mod_ssl openstack-dashboard
 
-if [ ! -e ${PHD_VAR_osp_configdir}/horizon_key ]; then
-    openssl rand -hex 10 > ${PHD_VAR_osp_configdir}/horizon_key
-fi
-
 # NOTE this is a rather scary sed and replace operation to configure horizon
 #             in one shot, scriptable way.
 #             Keypoints:
@@ -55,8 +51,6 @@ fi
 #             connect with keystone for authentication
 #             fix a LOCAL_PATH to point to the correct location.
 
-horizonsecret=$(cat ${PHD_VAR_osp_configdir}/horizon_key)
-
 horizonememcachenodes=$(echo ${PHD_VAR_network_hosts_memcache} | sed -e "s#,#', '#g" -e "s#^#[ '#g" -e "s#\$#', ]#g")
 
 sed -i \
@@ -65,7 +59,7 @@ sed -i \
 	-e "s#locmem.LocMemCache'#memcached.MemcachedCache',\n\t'LOCATION' : $horizonememcachenodes#g" \
 	-e 's#OPENSTACK_HOST =.*#OPENSTACK_HOST = "vip-keystone"#g' \
 	-e "s#^LOCAL_PATH.*#LOCAL_PATH = '/var/lib/openstack-dashboard'#g" \
-	-e "s#SECRET_KEY.*#SECRET_KEY = '$horizonsecret'#g#" \
+	-e "s#SECRET_KEY.*#SECRET_KEY = '${PHD_VAR_secrets_horizon_secret}'#g#" \
 	/etc/openstack-dashboard/local_settings
 
 # workaround buggy packages

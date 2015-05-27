@@ -32,39 +32,37 @@
 #################################
 = VARIABLES =
 
-PHD_VAR_network_domain
-PHD_VAR_beaker_disttree
-
 #################################
 # Scenario Requirements Section #
 #################################
 = REQUIREMENTS =
-nodes: 7
+nodes: 9
 
 ######################
 # Deployment Scripts #
 ######################
 = SCRIPTS =
 
+target=all
+....
+lvconvert --merge /dev/mapper/*baremetal_snap
+....
+
 target=local
 ....
 # Reboot each node and wait for it to return
-# REQUIRES kinit and we don't check for completition yet
-for node in $(echo $PHD_ENV_nodes); do
-    loop=0
-    bkr system-provision --distro-tree ${PHD_VAR_beaker_disttree} $node
-    while [ "$(ping $node -c 3 -q | grep 'packets transmitted' | sed -e 's#.*transmitted, ##g' -e 's# received.*##g')" != 0 ] && \
-	  [ "$loop" -lt 180 ]; do
-	loop=$((loop + 1))
-	echo "Waiting for beaker to kick in ($loop)"
-	sleep 1
-    done
-done
 
 # disable set -e when calling phd_cmd_* because
 # phd doesn't manage all return codes properly
 set +e
 for node in $(echo $PHD_ENV_nodes); do
-    phd_wait_connection 2400 $node || exit 1
+     phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
+     phd_wait_connection 2400 $node || exit 1
 done
 ....
+
+target=all
+....
+lvcreate -s -n baremetal_snap -l100%FREE /dev/mapper/*root
+....
+

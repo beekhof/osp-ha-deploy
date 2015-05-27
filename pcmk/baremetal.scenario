@@ -59,6 +59,11 @@ rhos-release 7
 
 yum clean all
 yum update -y
+
+# ntpd conflicts with chrony
+yum erase -y chrony
+rm -f /etc/chrony*
+
 yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump ntp ntpdate
 
 # The cluster shouldn't need NTP configured, but without it the
@@ -148,11 +153,6 @@ echo "echo 1 > /sys/class/net/ext0/bridge/multicast_querier" >> /etc/rc.d/rc.loc
 echo "echo 1 > /sys/class/net/vmnet0/bridge/multicast_querier" >> /etc/rc.d/rc.local
 chmod +x /etc/rc.d/rc.local
 
-# Optional if /home is huge and /root is tiny
-# in rhel7 we need to make this a two stage commit
-# since there are daemons that can hold locks on mountpoint
-sed -i -e 's#.*home.*##g' /etc/fstab 
-
 # Turn off auto-generation of resolv.conf so we can override it 
 # make a backup that we will need for gateway scenario otherwise
 # we have a catch 22
@@ -161,6 +161,29 @@ cp /etc/resolv.conf /etc/resolv.conf.backup
 echo PEERDNS=no >> /etc/sysconfig/network-scripts/ifcfg-ext0
 echo search vmnet.${PHD_VAR_network_domain} ${PHD_VAR_network_domain} > /etc/resolv.conf
 echo nameserver ${PHD_VAR_network_internal}.1 >> /etc/resolv.conf
+
+# get rid of /home from beaker
+sed -i -e 's#.*home.*##g' /etc/fstab
+umount /home
+
+# remove home lv
+lvremove -f /dev/mapper/*home
+
+# expand root lv to 50% vg
+lvresize -f -l50%VG /dev/mapper/*root
+
+# expand root fs
+xfs_growfs /dev/mapper/*-root
+
+# create the snapshot
+lvcreate -s -n baremetal_snap -l100%FREE /dev/mapper/*root
+
+# regenerate initramfs to include dm-snapshot modules/utils
+for i in $(ls /boot/vmlinuz-*x86*); do
+	ver=$(basename $i | sed -e 's#vmlinuz-##g')
+	dracut -f --kver $ver
+done
+
 ....
 
 # Implied by the reboot below
@@ -181,11 +204,4 @@ for node in $(echo $PHD_ENV_nodes); do
     phd_cmd_exec "reboot > /dev/null 2>&1" "$node"
     phd_wait_connection 2400 $node || exit 1
 done
-....
-
-target=all
-....
-lvremove -f /dev/mapper/*home
-lvresize -f -l+100%FREE /dev/mapper/*root
-xfs_growfs /dev/mapper/*-root
 ....

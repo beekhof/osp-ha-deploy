@@ -55,6 +55,7 @@ osp:
   # generate with openssl rand -hex 10
 secrets:
   fence_xvm: bcf4e54dcfbfecb9e62c
+  keystone_secret: 114a23ae49996a26d916
   swift_prefix: 8f2d8a3e326a078c5edf
   swift_suffix: 8d33d13b18e3eef6d3ca
   horizon_secret: 357a57d6a9a2353ccde5
