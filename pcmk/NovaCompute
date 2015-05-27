@@ -189,24 +189,36 @@ nova_notify() {
 	return $OCF_SUCCESS
     fi
 
-    # It appears to be safe to allow everyone to make the evacuation calls.
-    # Search git if this turns out to be a problem.
+    # Only the first node not stopping performs evacuates for now
+    # Can we allow all of them to do it?  It would make this block much simpler.
+    for host in ${OCF_RESKEY_CRM_meta_notify_active_uname}; do
+	for stop in ${OCF_RESKEY_CRM_meta_notify_stop_uname}; do
+	    if [ "$stop" = "$host" ]; then
+		: $host is one of the nodes that is stopping
 
-    # Also repeat for any peer NOT in active_uname somehow?
-    for node in $OCF_RESKEY_CRM_meta_notify_stop_uname; do
-	ocf_log info "Waiting for nova to notice $node is down"
-	while [ "$(fence_compute ${fence_options} -o status -n $node | grep Status)" != "Status: OFF" ];  do
-	    # Loop forever if need be.
-	    #
-	    # Callers such as Pacemaker will have a timer
-	    # running and kill us if necessary
-	    sleep 1
+	    elif [ "x$(echo ${host} | awk -F. '{print $1}')" != "x$(uname -n | awk -F. '{print $1}')" ]; then
+		: We are not the first non-stopping node
+		return $OCF_SUCCESS
+
+	    else
+		# Also repeat for any peer NOT in active_uname somehow?
+		for node in $OCF_RESKEY_CRM_meta_notify_stop_uname; do
+		    ocf_log info "Waiting for nova to notice $node is down"
+		    while [ "$(fence_compute ${fence_options} -o status -n $node | grep Status)" != "Status: OFF" ];  do
+			# Loop forever if need be.
+			#
+			# Callers such as Pacemaker will have a timer
+			# running and kill us if necessary
+			sleep 1
+		    done
+		    
+		    ocf_log info "Performing evacuations for $node"
+		    fence_compute ${fence_options} -o reboot -n $node
+		done
+		return $OCF_SUCCESS
+	    fi
 	done
-
-	ocf_log info "Performing evacuations for $node"
-	fence_compute ${fence_options} -o reboot -n $node
     done
-    return $OCF_SUCCESS
 }
 
 nova_validate() {
