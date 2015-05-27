@@ -78,7 +78,7 @@ EOF
 cat >> /etc/haproxy/haproxy.cfg << EOF
 frontend vip-db
     bind ${PHD_VAR_network_internal}.201:3306
-    timeout client 90s
+    timeout client 90m
     default_backend db-vms-galera
 
 frontend vip-qpid
@@ -166,9 +166,10 @@ backend qpid-vms
 
 backend db-vms-galera
     option httpchk
+    option tcpka
     stick-table type ip size 1000
     stick on dst
-    timeout server 90s
+    timeout server 90m
     server rdo${PHD_VAR_osp_major}-db1 ${PHD_VAR_network_internal}.58:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
     server rdo${PHD_VAR_osp_major}-db2 ${PHD_VAR_network_internal}.59:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
     server rdo${PHD_VAR_osp_major}-db3 ${PHD_VAR_network_internal}.60:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
