@@ -51,9 +51,6 @@ target=$PHD_ENV_nodes1
 ....
 pcs resource create mongodb systemd:mongod op start timeout=300s --clone
 
-# Start can take a while
-pcs resource op add mongodb start timeout=120s
-
 # Setup replica (need to wait for mongodb to settle down first!)
 sleep 20
 
