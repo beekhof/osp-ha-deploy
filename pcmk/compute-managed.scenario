@@ -175,8 +175,6 @@ pcs constraint order start nova-conductor-clone then nova-compute-clone require-
 
 controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
 
-pcs --force stonith create fence-nova fence_compute domain=${PHD_VAR_network_domain} login=admin tenant-name=admin passwd=keystonetest auth-url=http://vip-keystone:35357/v2.0/
-
 #pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;" --force
 pcs stonith create fence-compute fence_apc_snmp ipaddr=apc-ap7941-l2h3.mgmt.lab.eng.bos.redhat.com power_wait=10 pcmk_host_map="mrg-07:10;mrg-08:12;mrg-09:14"
 
@@ -201,12 +199,7 @@ for node in ${PHD_ENV_nodes}; do
 	# This step will /entirely/ depend on the hardware you have
 	# If you have IPMI, it might be like so:
 	#   pcs stonith create fence-compute-${short_node} fence_ipmilan login="root" passwd="supersecret" ipaddr="192.168.1.1" pcmk_host_list="$node"
-	# Also, you'd reference fence-compute-${short_node} in the call to 'pcs stonith level add' below
-	#
-	# Personally, I have an APC switch that can control all the compute nodes at once (so I create it outside of this loop)
-	
-	# Now instruct the cluster to require both fencing methods be performed
-	pcs stonith level add 1 ${short_node} fence-compute,fence-nova
+	# Personally, I have an APC switch that can control all the compute nodes at once (so I created it outside of this loop already)
     fi
 done
 
