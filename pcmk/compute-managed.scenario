@@ -105,6 +105,11 @@ if [ $PHD_VAR_deployment = segregated ]; then
     exit 1
 fi
 
+if [ -n $(pidof pacemaker_remoted) ]; then
+    echo "We are on a compute node"
+    exit 0
+fi
+
 if [ -z $(pidof pacemakerd) ]; then
     echo "Sanity check: The first node, $(hostname -s), must be part of a cluster"
 
