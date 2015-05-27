@@ -132,36 +132,6 @@ nova_pid() {
     ps axf | grep python.*nova-compute | grep -v grep | awk '{print $1}'
 }
 
-pending_migrations() {
-    # For valid states: grep -r migration.status.*= /usr/lib/python2.7
-    # - confirming
-    # - confirmed
-    # - reverting
-    # - reverted    
-    # - pre-migrating
-    # - migrating
-    # - post-migrating
-    # - finished
-    # - error
-
-    # API defines pending ops as:
-    #/usr/lib/python2.7/site-packages/nova/db/sqlalchemy/api.py:            filter(~models.Migration.status.in_(['confirmed', 'reverted', 'error']))
-    
-    # Output:
-    #+-----------------------------------+-----------------------------------+-----------------------------------+-----------------------------------+--------------+--------+--------------------------------------+------------+------------+----------------------------+----------------------------+
-    #| Source Node                       | Dest Node                         | Source Compute                    | Dest Compute                      | Dest Host    | Status | Instance UUID                        | Old Flavor | New Flavor | Created At                 | Updated At                 |
-    #+-----------------------------------+-----------------------------------+-----------------------------------+-----------------------------------+--------------+--------+--------------------------------------+------------+------------+----------------------------+----------------------------+
-    #| mrg-03.mpc.lab.eng.bos.redhat.com | mrg-04.mpc.lab.eng.bos.redhat.com | mrg-03.mpc.lab.eng.bos.redhat.com | mrg-04.mpc.lab.eng.bos.redhat.com | 10.16.144.40 | error  | 0ee0cbd2-90e0-4910-8f6d-ac35920abb92 | 5          | 5          | 2015-03-13T02:08:15.000000 | 2015-03-13T02:08:17.000000 |
-
-    nova ${nova_options} migration-list --host ${NOVA_HOST} | awk -F\| '
-$7~/ing/ { incomplete = 1 }
-{ 
-  if(incomplete) {
-    print $8
-  }
-}'
-}
-
 nova_start() {
     nova_monitor
     if [ $? = $OCF_SUCCESS ]; then
@@ -184,59 +154,21 @@ nova_start() {
 
 nova_stop() {
     pid=`nova_pid`
-
-    nova_monitor
-    if [ $? = $OCF_SUCCESS ]; then
-	if [ 0 = 1 ]; then
-	    # Apparently this is a bad idea...
-	    #
-	    # Migrate as many as we can
-	    # Don't bother checking the exit code, its always 0
-	    #
-	    # +--------------------------------------+--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------+
-	    # | Server UUID                          | Migration Accepted | Error Message                                                                                                                                                   |
-	    # +--------------------------------------+--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------+
-	    # | 0ee0cbd2-90e0-4910-8f6d-ac35920abb92 | True               |                                                                                                                                                                 |
-	    # | be2fa0b5-17bb-4f28-a55f-3339bb57ead1 | False              | Error while migrating instance: No valid host was found. No valid host found for cold migrate (HTTP 400) (Request-ID: req-dc51e285-dd99-4120-aab3-f3bf0335a1e3) |
-	    # ...
-	    nova ${nova_options} host-servers-migrate ${NOVA_HOST}
-	    nova ${nova_options} live-migration
-
-	    while [ 1 = 1 ]; do
-		pending=`pending_migrations | wc -l`
-		if [ ${pending} = 0 ]; then
-		    break
-		fi
-		ocf_exit_reason "Waiting on ${pending} migrations"
-		sleep 2
-	    done
-
-	    # What to do if some cannot be migrated?
-	    # nova delete?
-	fi
-
-	# Then stop
-	su nova -c "kill -TERM $pid" -s /bin/bash
-	
-	while [ "x$pid" != x ]; do
-	    sleep 1
-	    pid=`nova_pid`
-	done
+    if [ "x$pid" != x ]; then
+	su nova -c "kill -TERM $pid" -s /bin/bash	
     fi
 
-    rm -f ${statefile}
+    while [ "x$pid" != x ]; do
+	sleep 1
+	pid=`nova_pid`
+    done
+    
     return $OCF_SUCCESS
 }
 
 nova_monitor() {
-    # Consider utilizing:
-    #    nova service-list --host $(hostname)
-
     pid=`nova_pid`
-
     if [ "x$pid" != x ]; then
-	touch $statefile
-
 	state=$(fence_compute ${fence_options} -o status -n $NOVA_HOST | grep Status)
 	if [ "x$state" = "xStatus: ON" ]; then
 	    return $OCF_SUCCESS
@@ -244,35 +176,47 @@ nova_monitor() {
 	    ocf_exit_reason "Nova status: $state"
 	    return $OCF_ERR_GENERIC
 	fi
-
-    elif [ -e ${statefile} ]; then
-	return $OCF_ERR_GENERIC
     fi
 
     return $OCF_NOT_RUNNING
 }
 
 nova_notify() {
-
     if [ "x${OCF_RESKEY_CRM_meta_notify_operation}" != "xstop" ]; then
 	return $OCF_SUCCESS
     elif [ "x${OCF_RESKEY_CRM_meta_notify_type}" != "xpost" ]; then
 	return $OCF_SUCCESS
     fi
 
-    # Also repeat for any peer NOT in active_uname somehow?
-    for node in $OCF_RESKEY_CRM_meta_notify_notify_stop_uname; do
-	ocf_exit_reason "Waiting for nova to see $node as down"
-	while [ $(fence_compute ${fence_options} -o status -n $node | grep Status) != "Status: OFF" ];  do
-            # Loop forever if need be.
-            #
-            # Callers such as Pacemaker will have a timer
-            # running and kill us if necessary
-            sleep 1
+    # Only the first node not stopping performs evacuates for now
+    # Can we allow all of them to do it?  It would make this block much simpler.
+    for host in ${OCF_RESKEY_CRM_meta_notify_active_uname}; do
+	for stop in ${OCF_RESKEY_CRM_meta_notify_stop_uname}; do
+	    if [ "$stop" = "$host" ]; then
+		: $host is one of the nodes that is stopping
+
+	    elif [ "x$(echo ${host} | awk -F. '{print $1}')" != "x$(uname -n | awk -F. '{print $1}')" ]; then
+		: We are not the first non-stopping node
+		return $OCF_SUCCESS
+
+	    else
+		# Also repeat for any peer NOT in active_uname somehow?
+		for node in $OCF_RESKEY_CRM_meta_notify_stop_uname; do
+		    ocf_log info "Waiting for nova to notice $node is down"
+		    while [ "$(fence_compute ${fence_options} -o status -n $node | grep Status)" != "Status: OFF" ];  do
+			# Loop forever if need be.
+			#
+			# Callers such as Pacemaker will have a timer
+			# running and kill us if necessary
+			sleep 1
+		    done
+		    
+		    ocf_log info "Performing evacuations for $node"
+		    fence_compute ${fence_options} -o reboot -n $node
+		done
+		return $OCF_SUCCESS
+	    fi
 	done
-	
-	ocf_exit_reason "Performing evacuations for $node"
-	fence_compute ${fence_options} -o reboot -n $node
     done
 }
 
@@ -313,7 +257,6 @@ nova_validate() {
     return $rc
 }
 
-statefile="${HA_RSCTMP}/nova-compute"
 nova_options=""
 fence_options=""
 
