@@ -106,6 +106,7 @@ Additional options to pass on the nova command line
 <action name="monitor"      timeout="20" interval="10" depth="0"/>
 <action name="validate-all" timeout="20" />
 <action name="meta-data"    timeout="5" />
+<action name="notify"       timeout="600" />
 </actions>
 </resource-agent>
 END
