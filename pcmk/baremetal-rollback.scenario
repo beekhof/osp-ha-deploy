@@ -63,6 +63,16 @@ done
 
 target=all
 ....
+# wait for the old snapshot to be merged/deleted
+loop=0
+while lvs -o name | grep -q baremetal_snap; do
+   sleep 1
+   if [ "$loop" = 240 ]; then
+      echo "Unknown error waiting for old snap to be deleted/merged"
+      exit 1
+   fi
+   loop=$((loop + 1))
+done
 lvcreate -s -n baremetal_snap -l100%FREE /dev/mapper/*root
 ....
 
