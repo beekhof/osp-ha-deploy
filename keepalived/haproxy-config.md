@@ -49,9 +49,9 @@ Configure HAProxy
         stick-table type ip size 1000
         stick on dst
         timeout server 90m
-        server rhos7-node1 192.168.1.221:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-        server rhos7-node2 192.168.1.222:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
-        server rhos7-node3 192.168.1.223:3306 check inter 1s port 9200 on-marked-down shutdown-sessions
+        server rhos7-node1 192.168.1.221:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
+        server rhos7-node2 192.168.1.222:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
+        server rhos7-node3 192.168.1.223:3306 check inter 1s port 9200 backup on-marked-down shutdown-sessions
 
     # Note the RabbitMQ entry is only needed for CloudForms compatibility
     # and should be removed in the future
