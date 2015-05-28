@@ -43,7 +43,7 @@ target=all
 # $(pidof pacemaker) is a convenient method for deciding if the node is intended to be a compute node
 # Empty implies 'yes' because there is no cluster running
 
-if [ -z $(pidof pacemakerd) ]; then
+if [ -z "$(pidof pacemakerd)" ]; then
 
     # This node wasn't previously setup to run cluster software.
     # Therefore it must be intended as a managed compute node and we
@@ -88,7 +88,7 @@ chmod a+x /usr/lib/ocf/resource.d/openstack/NovaCompute
 mkdir -p /etc/pacemaker
 cp $PHD_VAR_osp_configdir/pcmk-authkey /etc/pacemaker/authkey
 
-if [ -z $(pidof pacemakerd) ]; then
+if [ -z "$(pidof pacemakerd)" ]; then
     chkconfig pacemaker_remote on
     service pacemaker_remote start
 fi
@@ -105,12 +105,12 @@ if [ $PHD_VAR_deployment = segregated ]; then
     exit 1
 fi
 
-if [ -n $(pidof pacemaker_remoted) ]; then
+if [ -n "$(pidof pacemaker_remoted)" ]; then
     echo "We are on a compute node"
     exit 0
 fi
 
-if [ -z $(pidof pacemakerd) ]; then
+if [ -z "$(pidof pacemakerd)" ]; then
     echo "Sanity check: The first node, $(hostname -s), must be part of a cluster"
 
     # Otherwise none of the pcs commands that follow will work    
