@@ -133,6 +133,12 @@ distro=${PHD_VAR_rpm_major}.${PHD_VAR_rpm_minor}
 # Do not specify  --hostname= for network
 # If prevents assinging by DHCP 
 
+targettz="$(timedatectl | grep Timezone | awk '{print $2}')"
+
+if [ -z "$targettz" ]; then
+    targettz=Australia/Melbourne
+fi
+
 cat << EOF > virt-base.ks
 install
 text
@@ -143,7 +149,7 @@ keyboard us
 network --bootproto dhcp
 firewall --enabled --ssh
 selinux --permissive
-timezone --utc Australia/Melbourne
+timezone --utc $targettz
 bootloader --location=mbr --append="console=tty0 console=ttyS0,115200 rd_NO_PLYMOUTH serial text headless"
 zerombr
 clearpart --all --initlabel
