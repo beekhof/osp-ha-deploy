@@ -40,17 +40,15 @@ PHD_VAR_network_internal
 target=all
 ....
 
-# $(pidof pacemaker) is a convenient method for deciding if the node is intended to be a compute node
-# Empty implies 'yes' because there is no cluster running
+if [ $PHD_VAR_deployment = segregated ]; then
+    echo "We don't document managed compute nodes in a segregated environment yet"
 
-if [ -z "$(pidof pacemakerd)" ]; then
-
-    # This node wasn't previously setup to run cluster software.
-    # Therefore it must be intended as a managed compute node and we
-    # should install pacemaker-remote.
-
-    yum install -y pacemaker-remote resource-agents pcs nfs-utils
+    # Certainly none of the location constraints would work and the
+    # resource-discovery options are mostly redundant
+    exit 1
 fi
+
+yum install -y pacemaker-remote resource-agents pcs nfs-utils
 
 # Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=1175005
 # prevents NFS mounts from succeeding by default prior to a reboot
@@ -92,122 +90,4 @@ if [ -z "$(pidof pacemakerd)" ]; then
     chkconfig pacemaker_remote on
     service pacemaker_remote start
 fi
-....
-
-target=$PHD_ENV_nodes1
-....
-if [ $PHD_VAR_deployment = segregated ]; then
-    echo "We don't document managed compute nodes in a segregated environment yet"
-
-    # Certainly none of the location constraints would work and the
-    # resource-discovery options are mostly redundant
-
-    exit 1
-fi
-
-if [ -n "$(pidof pacemaker_remoted)" ]; then
-    echo "We are on a compute node"
-    exit 0
-fi
-
-if [ -z "$(pidof pacemakerd)" ]; then
-    echo "Sanity check: The first node, $(hostname -s), must be part of a cluster"
-
-    # Otherwise none of the pcs commands that follow will work    
-
-    exit 1
-fi
-
-# Take down the ODP control plane
-pcs resource disable keystone
-
-# Force services to run only on nodes with osprole = controller
-#
-# Importantly it also tells Pacemaker not to even look for the services on other
-# nodes. This helps reduce noise and collisions with services that fill the same role
-# on compute nodes.
-
-for i in $(cibadmin -Q --xpath //primitive --node-path | tr ' ' '\n' | awk -F "id='" '{print $2}' | awk -F "'" '{print $1}' | uniq | grep -v "\-fence") ; do pcs constraint location $i rule resource-discovery=exclusive score=0 osprole eq controller ; done
-
-# Now (because the compute nodes have roles assigned to them and keystone is
-# stopped) it is safe to define the services that will run on the compute nodes
-
-# We use --force to allow the resources to be created even they don't exist on the local machine
-# Since we know they do exist on the compute nodes
-
-pcs resource create neutron-openvswitch-agent-compute  systemd:neutron-openvswitch-agent --clone interleave=true --disabled --force
-pcs constraint location neutron-openvswitch-agent-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute 
-
-pcs resource create libvirtd-compute systemd:libvirtd  --clone interleave=true --disabled --force
-pcs constraint location libvirtd-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
-
-pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --clone interleave=true --disabled --force
-pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
-
-# NovaCompute will attempt to suck in common authorization details from nova.conf
-#
-# Depending on how your environment is set up, you may need to supply
-# these details as parameters to the nova-compute resource instead
-pcs resource create nova-compute ocf:openstack:NovaCompute user_name=admin tenant_name=admin password=keystonetest domain=${PHD_VAR_network_domain} --clone interleave=true notify=true --disabled --force
-pcs resource op add nova-compute notify timeout=600s
-
-pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
-
-pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
-
-pcs constraint order start neutron-openvswitch-agent-compute-clone then libvirtd-compute-clone
-pcs constraint colocation add libvirtd-compute-clone with neutron-openvswitch-agent-compute-clone
-
-pcs constraint order start libvirtd-compute-clone then ceilometer-compute-clone
-pcs constraint colocation add ceilometer-compute-clone with libvirtd-compute-clone
-
-pcs constraint order start ceilometer-notification-clone then ceilometer-compute-clone require-all=false
-
-pcs constraint order start ceilometer-compute-clone then nova-compute-clone
-pcs constraint colocation add nova-compute-clone with ceilometer-compute-clone
-
-pcs constraint order start nova-conductor-clone then nova-compute-clone require-all=false
-
-# Take advantage of the fact that control nodes will already be part of the cluster
-# At this step, we need to teach the cluster about the compute nodes
-#
-# This requires running commands on the cluster based on the names of the compute nodes
-
-controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
-
-#pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;" --force
-pcs stonith create fence-compute fence_apc_snmp ipaddr=apc-ap7941-l2h3.mgmt.lab.eng.bos.redhat.com power_wait=10 pcmk_host_map="mrg-07:10;mrg-08:12;mrg-09:14"
-
-for node in ${PHD_ENV_nodes}; do
-    found=0
-    short_node=$(echo ${node} | sed s/\\..*//g)
-
-    for controller in ${controllers}; do
-	if [ ${short_node} = ${controller} ]; then
-	    pcs property set --node ${short_node} osprole=controller
-	    found=1
-	fi
-    done
-
-    if [ $found = 0 ]; then
-	# We only want to execute the following _for_ the compute nodes, not _on_ the compute nodes
-	# Rather annoying
-
-	pcs resource create ${short_node} ocf:pacemaker:remote
-	pcs property set --node ${short_node} osprole=compute
-
-	# This step will /entirely/ depend on the hardware you have
-	# If you have IPMI, it might be like so:
-	#   pcs stonith create fence-compute-${short_node} fence_ipmilan login="root" passwd="supersecret" ipaddr="192.168.1.1" pcmk_host_list="$node"
-	# Personally, I have an APC switch that can control all the compute nodes at once (so I created it outside of this loop already)
-    fi
-done
-
-
-pcs resource enable keystone
-pcs resource enable neutron-openvswitch-agent-compute
-pcs resource enable libvirtd-compute
-pcs resource enable ceilometer-compute
-pcs resource enable nova-compute
-
 ....
