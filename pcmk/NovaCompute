@@ -145,14 +145,6 @@ nova_start() {
 	export service_host="${NOVA_HOST}"
     fi
 
-    python -c "import os; from novaclient import client as nova_client; nova = nova_client.Client('2', os.environ.get('OCF_RESKEY_user_name'), os.environ.get('OCF_RESKEY_password'), os.environ.get('OCF_RESKEY_tenant_name'), os.environ.get('OCF_RESKEY_auth_url')); nova.services.enable(os.environ.get('service_host'), 'nova-compute');"
-
-    rc=$?
-    if [ $rc != 0 ]; then
-	ocf_exit_reason "nova.services.enable failed $rc"
-	exit $OCF_NOT_RUNNING
-    fi
-
     export LIBGUESTFS_ATTACH_METHOD=appliance
     su nova -s /bin/sh -c /usr/bin/nova-compute &
 
@@ -162,7 +154,16 @@ nova_start() {
 	nova_monitor
 	rc=$?
     done
-    return $rc
+
+    python -c "import os; from novaclient import client as nova_client; nova = nova_client.Client('2', os.environ.get('OCF_RESKEY_user_name'), os.environ.get('OCF_RESKEY_password'), os.environ.get('OCF_RESKEY_tenant_name'), os.environ.get('OCF_RESKEY_auth_url')); nova.services.enable(os.environ.get('service_host'), 'nova-compute');"
+
+    rc=$?
+    if [ $rc != 0 ]; then
+	ocf_exit_reason "nova.services.enable failed $rc"
+	exit $OCF_NOT_RUNNING
+    fi
+
+    return $OCF_SUCCESS
 }
 
 nova_stop() {
