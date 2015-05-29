@@ -4,6 +4,6 @@
 unset SERVICE_TOKEN
 unset SERVICE_ENDPOINT
 . ${PHD_VAR_env_configdir}/keystonerc_user
-keystone token-get
+openstack user show demo
 . ${PHD_VAR_env_configdir}/keystonerc_admin
-keystone user-list
+openstack user list
