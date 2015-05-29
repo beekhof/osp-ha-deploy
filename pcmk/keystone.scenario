@@ -43,16 +43,13 @@ nodes: 1
 
 target=all
 ....
-yum install -y openstack-keystone openstack-utils 
+yum install -y openstack-keystone openstack-utils python-openstackclient
 
 mkdir -p ${PHD_VAR_osp_configdir}
 
-export SERVICE_TOKEN=${PHD_VAR_secrets_keystone_secret}
-
-openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token ${PHD_VAR_secrets_keystone_secret}
 
 openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
-
 openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_ha_queues true
 
 # Define the API endpoints. Be careful with replacing vip-keystone and shell escapes.
@@ -74,7 +71,8 @@ openstack-config --set /etc/keystone/keystone.conf database max_retries -1
 # Make sure the API service is listening on the internal IP addresses only.
 # Once again those shell expansions only work for my specific environment.
 
-openstack-config --set /etc/keystone/keystone.conf DEFAULT public_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+# phase3: those are obsoleted by mod_wsgi and apache
+openstack-config --set /etc/keystone/keystone.conf eventlet_server public_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 openstack-config --set /etc/keystone/keystone.conf eventlet_server admin_bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
 # workaround for buggy packaging (ayoung is informed)
@@ -111,95 +109,155 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     pcs constraint order start memcached-clone then keystone-clone
 fi
 
-export SERVICE_TOKEN=${PHD_VAR_secrets_keystone_secret}
-export SERVICE_ENDPOINT="http://vip-keystone:35357/v2.0"
+export OS_TOKEN=${PHD_VAR_secrets_keystone_secret}
+export OS_URL="http://vip-keystone:35357/v2.0"
+export OS_REGION_NAME=regionOne
 
-while ! keystone service-list; do
+while ! openstack service list; do
     echo "Waiting for keystone to be active"
     sleep 1
 done
 
-keystone service-create --name=keystone --type=identity --description="Keystone Identity Service"
+openstack service create \
+	--name=keystone \
+	--description="Keystone Identity Service" \
+	identity
 
-keystone endpoint-create --service keystone --publicurl 'http://vip-keystone:5000/v2.0' --adminurl 'http://vip-keystone:35357/v2.0' --internalurl 'http://vip-keystone:5000/v2.0'
+openstack endpoint create \
+	--publicurl 'http://vip-keystone:5000/v2.0' \
+	--adminurl 'http://vip-keystone:35357/v2.0' \
+	--internalurl 'http://vip-keystone:5000/v2.0' \
+	--region regionOne \
+	keystone
 
-keystone user-create --name admin --pass keystonetest
-keystone role-create --name admin
-keystone tenant-create --name admin
-keystone user-role-add --user admin --role admin --tenant admin
+openstack user create --password keystonetest admin
+openstack role create admin
+openstack project create admin
+openstack role add --project admin --user admin admin
 
 # Save admin credential in a file. This will be useful many times over the how-to!
 
 cat >  ${PHD_VAR_osp_configdir}/keystonerc_admin << EOF
 export OS_USERNAME=admin 
 export OS_TENANT_NAME=admin
+export OS_PROJECT_NAME=admin
+export OS_REGION_NAME=regionOne
 export OS_PASSWORD=keystonetest
 export OS_AUTH_URL=http://vip-keystone:35357/v2.0/
 export PS1='[\u@\h \W(keystone_admin)]\$ '
 EOF
 
-keystone user-create --name foo --pass footest
-keystone role-create --name Member
-keystone tenant-create --name TENANT
-keystone user-role-add --user foo --role Member --tenant TENANT
+openstack user create --password redhat demo
+openstack role create _member_
+openstack project create demo
+openstack role add --project demo --user demo _member_
 
 # Save user credential in a file for testing purposes.
 
 cat >  ${PHD_VAR_osp_configdir}/keystonerc_user << EOF
-export OS_USERNAME=foo
-export OS_TENANT_NAME=TENANT
-export OS_PASSWORD=footest
+export OS_USERNAME=demo
+export OS_TENANT_NAME=demo
+export OS_PROJECT_NAME=demo
+export OS_REGION_NAME=regionOne
+export OS_PASSWORD=redhat
 export OS_AUTH_URL=http://vip-keystone:5000/v2.0/
 export PS1='[\u@\h \W(keystone_user)]\$ '
 EOF
-keystone tenant-create --name services --description "Services Tenant"
+
+# create service tenant/project
+openstack project create --description "Services Tenant" services
 
 # glance
-keystone user-create --name glance --pass glancetest
-keystone user-role-add --user glance --role admin --tenant services
-keystone service-create --name glance --type image --description "Glance Image Service"
-keystone endpoint-create --service glance --publicurl "http://vip-glance:9292" --adminurl "http://vip-glance:9292" --internalurl "http://vip-glance:9292"
+openstack user create --password glancetest glance
+openstack role add --project services --user glance admin
+openstack service create --name=glance --description="Glance Image Service" image
+openstack endpoint create \
+	--publicurl "http://vip-glance:9292" \
+	--adminurl "http://vip-glance:9292" \
+	--internalurl "http://vip-glance:9292" \
+	--region regionOne \
+	glance
 
 # cinder
-keystone user-create --name cinder --pass cindertest
-keystone user-role-add --user cinder --role admin --tenant services
-keystone service-create --name cinder --type volume --description "Cinder Volume Service"
-keystone endpoint-create --service cinder --publicurl "http://vip-cinder:8776/v1/\$(tenant_id)s" --adminurl "http://vip-cinder:8776/v1/\$(tenant_id)s" --internalurl "http://vip-cinder:8776/v1/\$(tenant_id)s"
+openstack user create --password cindertest cinder
+openstack role add --project services --user cinder admin
+openstack service create --name=cinder --description="Cinder Volume Service" volume
+openstack endpoint create \
+	--publicurl "http://vip-cinder:8776/v1/\$(tenant_id)s" \
+	--adminurl "http://vip-cinder:8776/v1/\$(tenant_id)s" \
+	--internalurl "http://vip-cinder:8776/v1/\$(tenant_id)s" \
+	--region regionOne \
+	cinder
 
-keystone service-create --name cinderv2 --type volumev2 --description="Cinder Volume Service v2"
-keystone endpoint-create --service cinderv2 --publicurl "http://vip-cinder:8776/v2/\$(tenant_id)s" --adminurl "http://vip-cinder:8776/v2/\$(tenant_id)s" --internalurl "http://vip-cinder:8776/v2/\$(tenant_id)s"
+openstack service create --name=cinderv2 --description="OpenStack Block Storage" volumev2
+openstack endpoint create \
+	--publicurl "http://vip-cinder:8776/v2/\$(tenant_id)s" \
+	--adminurl "http://vip-cinder:8776/v2/\$(tenant_id)s" \
+	--internalurl "http://vip-cinder:8776/v2/\$(tenant_id)s" \
+	--region regionOne \
+	cinderv2
 
 # swift
-keystone user-create --name swift --pass swifttest
-keystone user-role-add --user swift --role admin --tenant services
-keystone service-create --name swift --type object-store --description "Swift Storage Service"
-keystone endpoint-create --service swift --publicurl "http://vip-swift:8080/v1/AUTH_\$(tenant_id)s" --adminurl "http://vip-swift:8080/v1" --internalurl "http://vip-swift:8080/v1/AUTH_\$(tenant_id)s"
+openstack user create --password swifttest swift
+openstack role add --project services --user swift admin
+openstack service create --name=swift --description="Swift Storage Service" object-store
+openstack endpoint create \
+	--publicurl "http://vip-swift:8080/v1/AUTH_\$(tenant_id)s" \
+	--adminurl "http://vip-swift:8080/v1" \
+	--internalurl "http://vip-swift:8080/v1/AUTH_\$(tenant_id)s" \
+	--region regionOne \
+	swift
 
 # neutron
-keystone user-create --name neutron --pass neutrontest
-keystone user-role-add --user neutron --role admin --tenant services
-keystone service-create --name neutron --type network --description "OpenStack Networking Service"
-keystone endpoint-create --service neutron --publicurl "http://vip-neutron:9696" --adminurl "http://vip-neutron:9696" --internalurl "http://vip-neutron:9696"
+openstack user create --password neutrontest neutron
+openstack role add --project services --user neutron admin
+openstack service create --name=neutron --description="OpenStack Networking Service" network
+openstack endpoint create \
+	--publicurl "http://vip-neutron:9696" \
+	--adminurl "http://vip-neutron:9696" \
+	--internalurl "http://vip-neutron:9696" \
+	--region regionOne \
+	neutron
 
 # nova
-keystone user-create --name compute --pass novatest
-keystone user-role-add --user compute --role admin --tenant services
-keystone service-create --name compute --type compute --description "OpenStack Compute Service"
-keystone endpoint-create  --service compute --publicurl "http://vip-nova:8774/v2/\$(tenant_id)s" --adminurl "http://vip-nova:8774/v2/\$(tenant_id)s" --internalurl "http://vip-nova:8774/v2/\$(tenant_id)s"
+openstack user create --password novatest compute
+openstack role add --project services --user compute admin
+openstack service create --name=compute --description="OpenStack Compute Service" compute
+openstack endpoint create \
+	--publicurl "http://vip-nova:8774/v2/\$(tenant_id)s" \
+	--adminurl "http://vip-nova:8774/v2/\$(tenant_id)s" \
+	--internalurl "http://vip-nova:8774/v2/\$(tenant_id)s" \
+	--region regionOne \
+	compute
 
 # heat
-keystone user-create --name=heat --pass=heattest
-keystone user-role-add --user heat --role admin --tenant services
-keystone service-create --name heat --type orchestration
-keystone endpoint-create --service heat --publicurl "http://vip-heat:8004/v1/%(tenant_id)s" --adminurl "http://vip-heat:8004/v1/%(tenant_id)s" --internalurl "http://vip-heat:8004/v1/%(tenant_id)s"
-keystone service-create --name heat-cfn --type cloudformation
-keystone endpoint-create --service heat-cfn --publicurl "http://vip-heat:8000/v1" --adminurl "http://vip-heat:8000/v1" --internalurl "http://vip-heat:8000/v1"
+openstack user create --password heattest heat
+openstack role add --project services --user heat admin
+openstack service create --name=heat --description="Heat Orchestration Service" orchestration
+openstack endpoint create \
+	--publicurl "http://vip-heat:8004/v1/%(tenant_id)s" \
+	--adminurl "http://vip-heat:8004/v1/%(tenant_id)s" \
+	--internalurl "http://vip-heat:8004/v1/%(tenant_id)s" \
+	--region regionOne \
+	heat
+openstack service create --name=heat-cfn --description="Heat CloudFormation Service" cloudformation
+openstack endpoint create \
+	--publicurl "http://vip-heat:8000/v1" \
+	--adminurl "http://vip-heat:8000/v1" \
+	--internalurl "http://vip-heat:8000/v1" \
+	--region regionOne \
+	heat-cfn
 
 # ceilometer
-keystone user-create --name ceilometer --pass ceilometertest --email fdinitto@redhat.com
-keystone user-role-add --user ceilometer --role admin --tenant services
-keystone role-create --name ResellerAdmin
-keystone user-role-add --user ceilometer --role ResellerAdmin --tenant services
-keystone service-create --name ceilometer --type metering --description="OpenStack Telemetry Service"
-keystone endpoint-create --service ceilometer --publicurl "http://vip-ceilometer:8777" --adminurl "http://vip-ceilometer:8777" --internalurl "http://vip-ceilometer:8777"
+openstack user create --password ceilometertest ceilometer
+openstack role add --project services --user ceilometer admin
+openstack role create ResellerAdmin
+openstack role add --project services --user ceilometer ResellerAdmin
+openstack service create --name=ceilometer --description="OpenStack Telemetry Service" metering
+openstack endpoint create \
+	--publicurl "http://vip-ceilometer:8777" \
+	--adminurl "http://vip-ceilometer:8777" \
+	--internalurl "http://vip-ceilometer:8777" \
+	--region regionOne \
+	ceilometer
 ....
