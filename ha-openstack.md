@@ -886,6 +886,8 @@ For a _segregated_ deployment, we now add them to the cluster we
 created for _Nova (non-compute)_, again as [partial
 members](pcmk/compute-managed.scenario)
 
+Once the compute nodes are configured as remote, they can be added
+to the [controller backplane](pcmk/controller-managed.scenario)
 
 > TODO: what if nova-compute fails to restart and there are scheduled
 > instances?  Those can still be accessed from outside but cannot be
