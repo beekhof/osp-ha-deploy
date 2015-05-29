@@ -27,8 +27,8 @@ variables["network_domain"]="lab.bos.redhat.com"
 variables["deployment"]="collapsed"
 variables["status"]=0
 variables["components"]="lb db rabbitmq memcache mongodb keystone glance cinder swift-brick swift neutron-server neutron-agents ceilometer heat"
-variables["scenarios-segregated"]="beaker baremetal gateway virt-hosts vmsnap-hacks hacks vmsnap-lb lb vmsnap-galera galera vmsnap-rabbitmq rabbitmq vmsnap-memcached memcached vmsnap-mongodb mongodb vmsnap-keystone keystone vmsnap-glance glance vmsnap-cinder cinder vmsnap-swift-aco swift-aco vmsnap-swift swift vmsnap-neutron-server neutron-server vmsnap-neutron-agents neutron-agents vmsnap-nova nova vmsnap-ceilometer ceilometer vmsnap-heat heat vmsnap-horizon horizon compute-common vmsnap-compute compute-cluster"
-variables["scenarios-collapsed"]="beaker baremetal gateway virt-hosts vmsnap-hacks hacks vmsnap-basic-cluster basic-cluster vmsnap-lb lb vmsnap-galera galera vmsnap-rabbitmq rabbitmq vmsnap-memcached memcached vmsnap-mongodb mongodb vmsnap-keystone keystone vmsnap-glance glance vmsnap-cinder cinder vmsnap-swift-aco swift-aco vmsnap-swift swift vmsnap-neutron-server neutron-server vmsnap-neutron-agents neutron-agents vmsnap-nova nova vmsnap-ceilometer ceilometer vmsnap-heat heat vmsnap-horizon horizon compute-common vmsnap-compute compute-cluster"
+variables["scenarios-segregated"]="gateway virt-hosts vmsnap-hacks hacks vmsnap-lb lb vmsnap-galera galera vmsnap-rabbitmq rabbitmq vmsnap-memcached memcached vmsnap-mongodb mongodb vmsnap-keystone keystone vmsnap-glance glance vmsnap-cinder cinder vmsnap-swift-aco swift-aco vmsnap-swift swift vmsnap-neutron-server neutron-server vmsnap-neutron-agents neutron-agents vmsnap-nova nova vmsnap-ceilometer ceilometer vmsnap-heat heat vmsnap-horizon horizon compute-common vmsnap-compute compute-cluster"
+variables["scenarios-collapsed"]="gateway virt-hosts vmsnap-hacks hacks vmsnap-basic-cluster basic-cluster vmsnap-lb lb vmsnap-galera galera vmsnap-rabbitmq rabbitmq vmsnap-memcached memcached vmsnap-mongodb mongodb vmsnap-keystone keystone vmsnap-glance glance vmsnap-cinder cinder vmsnap-swift-aco swift-aco vmsnap-swift swift vmsnap-neutron-server neutron-server vmsnap-neutron-agents neutron-agents vmsnap-nova nova vmsnap-ceilometer ceilometer vmsnap-heat heat vmsnap-horizon horizon compute-common vmsnap-compute compute-cluster"
 
 function create_phd_definition() {
     scenario=$1
@@ -87,6 +87,7 @@ while true ; do
 	    nodeMap["compute-cluster"]="mrg-07 mrg-08 mrg-09"
 	    nodeMap["compute-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet mrg-07 mrg-08 mrg-09"
 	    shift;;
+	-m|--method)     redeploy=$2; shift; shift;;
 	-x) set -x ; shift;;
 	--) shift ; break ;;
 	-*) echo "unknown option: $1"; exit 1;;
@@ -116,6 +117,14 @@ fi
 if [ "x${scenarios}" = x ]; then
     deploy=scenarios-${variables["deployment"]}
     scenarios=${variables[${deploy}]}
+    if [ -z "$redeploy" ]; then
+	redeploy=full
+    fi
+    case $redeploy in
+	rollback) scenarios="baremetal-rollback $scenarios";;
+	full)     scenarios="beaker baremetal $scenarios";;
+	*) echo "unknown redeploy method"; exit 1;;
+    esac
 fi
 
 function run_phd() {
