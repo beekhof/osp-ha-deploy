@@ -42,7 +42,7 @@ nodes: 1
 
 target=all
 ....
-yum install -y openstack-glance openstack-utils
+yum install -y openstack-glance openstack-utils python-openstackclient
 
 # Configure the API service
 
