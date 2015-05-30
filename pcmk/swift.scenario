@@ -45,7 +45,7 @@ nodes: 1
 
 target=all
 ....
-yum install -y openstack-swift-proxy openstack-utils python-swiftclient
+yum install -y openstack-swift-proxy openstack-utils python-swiftclient python-openstackclient
 ....
 
 target=$PHD_ENV_nodes1
@@ -93,7 +93,6 @@ openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix $
 openstack-config --set /etc/swift/swift.conf filter:ceilometer use egg:ceilometer#swift
 openstack-config --set /etc/swift/swift.conf pipeline:main pipeline "healthcheck cache authtoken keystoneauth proxy-server ceilometer"
 
-openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_host vip-keystone
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
 openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
