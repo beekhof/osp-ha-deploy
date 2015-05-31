@@ -7,7 +7,6 @@ declare -A variables
 declare -A cluster
 
 nodeMap["baremetal"]="east-01 east-02 east-03 east-04 east-05 east-06 east-07"
-nodeMap["beaker"]="east-01 east-02 east-03 east-04 east-05 east-06 east-07"
 nodeMap["gateway"]="east-01"
 nodeMap["virt-hosts"]="east-01 east-02 east-03 east-04"
 nodeMap["galera"]="rdo7-db1.vmnet rdo7-db2.vmnet rdo7-db3.vmnet"
@@ -77,7 +76,6 @@ while true ; do
 	--mrg)
 	    variables["network_domain"]="mpc.lab.eng.bos.redhat.com"
 	    variables["config"]="mrg";
-	    nodeMap["beaker"]="mrg-01 mrg-02 mrg-03 mrg-04 mrg-07 mrg-08 mrg-09"
 	    nodeMap["baremetal"]="mrg-01 mrg-02 mrg-03 mrg-04 mrg-07 mrg-08 mrg-09"
 	    nodeMap["gateway"]="mrg-01"
 	    nodeMap["virt-hosts"]="mrg-01 mrg-02 mrg-03 mrg-04"
@@ -175,7 +173,10 @@ for scenario in $scenarios; do
 	    compute-*)
 		nodeMap[$scenario]=${nodeMap[compute-nodes]}
 		;;
-	    beaker|baremetal|gateway|virt-hosts|controller-managed)
+	    beaker|baremetal*)
+		nodeMap[$scenario]=${nodeMap[baremetal]}
+		;;
+	    gateway|virt-hosts|controller-managed)
 		;;
 	    *) 
 		# Overwrite the node list to be the nodes of our collapsed cluster
