@@ -37,7 +37,7 @@ PHD_VAR_network_internal
 ######################
 = SCRIPTS =
 
-target=all
+target=$PHD_ENV_nodes1
 ....
 if [ $PHD_VAR_deployment = segregated ]; then
     echo "We don't document managed compute nodes in a segregated environment yet"
@@ -47,6 +47,9 @@ if [ $PHD_VAR_deployment = segregated ]; then
 
     exit 1
 fi
+
+mkdir -p /etc/pacemaker
+cp $PHD_VAR_osp_configdir/pcmk-authkey /etc/pacemaker/authkey
 
 # Take down the ODP control plane
 pcs resource disable keystone

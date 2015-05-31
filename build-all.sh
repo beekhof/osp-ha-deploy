@@ -14,7 +14,7 @@ nodeMap["galera"]="rdo7-db1.vmnet rdo7-db2.vmnet rdo7-db3.vmnet"
 nodeMap["memcached"]="rdo7-memcache1.vmnet rdo7-memcache2.vmnet rdo7-memcache3.vmnet"
 nodeMap["swift-aco"]="rdo7-swift-brick1.vmnet rdo7-swift-brick2.vmnet rdo7-swift-brick3.vmnet"
 nodeMap["compute-nodes"]="east-05 east-06 east-07"
-nodeMap["controller-managed"]="rdo7-node1.vmnet"
+nodeMap["controller-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet east-05 east-06 east-07"
 nodeMap["vmsnap"]="east-02 east-03 east-04"
 
 cluster["baremetal"]=0
@@ -83,7 +83,7 @@ while true ; do
 	    nodeMap["virt-hosts"]="mrg-01 mrg-02 mrg-03 mrg-04"
 	    nodeMap["vmsnap"]="mrg-02 mrg-03 mrg-04"
 	    nodeMap["compute-nodes"]="mrg-07 mrg-08 mrg-09"
-	    nodeMap["controller-managed"]="rdo7-node1.vmnet"
+	    nodeMap["controller-managed"]="rdo7-node1.vmnet rdo7-node2.vmnet rdo7-node3.vmnet mrg-07 mrg-08 mrg-09"
 	    shift;;
 	-m|--method)     redeploy=$2; shift; shift;;
 	-i|--instance)   instance=$2; shift; shift;;
