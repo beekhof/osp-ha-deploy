@@ -173,8 +173,17 @@ for scenario in $scenarios; do
 	    compute-*)
 		nodeMap[$scenario]=${nodeMap[compute-nodes]}
 		;;
-	    beaker|baremetal*)
+	    beaker|baremetal)
 		nodeMap[$scenario]=${nodeMap[baremetal]}
+		;;
+	    baremetal-rollback)
+		# stupid hack to avoid spending heaps of time waiting for nfs
+		# server timeout
+		list=""
+		for x in ${nodeMap[baremetal]}; do
+			list="$x $list"
+		done
+		nodeMap[$scenario]="$list"
 		;;
 	    gateway|virt-hosts|controller-managed)
 		;;
