@@ -32,8 +32,11 @@ Configure Neutron server
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
 
+    . /root/keystonerc_admin
+    services_tenant_id=$(openstack project show services -f value -c id | head -n 1)
+
     # The tenant_id below is the services tenant ID
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id 3d16c7ec4ec949f489de4b9ada991ad3
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id ${services_tenant_id}
     openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username compute
     openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_password novatest
     openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_auth_url http://controller-vip.example.com:35357/v2.0
