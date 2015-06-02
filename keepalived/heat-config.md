@@ -15,6 +15,7 @@ To allow non-admin users to create Heat stacks, a Keystone domain needs to be cr
 
 On node 1:
 
+    . /root/keystonerc_admin
     openstack role create heat_stack_user
     openstack token issue
 
