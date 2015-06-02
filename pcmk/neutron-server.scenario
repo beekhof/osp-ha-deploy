@@ -55,7 +55,6 @@ yum install -y openstack-neutron openstack-neutron-openvswitch openstack-neutron
 openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
-openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host vip-keystone
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
@@ -65,36 +64,34 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri
 openstack-config --set /etc/neutron/neutron.conf database connection  mysql://neutron:neutrontest@vip-db:3306/neutron
 openstack-config --set /etc/neutron/neutron.conf database max_retries -1
 
-openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
-openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues true
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://vip-nova:8774/v2
-openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes True
 
-. ${PHD_VAR_osp_configdir}/keystonerc_admin
+openstack-config --set /etc/neutron/neutron.conf nova auth_url http://vip-keystone:35357/
+openstack-config --set /etc/neutron/neutron.conf nova auth_plugin password
+openstack-config --set /etc/neutron/neutron.conf nova project_domain_id default
+openstack-config --set /etc/neutron/neutron.conf nova user_domain_id default
+openstack-config --set /etc/neutron/neutron.conf nova region_name regionOne
+openstack-config --set /etc/neutron/neutron.conf nova project_name services
+openstack-config --set /etc/neutron/neutron.conf nova username compute
+openstack-config --set /etc/neutron/neutron.conf nova password novatest
 
-openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id $(keystone tenant-get services |grep id | awk '{print $4}')
+openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.ml2.plugin.Ml2Plugin
 
-openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username compute
-openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_password novatest
+openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
 
-openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_auth_url http://vip-keystone:35357/v2.0
-
-openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes  True
-openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes  True
-
-openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin  neutron.plugins.ml2.plugin.Ml2Plugin
-
-openstack-config  --set /etc/neutron/neutron.conf DEFAULT service_plugins  neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
-
-openstack-config  --set /etc/neutron/neutron.conf DEFAULT router_scheduler_driver  neutron.scheduler.l3_agent_scheduler.ChanceScheduler
+openstack-config --set /etc/neutron/neutron.conf DEFAULT router_scheduler_driver neutron.scheduler.l3_agent_scheduler.ChanceScheduler
 
 openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini type_drivers local,gre,flat,vxlan,vlan
 openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
 openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
-openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks *
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks "*"
 openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_gre tunnel_id_ranges 10:10000
 openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 10:10000
 openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vxlan_group 224.0.0.1

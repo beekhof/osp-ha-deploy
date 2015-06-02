@@ -3,6 +3,8 @@
 
 . ${PHD_VAR_env_configdir}/keystonerc_admin
 
+# WARNING: openstack client is NOT ready to manage neutron!
+
 neutron net-create internal_lan
 neutron subnet-create --ip_version 4 --gateway 192.168.100.1 --name "internal_subnet" internal_lan 192.168.100.0/24
 neutron net-create public_lan --router:external
