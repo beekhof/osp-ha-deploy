@@ -48,9 +48,7 @@ rpm:
 
 osp:
   configdir: /srv/RDO-7/configs
-  download: repos.fedorapeople.org
   major: 7
-  base: /repos/openstack/openstack-trunk/epel-7/rc2/
 
   # generate with openssl rand -hex 10
 secrets:
