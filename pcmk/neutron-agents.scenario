@@ -102,7 +102,6 @@ openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutro
 openstack-config --set /etc/neutron/l3_agent.ini DEFAULT handle_internal_only_routers True
 openstack-config --set /etc/neutron/l3_agent.ini DEFAULT send_arp_for_ha 3
 openstack-config --set /etc/neutron/l3_agent.ini DEFAULT router_delete_namespaces False
-openstack-config --set /etc/neutron/l3_agent.ini DEFAULT metadata_ip vip-nova
 openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge br-ex
 ....
 
