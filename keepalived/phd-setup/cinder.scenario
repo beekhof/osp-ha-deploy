@@ -1,0 +1,98 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Install Cinder
+# - Configure Cinder, using a NFS v3 backend
+# - Start services, open firewall rules
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_nfs_cindershare
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-cinder openstack-utils openstack-selinux python-memcached
+
+openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:cindertest@${PHD_VAR_network_hosts_vip}/cinder
+openstack-config --set /etc/cinder/cinder.conf database max_retries -1
+openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
+openstack-config --set /etc/cinder/cinder.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_user cinder
+openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_password cindertest
+openstack-config --set /etc/cinder/cinder.conf DEFAULT notification_driver messaging
+openstack-config --set /etc/cinder/cinder.conf DEFAULT control_exchange cinder
+openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT memcache_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT host rhos7-cinder
+openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_listen ${myip}
+openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_ha_queues true
+
+cat > /etc/cinder/nfs_exports << EOF
+${PHD_VAR_network_nfs_cindershare}
+EOF
+
+chown root:cinder /etc/cinder/nfs_exports
+chmod 0640 /etc/cinder/nfs_exports
+openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_shares_config /etc/cinder/nfs_exports
+openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_sparsed_volumes true
+openstack-config --set /etc/cinder/cinder.conf DEFAULT nfs_mount_options v3
+openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volume.drivers.nfs.NfsDriver
+
+....
+
+target=$PHD_ENV_nodes1
+....
+su cinder -s /bin/sh -c "cinder-manage db sync"
+systemctl start openstack-cinder-api
+systemctl enable openstack-cinder-api
+....
+
+target=all
+....
+systemctl start openstack-cinder-api
+systemctl start openstack-cinder-scheduler
+systemctl enable openstack-cinder-api
+systemctl enable openstack-cinder-scheduler
+firewall-cmd --add-port=8776/tcp
+firewall-cmd --add-port=8776/tcp --permanent
+....

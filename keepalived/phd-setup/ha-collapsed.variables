@@ -1,0 +1,57 @@
+# Expanded to $PHD_VAR_network_domain, $PHD_VAR_network_internal, etc by PHD
+# Each scenario file will verify that values have been provided for the variables it requires.
+
+deployment: collapsed
+
+hypervisors:
+  controllers: controller1:oslab1,controller2:oslab2,controller3:oslab3
+  computenodes:	compute1:oslab1,compute2:oslab3
+
+rhn:
+  user: jpena@redhat.com
+  pass: OSA07novp7her
+
+network:
+  ips:
+    vip: 192.168.1.220
+    controllers: 192.168.1.221,192.168.1.222,192.168.1.223
+    computeinternal: 192.168.1.224,192.168.1.225
+    computeexternal: 10.10.10.224,10.10.10.225
+    gateway: 192.168.1.1
+    netmask: 255.255.255.0
+  nfs:
+    glanceshare: 192.168.1.4:/volumeUSB1/usbshare/openstack/glance
+    cindershare: 192.168.1.4:/volumeUSB1/usbshare/openstack/cinder
+  nic:
+    base: 54:52:00
+    internal: eth0
+    external: eth1
+  hosts:
+    vip: controller-vip.example.com
+    controllers: controller1.example.com, controller2.example.com, controller3.example.com
+    compute: compute1.example.com, compute2.example.com
+    mongodb:  controller1,controller2,controller3
+    memcache: controller1:11211,controller2:11211,controller3:11211
+    rabbitmq: controller1,controller2,controller3
+  domain: example.com
+  neutron:
+    externalgateway: 10.10.10.1
+    externalnetwork: 10.10.10.0/24
+    allocpoolstart: 10.10.10.100
+    allocpoolend: 10.10.10.150
+  ssh:
+    pubkey: ssh-dss AAAAB3NzaC1kc3MAAACBANTRU30h4EC1sv5kb/KJBDYx0D/YKWAVzMJpeWLzFrECF41Tymte8W5s4oz0CzpQQH4r19YFpeS+jingeakkRc749ImwhJE77yRmPsjaEDe3OZXW+Udz4dikE5HBjuVlEL9UN3yoGfBZCXo9Jm+oRJCH+wx36Pl69IHRZwJIAvQfAAAAFQDTdIeHmLP77PvjG5jo6eEYDTedXwAAAIEAvwKlws7V3qy6Ckd26FcAr1noN+myBdVVpb960F7BPWIxXkA9z12o+3y5JEUJRVTplRf8pBz1JwKdsYS7WJj8teSslmwbQz0kQ61uSNkWqBZGOLE/ddQxCJbD3OTXRZ289A/2mRBcil8mIg82JY1AzNr1OaQQ82ZP35nISA/jeQMAAACBAIeuHCLqkYRf7Xuv2ztFOhPzLrJRRSm7Zcpdxp5Ano7R68Yq1RQbMn0lUIG4QMssviQPyklF/xHYGJLUXBIUfNORn7BYqHikbcguUHKiwiC9io9xR9+zlvgIAIU6bbnsNT9MofTdrRT+H7df6cDP8NO43w8dWFXWX4K3NUU0YjbM
+
+components: serverprep lb galera rabbitmq keystone memcache glance cinder swift-brick swift neutron nova horizon heat mongodb ceilometer node
+
+osp:
+  major: 7
+
+env:
+  password: cluster
+
+# TODO... 
+password:
+  cluster: foo
+  keystone: bar
+

@@ -1,0 +1,121 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing Nova
+# - Configuring Nova
+# - Starting service, opening firewall ports
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_nic_external
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_neutron_externalgateway
+PHD_VAR_network_neutron_externalnetwork
+PHD_VAR_network_neutron_allocpoolstart
+PHD_VAR_network_neutron_allocpoolend
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-nova-console openstack-nova-novncproxy openstack-utils openstack-nova-api openstack-nova-conductor openstack-nova-scheduler python-cinderclient python-memcached
+
+openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address ${myip}
+openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen ${myip}
+openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host ${myip}
+openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://${PHD_VAR_network_hosts_vip}:6080/vnc_auto.html
+openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@${PHD_VAR_network_hosts_vip}/nova
+openstack-config --set /etc/nova/nova.conf database max_retries -1
+openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_listen ${myip}
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host ${myip}
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen ${myip}
+openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 8775
+openstack-config --set /etc/nova/nova.conf DEFAULT glance_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver
+openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api neutron
+openstack-config --set /etc/nova/nova.conf cinder cinder_catalog_info volume:cinder:internalURL
+openstack-config --set /etc/nova/nova.conf conductor use_local false
+openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_ha_queues True
+openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
+openstack-config --set /etc/nova/nova.conf neutron url http://${PHD_VAR_network_hosts_vip}:9696/
+openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name services
+openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
+openstack-config --set /etc/nova/nova.conf neutron admin_password neutrontest
+openstack-config --set /etc/nova/nova.conf neutron admin_auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/nova/nova.conf neutron region_name regionOne
+
+# REQUIRED FOR A/A scheduler
+openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_host_subset_size 30
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_tenant_name services
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_user compute
+openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_password novatest
+
+# WARNING: Only run the following if your hypervisors are VMs
+openstack-config --set /etc/nova/nova.conf libvirt virt_type qemu
+....
+
+target=$PHD_ENV_nodes1
+....
+su nova -s /bin/sh -c "nova-manage db sync"
+....
+
+target=all
+....
+systemctl start openstack-nova-consoleauth
+systemctl start openstack-nova-novncproxy 
+systemctl start openstack-nova-api
+systemctl start openstack-nova-scheduler
+systemctl start openstack-nova-conductor
+systemctl enable openstack-nova-consoleauth
+systemctl enable openstack-nova-novncproxy 
+systemctl enable openstack-nova-api
+systemctl enable openstack-nova-scheduler
+systemctl enable openstack-nova-conductor
+
+firewall-cmd --add-port=8773-8775/tcp
+firewall-cmd --add-port=8773-8775/tcp --permanent
+firewall-cmd --add-port=6080/tcp
+firewall-cmd --add-port=6080/tcp --permanent
+....

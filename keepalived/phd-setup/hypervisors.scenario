@@ -1,0 +1,212 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Creating the VMs that form the environment (see readme.txt for details),
+#   including required network and storage.
+# - Setting basic repos on the VMs
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_hypervisors_controllers
+PHD_VAR_hypervisors_computenodes
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_ips_computeinternal
+PHD_VAR_network_ips_computeexternal
+PHD_VAR_network_ips_gateway
+PHD_VAR_network_ips_netmask
+PHD_VAR_network_domain
+PHD_VAR_rhn_user
+PHD_VAR_rhn_pass
+PHD_VAR_network_ssh_pubkey
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+create_vm()
+{
+    vmname=$1
+    export cont_ip=$2
+    export external_ip=$3
+
+    virt-clone --force -o rhel7-base -n rhel7-${vmname} -f /var/lib/libvirt/images/rhel7-${vmname}.qcow2
+    virsh start rhel7-${vmname}
+    VMMAC=""
+    while [ "x$VMMAC" == "x" ]
+    do
+        VMMAC=$(virsh dumpxml rhel7-${vmname} | grep "mac address" | awk -F\' '{print $2}')
+        if [ "x$VMMAC" == "x" ]
+        then
+                echo "MAC not found yet, sleeping..."
+                sleep 5
+        fi
+    done
+
+    VMIP=""
+    while [ "x$VMIP" == "x" ]
+    do
+        VMIP=$(arp -an | grep $VMMAC | awk '{print $2}' | tr -d \( | tr -d \))
+        if [ "x$VMIP" == "x" ]
+        then
+                echo "IP not found yet, sleeping..."
+                sleep 5
+        else
+                echo "VM booted with IP " $VMIP
+        fi
+    done
+
+    SSHOK=0
+    while [ ${SSHOK} -eq 0 ]
+    do
+      ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null root@${VMIP} ls /root > /dev/null
+      if [ $? -eq 0 ]
+      then
+          SSHOK=1
+      else
+          echo "Cannot connect via SSH. Waiting"
+          sleep 10
+      fi
+    done
+
+    ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null root@${VMIP} "/bin/bash " << EOF
+echo "${vmname}.${PHD_VAR_network_domain}" > /etc/hostname
+
+subscription-manager register --username=${PHD_VAR_rhn_user} --password=${PHD_VAR_rhn_pass} 
+subscription-manager attach --pool=8a85f9874011071c01407da00b997cb2
+subscription-manager repos --disable \* 
+subscription-manager repos --enable rhel-7-server-rpms 
+subscription-manager repos --enable rhel-7-server-rh-common-rpms 
+subscription-manager repos --enable rhel-7-server-optional-rpms 
+subscription-manager repos --enable rhel-7-server-extras-rpms 
+yum -y install wget vim
+wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+yum -y localinstall epel-release-7*.rpm
+yum -y install http://rdoproject.org/repos/openstack-kilo/rdo-release-kilo.rpm
+yum -y update
+
+cat > /etc/sysconfig/network-scripts/ifcfg-eth0 << EOF2
+TYPE="Ethernet"
+BOOTPROTO="static"
+IPV4_FAILURE_FATAL="no"
+NAME="eth0"
+DEVICE=eth0
+IPADDR=${cont_ip}
+NETMASK=${PHD_VAR_network_ips_netmask}
+GATEWAY=${PHD_VAR_network_ips_gateway}
+ONBOOT="yes"
+EOF2
+
+cat > /etc/sysconfig/network-scripts/ifcfg-eth1 << EOF3
+TYPE="Ethernet"
+BOOTPROTO="static"
+NAME="eth1"
+DEVICE=eth1
+ONBOOT="yes"
+EOF3
+
+if [ "x${external_ip}" != "x" ]
+then
+  echo "IPADDR=${external_ip}" >> /etc/sysconfig/network-scripts/ifcfg-eth1
+  echo "NETMASK=255.255.255.0" >> /etc/sysconfig/network-scripts/ifcfg-eth1
+fi
+
+echo "NETWORKING=yes" > /etc/sysconfig/network
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
+echo ${PHD_VAR_network_ssh_pubkey} >> /root/.ssh/authorized_keys
+
+
+#This is a big hack (same ssh private key everywher), until I figure out a better way
+echo ${PHD_VAR_network_ssh_pubkey} > /root/.ssh/id_dsa.pub
+cat > /root/.ssh/id_dsa << EOF4
+-----BEGIN DSA PRIVATE KEY-----
+MIIBvAIBAAKBgQDU0VN9IeBAtbL+ZG/yiQQ2MdA/2ClgFczCaXli8xaxAheNU8pr
+XvFubOKM9As6UEB+K9fWBaXkvo4p4HmpJEXO+PSJsISRO+8kZj7I2hA3tzmV1vlH
+c+HYpBORwY7lZRC/VDd8qBnwWQl6PSZvqESQh/sMd+j5evSB0WcCSAL0HwIVANN0
+h4eYs/vs++MbmOjp4RgNN51fAoGBAL8CpcLO1d6sugpHduhXAK9Z6DfpsgXVVaW/
+etBewT1iMV5APc9dqPt8uSRFCUVU6ZUX/KQc9ScCnbGEu1iY/LXkrJZsG0M9JEOt
+bkjZFqgWRjixP3XUMQiWw9zk10WdvPQP9pkQXIpfJiIPNiWNQMza9TmkEPNmT9+Z
+yEgP43kDAoGBAIeuHCLqkYRf7Xuv2ztFOhPzLrJRRSm7Zcpdxp5Ano7R68Yq1RQb
+Mn0lUIG4QMssviQPyklF/xHYGJLUXBIUfNORn7BYqHikbcguUHKiwiC9io9xR9+z
+lvgIAIU6bbnsNT9MofTdrRT+H7df6cDP8NO43w8dWFXWX4K3NUU0YjbMAhQsr5fG
+vYKFMrvzTcdgEdtWeXx9uA==
+-----END DSA PRIVATE KEY-----
+EOF4
+chmod 600 /root/.ssh/id_dsa     
+
+systemctl disable NetworkManager
+systemctl enable network
+poweroff
+EOF
+    sleep 60 # Give time for poweroff
+    virsh dumpxml rhel7-${vmname} > /tmp/vm.txt
+    sed -i "s#type='network'#type='bridge'#" /tmp/vm.txt
+    sed -i "s#network='default'#bridge='br-public'#" /tmp/vm.txt
+    virsh define /tmp/vm.txt
+    virsh attach-interface rhel7-${vmname} bridge br-private --persistent --model virtio
+    # Create and attach second disk (used by swift)
+    qemu-img create -f qcow2 /var/lib/libvirt/images/rhel7-${vmname}-2.qcow2 8g
+    virsh attach-disk --persistent --subdriver qcow2 rhel7-${vmname} /var/lib/libvirt/images/rhel7-${vmname}-2.qcow2  vdb
+    virsh start rhel7-${vmname}
+}
+
+IFS=', ' read -a pair <<< "${PHD_VAR_hypervisors_controllers}"
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+for item in "${!pair[@]}"
+do
+  vmname=$(echo ${pair[item]} | awk -F: '{print $1}')
+  hypervisor=$(echo ${pair[item]} | awk -F: '{print $2}')
+  cont_ip=${controller_ips[item]}
+
+  if [ "$hypervisor" = `hostname -s` ]
+  then
+    create_vm $vmname $cont_ip
+  fi
+done
+
+IFS=', ' read -a pair <<< "${PHD_VAR_hypervisors_computenodes}"
+IFS=', ' read -a internal_ips <<< "${PHD_VAR_network_ips_computeinternal}"
+IFS=', ' read -a external_ips <<< "${PHD_VAR_network_ips_computeexternal}"
+
+for item in "${!pair[@]}"
+do
+  vmname=$(echo ${pair[item]} | awk -F: '{print $1}')
+  hypervisor=$(echo ${pair[item]} | awk -F: '{print $2}')
+  int_ip=${internal_ips[item]}
+  ext_ip=${external_ips[item]}
+
+  if [ "$hypervisor" = `hostname -s` ]
+  then
+    create_vm $vmname $int_ip $ext_ip
+  fi
+done
+....

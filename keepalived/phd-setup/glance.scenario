@@ -1,0 +1,96 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing Glance
+# - Configuring Glance
+# - Starting services and opening firewall rules
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_nfs_glanceshare
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-glance openstack-utils openstack-selinux nfs-utils
+openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:glancetest@${PHD_VAR_network_hosts_vip}/glance
+openstack-config --set /etc/glance/glance-api.conf database max_retries -1
+openstack-config --set /etc/glance/glance-api.conf paste_deploy flavor keystone
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/ 
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_user glance
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken admin_password glancetest
+openstack-config --set /etc/glance/glance-api.conf DEFAULT notification_driver messaging
+openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host ${myip}
+openstack-config --set /etc/glance/glance-api.conf DEFAULT registry_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/glance/glance-api.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/glance/glance-api.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@${PHD_VAR_network_hosts_vip}/glance
+openstack-config --set /etc/glance/glance-registry.conf database max_retries -1
+openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_user glance
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken admin_password glancetest
+openstack-config --set /etc/glance/glance-registry.conf DEFAULT bind_host ${myip}
+....
+
+target=$PHD_ENV_nodes1
+....
+su glance -s /bin/sh -c "glance-manage db_sync"
+....
+
+target=all
+....
+echo "${PHD_VAR_network_nfs_glanceshare} /var/lib/glance nfs vers=3 0 0" >> /etc/fstab
+# Workaround for bz#1203820
+systemctl start rpcbind
+systemctl start nfs-config
+systemctl start rpc-statd
+mount -a
+chown glance:nobody /var/lib/glance
+systemctl start openstack-glance-registry
+systemctl start openstack-glance-api
+systemctl enable openstack-glance-registry
+systemctl enable openstack-glance-api
+firewall-cmd --add-port=9191/tcp
+firewall-cmd --add-port=9191/tcp --permanent
+firewall-cmd --add-port=9292/tcp
+firewall-cmd --add-port=9292/tcp --permanent
+....

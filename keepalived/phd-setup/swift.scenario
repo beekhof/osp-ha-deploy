@@ -1,0 +1,153 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Tweaking the IP stack to allow nonlocal binding and adjusting keepalive timings
+# - Configuring haproxy
+# - Adding the virtual IPs to the cluster
+# - Putting haproxy under the cluster's control
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-swift-object openstack-swift-container openstack-swift-account openstack-swift-proxy openstack-utils rsync xfsprogs
+
+mkfs.xfs /dev/vdb
+mkdir -p /srv/node/vdb
+echo "/dev/vdb /srv/node/vdb xfs defaults 1 2" >> /etc/fstab
+mount -a 
+chown -R swift:swift /srv/node
+restorecon -R /srv/node
+
+openstack-config --set /etc/swift/object-server.conf DEFAULT bind_ip ${myip}
+openstack-config --set /etc/swift/object-server.conf DEFAULT devices /srv/node
+openstack-config --set /etc/swift/account-server.conf DEFAULT bind_ip ${myip}
+openstack-config --set /etc/swift/account-server.conf DEFAULT devices /srv/node
+openstack-config --set /etc/swift/container-server.conf DEFAULT bind_ip ${myip}
+openstack-config --set /etc/swift/container-server.conf DEFAULT devices /srv/node
+chown -R root:swift /etc/swift
+
+systemctl start openstack-swift-account
+systemctl start openstack-swift-container
+systemctl start openstack-swift-object
+systemctl enable openstack-swift-account
+systemctl enable openstack-swift-container
+systemctl enable openstack-swift-object
+
+firewall-cmd --add-port=6200/tcp
+firewall-cmd --add-port=6200/tcp --permanent
+firewall-cmd --add-port=6201/tcp
+firewall-cmd --add-port=6201/tcp --permanent
+firewall-cmd --add-port=6202/tcp
+firewall-cmd --add-port=6202/tcp --permanent
+
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
+openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
+openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip ${myip}
+openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
+....
+
+target=$PHD_ENV_nodes1
+....
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix $(openssl rand -hex 10)
+
+cat >> /etc/swift/swift.conf << EOF
+[filter:ceilometer]
+use = egg:ceilometer#swift
+[pipeline:main]
+pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
+EOF
+
+swift-ring-builder /etc/swift/object.builder create 16 3 24
+swift-ring-builder /etc/swift/container.builder create 16 3 24
+swift-ring-builder /etc/swift/account.builder create 16 3 24
+swift-ring-builder /etc/swift/account.builder add z1-${controller_ips[0]}:6202/vdb 10
+swift-ring-builder /etc/swift/container.builder add z1-${controller_ips[0]}:6201/vdb 10
+swift-ring-builder /etc/swift/object.builder add z1-${controller_ips[0]}:6200/vdb 10
+swift-ring-builder /etc/swift/account.builder add z2-${controller_ips[1]}:6202/vdb 10
+swift-ring-builder /etc/swift/container.builder add z2-${controller_ips[1]}:6201/vdb 10
+swift-ring-builder /etc/swift/object.builder add z2-${controller_ips[1]}:6200/vdb 10
+swift-ring-builder /etc/swift/account.builder add z3-${controller_ips[2]}:6202/vdb 10
+swift-ring-builder /etc/swift/container.builder add z3-${controller_ips[2]}:6201/vdb 10
+swift-ring-builder /etc/swift/object.builder add z3-${controller_ips[2]}:6200/vdb 10
+swift-ring-builder /etc/swift/account.builder rebalance
+swift-ring-builder /etc/swift/container.builder rebalance
+swift-ring-builder /etc/swift/object.builder rebalance
+
+cd /etc/swift
+tar cvfz /tmp/swift_configs.tgz swift.conf *.builder *.gz
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null /tmp/swift_configs.tgz ${controller_ips[1]}:/tmp
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null /tmp/swift_configs.tgz ${controller_ips[2]}:/tmp
+chown -R root:swift /etc/swift
+....
+
+target=$PHD_ENV_nodes2
+....
+cd /etc/swift
+tar xvfz /tmp/swift_configs.tgz
+chown -R root:swift /etc/swift
+restorecon -R /etc/swift
+....
+
+target=$PHD_ENV_nodes3
+....
+cd /etc/swift
+tar xvfz /tmp/swift_configs.tgz
+chown -R root:swift /etc/swift
+restorecon -R /etc/swift
+....
+
+target=all
+....
+systemctl start openstack-swift-proxy
+systemctl enable openstack-swift-proxy
+systemctl start openstack-swift-object-expirer
+systemctl enable openstack-swift-object-expirer
+firewall-cmd --add-port=8080/tcp
+firewall-cmd --add-port=8080/tcp --permanent
+....

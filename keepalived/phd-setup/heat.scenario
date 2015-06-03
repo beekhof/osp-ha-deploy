@@ -1,0 +1,126 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing Heat
+# - Creating the required Heat domain
+# - Configuring Heat
+# - Starting services and opening firewall rules
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_nic_external
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_neutron_externalgateway
+PHD_VAR_network_neutron_externalnetwork
+PHD_VAR_network_neutron_allocpoolstart
+PHD_VAR_network_neutron_allocpoolend
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum install -y openstack-heat-engine openstack-heat-api openstack-heat-api-cfn openstack-heat-api-cloudwatch python-heatclient openstack-utils python-glanceclient
+....
+
+target=$PHD_ENV_nodes1
+....
+. /root/keystonerc_admin
+openstack role create heat_stack_user
+TOKEN_ID=$(openstack token issue --format value --column id)
+
+openstack --os-token=${TOKEN_ID} --os-url=http://${PHD_VAR_network_hosts_vip}:5000/v3 --os-identity-api-version=3 domain create heat --description "Owns users and projects created by heat"
+openstack --os-token=${TOKEN_ID} --os-url=http://${PHD_VAR_network_hosts_vip}:5000/v3 --os-identity-api-version=3 user create --password heattest --domain heat --description "Manages users and projects created by heat" heat_domain_admin
+openstack --os-token=${TOKEN_ID} --os-url=http://${PHD_VAR_network_hosts_vip}:5000/v3 --os-identity-api-version=3 role add --user heat_domain_admin --domain heat admin
+....
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+. /root/keystonerc_admin
+TOKEN_ID=$(openstack token issue --format value --column id)
+HEAT_DOMAIN_ID=$(openstack --os-token=${TOKEN_ID} --os-url=http://${PHD_VAR_network_hosts_vip}:5000/v3  --os-identity-api-version=3 domain show heat --column id --format value)
+
+openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin_password heattest
+openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin heat_domain_admin
+openstack-config --set /etc/heat/heat.conf DEFAULT stack_user_domain_id ${HEAT_DOMAIN_ID}
+
+openstack-config --set /etc/heat/heat.conf database connection mysql://heat:heattest@${PHD_VAR_network_hosts_vip}/heat
+openstack-config --set /etc/heat/heat.conf database max_retries -1
+openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_user heat
+openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_password heattest
+openstack-config --set /etc/heat/heat.conf keystone_authtoken service_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/heat/heat.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/heat/heat.conf keystone_authtoken keystone_ec2_uri http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/heat/heat.conf ec2authtoken auth_uri http://${PHD_VAR_network_hosts_vip}:5000/v2.0
+openstack-config --set /etc/heat/heat.conf DEFAULT memcache_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/heat/heat.conf heat_api bind_host ${myip}
+openstack-config --set /etc/heat/heat.conf heat_api_cfn bind_host ${myip}
+openstack-config --set /etc/heat/heat.conf heat_api_cloudwatch bind_host ${myip}
+openstack-config --set /etc/heat/heat.conf DEFAULT heat_metadata_server_url http://${PHD_VAR_network_hosts_vip}:8000
+openstack-config --set /etc/heat/heat.conf DEFAULT heat_waitcondition_server_url http://${PHD_VAR_network_hosts_vip}:8000/v1/waitcondition
+openstack-config --set /etc/heat/heat.conf DEFAULT heat_watch_server_url http://${PHD_VAR_network_hosts_vip}:8003
+openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/heat/heat.conf DEFAULT rpc_backend rabbit
+openstack-config --set /etc/heat/heat.conf DEFAULT notification_driver heat.openstack.common.notifier.rpc_notifier
+openstack-config --set /etc/heat/heat.conf DEFAULT enable_cloud_watch_lite false
+....
+
+target=$PHD_ENV_nodes1
+....
+su heat -s /bin/sh -c "heat-manage db_sync"
+....
+
+target=all
+....
+systemctl start openstack-heat-api
+systemctl start openstack-heat-api-cfn
+systemctl start openstack-heat-api-cloudwatch
+systemctl start openstack-heat-engine
+systemctl enable openstack-heat-api
+systemctl enable openstack-heat-api-cfn
+systemctl enable openstack-heat-api-cloudwatch
+systemctl enable openstack-heat-engine
+firewall-cmd --add-port=8000/tcp
+firewall-cmd --add-port=8000/tcp --permanent
+firewall-cmd --add-port=8003/tcp
+firewall-cmd --add-port=8003/tcp --permanent
+firewall-cmd --add-port=8004/tcp
+firewall-cmd --add-port=8004/tcp --permanent
+....

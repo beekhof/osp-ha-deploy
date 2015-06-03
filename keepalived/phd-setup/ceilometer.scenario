@@ -1,0 +1,99 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Install Ceilometer
+# - Configuring Ceilometer
+# - Start services and add firewall rules
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_nic_external
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_hosts_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_hosts_mongodb
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_neutron_externalgateway
+PHD_VAR_network_neutron_externalnetwork
+PHD_VAR_network_neutron_allocpoolstart
+PHD_VAR_network_neutron_allocpoolend
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
+
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/ceilometer/ceilometer.conf publisher telemetry_secret ceilometersecret
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_auth_url http://${PHD_VAR_network_hosts_vip}:5000/v2.0 
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_username ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
+openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ceilometertest
+openstack-config --set /etc/ceilometer/ceilometer.conf database connection mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf database max_retries -1
+
+# keep last 5 days data only (value is in secs)
+openstack-config --set /etc/ceilometer/ceilometer.conf database metering_time_to_live 432000
+openstack-config --set /etc/ceilometer/ceilometer.conf api host ${myip}
+
+IFS=', ' read -a controller_names <<< "${PHD_VAR_network_hosts_controllers}"
+
+openstack-config --set /etc/ceilometer/ceilometer.conf coordination backend_url "redis://${controller_names[0]}:26379?sentinel=mymaster&sentinel_fallback=${controller_names[0]}:26379&sentinel_fallback=${controller_names[0]}:26379"
+
+systemctl start openstack-ceilometer-central 
+systemctl enable openstack-ceilometer-central 
+systemctl start openstack-ceilometer-collector
+systemctl enable openstack-ceilometer-collector
+systemctl start openstack-ceilometer-api 
+systemctl enable openstack-ceilometer-api 
+systemctl start openstack-ceilometer-alarm-evaluator
+systemctl enable openstack-ceilometer-alarm-evaluator 
+systemctl start openstack-ceilometer-alarm-notifier
+systemctl enable openstack-ceilometer-alarm-notifier
+systemctl start openstack-ceilometer-notification
+systemctl enable openstack-ceilometer-notification
+firewall-cmd --add-port=8777/tcp
+firewall-cmd --add-port=8777/tcp --permanent
+firewall-cmd --add-port=4952/udp
+firewall-cmd --add-port=4952/udp --permanent
+....

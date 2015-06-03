@@ -1,0 +1,77 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing keepalived
+# - Configuring keepalived
+# - Starting the service and opening the required firewall rule
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_ips_vip
+PHD_VAR_network_nic_internal
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum install -y keepalived psmisc
+
+cat > /etc/keepalived/keepalived.conf << EOF
+vrrp_script chk_haproxy {
+    script "/usr/bin/killall -0 haproxy"
+    interval 2
+}
+
+vrrp_instance VI_PUBLIC {
+    interface ${PHD_VAR_network_nic_internal}
+    state BACKUP
+    virtual_router_id 52
+    priority 101
+    virtual_ipaddress {
+        ${PHD_VAR_network_ips_vip} dev ${PHD_VAR_network_nic_internal}
+    }
+    track_script {
+        chk_haproxy
+    }
+}
+
+vrrp_sync_group VG1
+    group {
+        VI_PUBLIC
+    }
+EOF
+
+firewall-cmd --direct --add-rule ipv4 filter INPUT 0 -i ${PHD_VAR_network_nic_internal} -d 224.0.0.0/8 -j ACCEPT
+firewall-cmd --direct --perm --add-rule ipv4 filter INPUT 0 -i ${PHD_VAR_network_nic_internal} -d 224.0.0.0/8 -j ACCEPT
+systemctl start keepalived
+systemctl enable keepalived
+....

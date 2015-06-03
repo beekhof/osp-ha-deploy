@@ -1,0 +1,195 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Install MariaDB / Galera
+# - Configure Galera
+# - Bootstrap an initial Galera cluster
+# - Create databases for OpenStack services
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum install -y mariadb-galera-server xinetd rsync psmisc
+
+cat > /etc/sysconfig/clustercheck << EOF
+MYSQL_USERNAME="clustercheck"
+MYSQL_PASSWORD="redhat"
+MYSQL_HOST="localhost"
+MYSQL_PORT="3306"
+EOF
+
+systemctl start mysqld
+mysql -e "CREATE USER 'clustercheck'@'localhost' IDENTIFIED BY 'redhat';"
+systemctl stop mysqld
+
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+cat > /etc/my.cnf.d/galera.cnf << EOF
+[mysqld]
+skip-name-resolve=1
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+innodb_locks_unsafe_for_binlog=1
+max_connections=2048
+query_cache_size=0
+query_cache_type=0
+bind_address=${myip}
+wsrep_provider=/usr/lib64/galera/libgalera_smm.so
+wsrep_cluster_name="galera_cluster"
+wsrep_cluster_address="gcomm://192.168.1.221,192.168.1.222,192.168.1.223"
+wsrep_slave_threads=1
+wsrep_certify_nonPK=1
+wsrep_max_ws_rows=131072
+wsrep_max_ws_size=1073741824
+wsrep_debug=0
+wsrep_convert_LOCK_to_trx=0
+wsrep_retry_autocommit=1
+wsrep_auto_increment_control=1
+wsrep_drupal_282555_workaround=0
+wsrep_causal_reads=0
+wsrep_notify_cmd=
+wsrep_sst_method=rsync
+EOF
+
+mkdir -p /etc/systemd/system/mariadb.service.d/
+cat > /etc/systemd/system/mariadb.service.d/limits.conf << EOF
+[Service]
+LimitNOFILE=16384
+EOF
+
+cat > /etc/xinetd.d/galera-monitor << EOF
+service galera-monitor
+{
+    port = 9200
+    disable = no
+    socket_type = stream
+    protocol = tcp
+    wait = no
+    user = root
+    group = root
+    groups = yes
+    server = /usr/bin/clustercheck
+    type = UNLISTED
+    per_source = UNLIMITED
+    log_on_success = 
+    log_on_failure = HOST
+    flags = REUSE
+}
+EOF
+
+systemctl daemon-reload
+systemctl enable xinetd
+systemctl start xinetd
+systemctl enable haproxy
+systemctl start haproxy
+
+firewall-cmd --add-service=mysql
+firewall-cmd --add-port=4444/tcp 
+firewall-cmd --add-port=4567/tcp
+firewall-cmd --add-port=4568/tcp
+firewall-cmd --add-port=4568/tcp --permanent
+firewall-cmd --add-service=mysql --permanent
+firewall-cmd --add-port=4567/tcp --permanent
+firewall-cmd --add-port=4444/tcp --permanent
+firewall-cmd --add-port=9300/tcp
+firewall-cmd --add-port=9300/tcp --permanent
+firewall-cmd --add-port=9200/tcp
+firewall-cmd --add-port=9200/tcp --permanent
+
+systemctl enable mariadb
+....
+
+target=$PHD_ENV_nodes1
+....
+# This is required to allow sudo execution without a tty
+sed -i 's/Defaults    requiretty/Defaults !requiretty/g' /etc/sudoers
+nohup sudo -u mysql /usr/libexec/mysqld --wsrep-cluster-address='gcomm://' < /dev/null > /dev/null 2>&1 &
+sleep 30
+# A little cleanup
+sed -i 's/Defaults !requiretty/Defaults    requiretty/g' /etc/sudoers
+....
+
+target=$PHD_ENV_nodes2
+....
+
+systemctl start mariadb
+sleep 10
+....
+
+target=$PHD_ENV_nodes3
+....
+
+systemctl start mariadb
+sleep 10
+....
+
+target=$PHD_ENV_nodes1
+....
+
+cat > /tmp/mysql.sql << EOF
+use mysql;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED by 'mysqltest' WITH GRANT OPTION;
+CREATE DATABASE keystone;
+GRANT ALL ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'keystonetest';
+CREATE DATABASE glance;
+GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY 'glancetest';
+CREATE DATABASE cinder;
+GRANT ALL ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'cindertest';
+CREATE DATABASE neutron;
+GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'neutrontest';
+CREATE DATABASE nova;
+GRANT ALL ON nova.* TO 'nova'@'%' IDENTIFIED BY 'novatest';
+CREATE DATABASE heat;
+GRANT ALL ON heat.* TO 'heat'@'%' IDENTIFIED BY 'heattest';
+CREATE DATABASE sahara;
+GRANT ALL ON sahara.* TO 'sahara'@'%' IDENTIFIED BY 'saharatest';
+CREATE DATABASE trove;
+GRANT ALL ON trove.* TO 'trove'@'%' IDENTIFIED BY 'trovetest';
+FLUSH PRIVILEGES;
+EOF
+
+killall mysqld
+# it takes some time for mysqld to actually stop after you kill it
+sleep 30    
+systemctl start mariadb
+
+mysql < /tmp/mysql.sql > /tmp/mysql.out
+rm -f /tmp/mysql.sql
+mysqladmin flush-hosts
+
+....

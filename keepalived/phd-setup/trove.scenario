@@ -1,0 +1,197 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing Trove
+# - Configuring Trove
+# - Creating a VM image for Trove usage
+# - Starting services, opening firewall ports
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_nic_external
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_neutron_externalgateway
+PHD_VAR_network_neutron_externalnetwork
+PHD_VAR_network_neutron_allocpoolstart
+PHD_VAR_network_neutron_allocpoolend
+PHD_VAR_network_ssh_pubkey
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-trove python-troveclient
+
+openstack-config --set /etc/trove/trove.conf DEFAULT bind_host ${myip}
+openstack-config --set /etc/trove/trove.conf DEFAULT log_dir /var/log/trove
+openstack-config --set /etc/trove/trove.conf DEFAULT trove_auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove.conf DEFAULT os_region_name regionOne
+openstack-config --set /etc/trove/trove.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/trove/trove.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/trove/trove.conf oslo_messaging_rabbit rabbit_password guest
+openstack-config --set /etc/trove/trove.conf DEFAULT rpc_backend rabbit
+openstack-config --set /etc/trove/trove.conf database connection  mysql://trove:trovetest@${PHD_VAR_network_hosts_vip}/trove
+openstack-config --set /etc/trove/trove.conf database max_retries -1
+openstack-config --set /etc/trove/trove.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/trove/trove.conf keystone_authtoken admin_user trove
+openstack-config --set /etc/trove/trove.conf keystone_authtoken admin_password trovetest
+openstack-config --set /etc/trove/trove.conf keystone_authtoken service_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/trove/trove.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/trove/trove.conf keystone_authtoken auth_uri http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove.conf DEFAULT control_exchange trove
+
+openstack-config --set /etc/trove/trove-conductor.conf DEFAULT trove_auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove-conductor.conf DEFAULT os_region_name regionOne
+openstack-config --set /etc/trove/trove-conductor.conf DEFAULT log_file trove-conductor.log
+openstack-config --set /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/trove/trove-conductor.conf oslo_messaging_rabbit rabbit_password guest
+openstack-config --set /etc/trove/trove-conductor.conf DEFAULT rpc_backend rabbit
+openstack-config --set /etc/trove/trove-conductor.conf database connection  mysql://trove:trovetest@${PHD_VAR_network_hosts_vip}/trove
+openstack-config --set /etc/trove/trove-conductor.conf database max_retries -1
+openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken admin_user trove
+openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken admin_password trovetest
+openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken service_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken auth_uri http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove-conductor.conf DEFAULT control_exchange trove
+
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT trove_auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT os_region_name regionOne
+openstack-config --set /etc/trove/trove-taskmanager.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/trove/trove-taskmanager.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/trove/trove-taskmanager.conf oslo_messaging_rabbit rabbit_password guest
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT rpc_backend rabbit
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_user trove
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_pass trovetest
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_tenant_name ${SERVICES_TENANT_ID}
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT log_file trove-taskmanager.log
+openstack-config --set /etc/trove/trove-taskmanager.conf database connection  mysql://trove:trovetest@${PHD_VAR_network_hosts_vip}/trove
+openstack-config --set /etc/trove/trove-taskmanager.conf database max_retries -1
+openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken admin_user trove
+openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken admin_password trovetest
+openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken service_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken auth_uri http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT cloudinit_loaction /etc/trove/cloudinit
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT network_driver trove.network.neutron.NeutronDriver
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT control_exchange trove
+# The following is a workaround for https://bugs.launchpad.net/trove/+bug/1402055
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT exists_notification_transformer
+
+openstack-config --set /etc/trove/trove.conf DEFAULT default_datastore mysql
+openstack-config --set /etc/trove/trove.conf DEFAULT add_addresses True
+openstack-config --set /etc/trove/trove.conf DEFAULT network_label_regex ^private$
+
+cp /usr/share/trove/trove-dist-paste.ini /etc/trove/api-paste.ini
+openstack-config --set /etc/trove/api-paste.ini filter:authtoken auth_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/trove/api-paste.ini filter:authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/trove/api-paste.ini filter:authtoken admin_password trovetest
+openstack-config --set /etc/trove/api-paste.ini filter:authtoken admin_user trove
+openstack-config --set /etc/trove/api-paste.ini filter:authtoken admin_tenant_name services
+openstack-config --set /etc/trove/trove.conf DEFAULT api_paste_config /etc/trove/api-paste.ini
+....
+
+target=$PHD_ENV_nodes1
+....
+su trove -s /bin/sh -c "trove-manage db_sync"
+trove-manage datastore_update mysql ''
+# Create image using CentOS7.
+# This is not ideal, check https://www.rdoproject.org/forum/discussion/1010/creation-of-trove-compatible-images-for-rdo/p1
+. /root/keystonerc_admin
+cd /tmp
+wget http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2
+glance image-create --name centos7 --disk-format qcow2 --container-format bare --is-public True --owner trove --file CentOS-7-x86_64-GenericCloud.qcow2
+IMAGE_ID=$(openstack image show centos7 --format value --column id)
+trove-manage --config-file=/etc/trove/trove.conf datastore_version_update mysql mysql-5.5 mysql ${IMAGE_ID} mysql55 1
+trove-manage db_load_datastore_config_parameters mysql "mysql-5.5"  /usr/lib/python2.7/site-packages/trove/templates/mysql/validation-rules.json
+
+....
+
+target=all
+....
+mkdir /etc/trove/cloudinit
+cat > /etc/trove/cloudinit/mysql.cloudinit << EOF
+#!/bin/bash
+
+sed -i'.orig' -e's/without-password/yes/' /etc/ssh/sshd_config
+echo "test" | passwd --stdin centos
+echo "redhat" | passwd --stdin root
+service sshd restart
+
+yum -y install wget epel-release    
+yum -y install http://rdoproject.org/repos/openstack-kilo/rdo-testing-kilo.rpm
+yum -y install openstack-trove-guestagent mariadb-server openstack-utils python-oslo-messaging python-osprofiler python-oslo-concurrency
+
+systemctl enable mariadb
+systemctl start mariadb
+
+echo "trove ALL=(ALL)  NOPASSWD: ALL" >> /etc/sudoers
+echo "Defaults:trove !requiretty" >> /etc/sudoers
+
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT rabbit_password guest
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_user trove
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_pass trovetest
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_tenant_name services
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT trove_auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT control_exchange trove
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT log_dir /var/log/trove
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT log_file trove-guestagent.log
+openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT datastore_manager mysql
+
+echo "${PHD_VAR_network_ssh_pubkey}" >> /root/.ssh/authorized_keys
+echo "${PHD_VAR_network_ssh_pubkey}" >> /home/centos/.ssh/authorized_keys
+
+systemctl stop openstack-trove-guestagent
+systemctl enable openstack-trove-guestagent
+systemctl start openstack-trove-guestagent
+EOF
+
+systemctl enable openstack-trove-api
+systemctl enable openstack-trove-taskmanager
+systemctl enable openstack-trove-conductor
+systemctl start openstack-trove-api
+systemctl start openstack-trove-taskmanager
+systemctl start openstack-trove-conductor
+firewall-cmd --add-port=8779/tcp
+firewall-cmd --add-port=8779/tcp --permanent
+....
+

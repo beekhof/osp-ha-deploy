@@ -1,0 +1,77 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Tweaking the IP stack to allow nonlocal binding and adjusting keepalive timings
+# - Configuring haproxy
+# - Adding the virtual IPs to the cluster
+# - Putting haproxy under the cluster's control
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_ips_computeinternal
+PHD_VAR_network_hosts_controllers
+PHD_VAR_network_hosts_compute
+PHD_VAR_network_ips_vip
+PHD_VAR_network_hosts_vip
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+
+IFS=', ' read -a controller_names <<< "${PHD_VAR_network_hosts_controllers}"
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+IFS=', ' read -a compute_names <<< "${PHD_VAR_network_hosts_compute}"
+IFS=', ' read -a compute_ips <<< "${PHD_VAR_network_ips_computeinternal}"
+
+addhosts=""
+
+for item in "${controller_names[@]}"
+do
+    shortname=$(echo ${controller_names[item]} | awk -F. '{print $1}')
+
+    addhosts=$(printf "${addhosts}\n${controller_ips[item]} ${controller_names[item]} ${shortname}")
+done
+
+for item in "${controller_names[@]}"
+do
+    shortname=$(echo ${compute_names[item]} | awk -F. '{print $1}')
+
+    addhosts=$(printf "${addhosts}\n${compute_ips[item]} ${compute_names[item]} ${shortname}")
+done
+
+shortname=$(echo ${PHD_VAR_network_hosts_vip} | awk -F. '{print $1}')
+addhosts=$(printf "${addhosts}\n${PHD_VAR_network_ips_vip} ${PHD_VAR_network_hosts_vip} ${shortname}")
+
+echo "$addhosts" >> /etc/hosts
+....

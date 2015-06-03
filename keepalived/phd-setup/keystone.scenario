@@ -1,0 +1,278 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing Keystone
+# - Configuring Keystone
+# - Starting the service, opening firewall rules
+# - Creating user accounts, roles, projects, services and endpoints for all
+#   services
+# - Creating a keystonerc file
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum install -y openstack-keystone openstack-utils openstack-selinux httpd mod_wsgi python-openstackclient
+....
+
+target=$PHD_ENV_nodes1
+....
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+export SERVICE_TOKEN=$(openssl rand -hex 10)
+echo $SERVICE_TOKEN > /root/keystone_service_token
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null /root/keystone_service_token root@${controller_ips[1]}:/root
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null /root/keystone_service_token root@${controller_ips[2]}:/root
+....
+
+target=all
+....
+servername=$(hostname -s)
+
+
+mkdir /var/www/cgi-bin/keystone
+chown keystone:keystone /var/www/cgi-bin/keystone
+ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/admin
+ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/main
+restorecon -R /var/www/cgi-bin/keystone /etc/httpd 
+
+cat > /etc/httpd/conf.d/10-keystone_wsgi_admin.conf << EOF
+<VirtualHost *:35357>
+  ServerName ${servername}
+  ## Vhost docroot
+  DocumentRoot "/var/www/cgi-bin/keystone"
+
+  ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
+
+  <Directory "/var/www/cgi-bin/keystone">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride None
+    Require all granted
+  </Directory>
+
+  ## Logging
+  ErrorLog "/var/log/httpd/keystone_wsgi_admin_error.log"
+  ServerSignature Off
+  CustomLog "/var/log/httpd/keystone_wsgi_admin_access.log" combined 
+  WSGIDaemonProcess keystone_admin group=keystone processes=1 threads=1 user=keystone
+  WSGIProcessGroup keystone_admin
+  WSGIScriptAlias / "/var/www/cgi-bin/keystone/admin"
+</VirtualHost>
+EOF
+
+cat > /etc/httpd/conf.d/10-keystone_wsgi_main.conf << EOF
+<VirtualHost *:5000>
+  ServerName ${servername}
+  ## Vhost docroot
+  DocumentRoot "/var/www/cgi-bin/keystone"
+
+  ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
+
+  <Directory "/var/www/cgi-bin/keystone">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride None
+    Require all granted
+  </Directory>
+
+  ## Logging
+  ErrorLog "/var/log/httpd/keystone_wsgi_main_error.log"
+  ServerSignature Off
+  CustomLog "/var/log/httpd/keystone_wsgi_main_access.log" combined 
+  WSGIDaemonProcess keystone_main group=keystone processes=1 threads=1 user=keystone
+  WSGIProcessGroup keystone_main
+  WSGIScriptAlias / "/var/www/cgi-bin/keystone/main"
+</VirtualHost>
+EOF
+
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+sed -i -e "s/^Listen.*/Listen ${myip}:80/g" /etc/httpd/conf/httpd.conf 
+echo "Listen ${myip}:5000" >> /etc/httpd/conf/httpd.conf
+echo "Listen ${myip}:35357" >> /etc/httpd/conf/httpd.conf
+
+export SERVICE_TOKEN=$(cat /root/keystone_service_token)
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
+openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_ha_queues true
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_endpoint "http://${PHD_VAR_network_hosts_vip}:%(admin_port)s/"
+openstack-config --set /etc/keystone/keystone.conf DEFAULT public_endpoint "http://${PHD_VAR_network_hosts_vip}:%(public_port)s/"
+openstack-config --set /etc/keystone/keystone.conf database connection mysql://keystone:keystonetest@${PHD_VAR_network_hosts_vip}/keystone
+openstack-config --set /etc/keystone/keystone.conf database max_retries -1
+openstack-config --set /etc/keystone/keystone.conf DEFAULT public_bind_host ${myip}
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_bind_host ${myip}
+openstack-config --set /etc/keystone/keystone.conf token driver  keystone.token.persistence.backends.sql.Token
+....
+
+target=$PHD_ENV_nodes1
+....
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
+su keystone -s /bin/sh -c "keystone-manage db_sync"
+cd /etc/keystone/ssl
+tar cvfz /tmp/keystone_ssl.tgz *
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null /tmp/keystone_ssl.tgz ${controller_ips[1]}:/tmp
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null /tmp/keystone_ssl.tgz ${controller_ips[2]}:/tmp
+....
+
+target=$PHD_ENV_nodes2
+....
+mkdir -p /etc/keystone/ssl
+cd /etc/keystone/ssl
+tar xvfz /tmp/keystone_ssl.tgz 
+chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
+restorecon -Rv /etc/keystone/ssl
+touch /var/log/keystone/keystone.log
+chown keystone:keystone /var/log/keystone/keystone.log 
+....
+
+target=$PHD_ENV_nodes3
+....
+mkdir -p /etc/keystone/ssl
+cd /etc/keystone/ssl
+tar xvfz /tmp/keystone_ssl.tgz 
+chown -R keystone:keystone /var/log/keystone /etc/keystone/ssl/
+restorecon -Rv /etc/keystone/ssl
+touch /var/log/keystone/keystone.log
+chown keystone:keystone /var/log/keystone/keystone.log 
+....
+
+target=all
+....
+firewall-cmd --add-port=5000/tcp
+firewall-cmd --add-port=5000/tcp --permanent
+firewall-cmd --add-port=35357/tcp
+firewall-cmd --add-port=35357/tcp --permanent
+systemctl start httpd
+systemctl enable httpd
+....
+
+target=$PHD_ENV_nodes1
+....
+export OS_TOKEN=$(cat /root/keystone_service_token)
+export OS_URL=http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+export OS_REGION_NAME=regionOne
+openstack service create --name=keystone --description="Keystone Identity Service" identity
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:5000/v2.0" --adminurl "http://${PHD_VAR_network_hosts_vip}:35357/v2.0" --internalurl "http://${PHD_VAR_network_hosts_vip}:5000/v2.0" --region regionOne keystone
+openstack user create --password keystonetest admin
+openstack role create admin
+openstack project create admin
+openstack role add --project admin --user admin admin
+openstack user create --password redhat demo
+openstack role create _member_
+openstack project create demo
+openstack role add --project demo --user demo _member_
+openstack project create --description "Services Tenant" services
+# glance
+openstack user create --password glancetest glance
+openstack role add --project services --user glance admin
+openstack service create --name=glance --description="Glance Image Service" image
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:9292" --adminurl "http://${PHD_VAR_network_hosts_vip}:9292" --internalurl "http://${PHD_VAR_network_hosts_vip}:9292" --region regionOne glance
+# cinder
+openstack user create --password cindertest cinder
+openstack role add --project services --user cinder admin
+openstack service create --name=cinder --description="Cinder Volume Service" volume
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8776/v1/\$(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8776/v1/\$(tenant_id)s" --internalurl "http://${PHD_VAR_network_hosts_vip}:8776/v1/\$(tenant_id)s" --region regionOne cinder
+openstack service create --name=cinderv2 --description="OpenStack Block Storage" volumev2
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8776/v2/\$(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8776/v2/\$(tenant_id)s" --internalurl "http://${PHD_VAR_network_hosts_vip}:8776/v2/\$(tenant_id)s" --region regionOne cinderv2
+# swift
+openstack user create --password swifttest swift
+openstack role add --project services --user swift admin
+openstack service create --name=swift --description="Swift Storage Service" object-store
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8080/v1/AUTH_\$(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8080/v1" --internalurl "http://${PHD_VAR_network_hosts_vip}:8080/v1/AUTH_\$(tenant_id)s" --region regionOne swift
+# neutron
+openstack user create --password neutrontest neutron
+openstack role add --project services --user neutron admin
+openstack service create --name=neutron --description="OpenStack Networking Service" network
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:9696" --adminurl "http://${PHD_VAR_network_hosts_vip}:9696" --internalurl "http://${PHD_VAR_network_hosts_vip}:9696" --region regionOne neutron
+# nova
+openstack user create --password novatest compute
+openstack role add --project services --user compute admin
+openstack service create --name=compute --description="OpenStack Compute Service" compute
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8774/v2/\$(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8774/v2/\$(tenant_id)s" --internalurl "http://${PHD_VAR_network_hosts_vip}:8774/v2/\$(tenant_id)s" --region regionOne compute
+# heat
+openstack user create --password heattest heat
+openstack role add --project services --user heat admin
+openstack service create --name=heat --description="Heat Orchestration Service" orchestration
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8004/v1/%(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8004/v1/%(tenant_id)s" --internalurl "http://${PHD_VAR_network_hosts_vip}:8004/v1/%(tenant_id)s" --region regionOne heat
+openstack service create --name=heat-cfn --description="Heat CloudFormation Service" cloudformation
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8000/v1" --adminurl "http://${PHD_VAR_network_hosts_vip}:8000/v1" --internalurl "http://${PHD_VAR_network_hosts_vip}:8000/v1" --region regionOne heat-cfn
+# ceilometer
+openstack user create --password ceilometertest ceilometer
+openstack role add --project services --user ceilometer admin
+openstack role create ResellerAdmin
+openstack role add --project services --user ceilometer ResellerAdmin
+openstack service create --name=ceilometer --description="OpenStack Telemetry Service" metering
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8777" --adminurl "http://${PHD_VAR_network_hosts_vip}:8777" --internalurl "http://${PHD_VAR_network_hosts_vip}:8777" --region regionOne ceilometer
+# sahara
+openstack user create --password saharatest sahara
+openstack role add --project services --user sahara admin
+openstack service create --name=sahara --description="Sahara Data Processing" data-processing
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8386/v1.1/%(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8386/v1.1/%(tenant_id)s" --internalurl "http://${PHD_VAR_network_hosts_vip}:8386/v1.1/%(tenant_id)s" --region regionOne sahara
+# trove
+openstack user create --password trovetest trove
+openstack role add --project services --user trove admin
+openstack service create --name=trove --description="OpenStack Database Service" database
+openstack endpoint create --publicurl "http://${PHD_VAR_network_hosts_vip}:8779/v1.0/%(tenant_id)s" --adminurl "http://${PHD_VAR_network_hosts_vip}:8779/v1.0/%(tenant_id)s" --internalurl "http://${PHD_VAR_network_hosts_vip}:8779/v1.0/%(tenant_id)s" --region regionOne trove
+....
+
+target=all
+....
+
+cat > /root/keystonerc_admin << EOF
+export OS_USERNAME=admin 
+export OS_TENANT_NAME=admin
+export OS_PROJECT_NAME=admin
+export OS_REGION_NAME=regionOne
+export OS_PASSWORD=keystonetest
+export OS_AUTH_URL=http://${PHD_VAR_network_hosts_vip}:35357/v2.0/
+export PS1='[\u@\h \W(keystone_admin)]\$ '
+EOF
+
+cat > /root/keystonerc_demo << EOF
+export OS_USERNAME=demo
+export OS_TENANT_NAME=demo
+export OS_PROJECT_NAME=demo
+export OS_REGION_NAME=regionOne
+export OS_PASSWORD=redhat
+export OS_AUTH_URL=http://${PHD_VAR_network_hosts_vip}:5000/v2.0/
+export PS1='[\u@\h \W(keystone_user)]\$ '
+EOF
+....

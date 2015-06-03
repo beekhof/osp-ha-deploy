@@ -1,0 +1,141 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing RabbitMQ
+# - Configuring RabbitMQ, with a 3-node cluster
+# - Setting TCP keepalived kernel parameters
+# - Starting the RabbitMQ cluster, opening firewall ports
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+yum -y install rabbitmq-server
+....
+
+target=$PHD_ENV_nodes1
+....
+
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+cat > /etc/rabbitmq/rabbitmq-env.conf << EOF
+NODE_IP_ADDRESS=${controller_ips[0]}
+EOF
+
+systemctl start rabbitmq-server
+systemctl stop rabbitmq-server
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -p /var/lib/rabbitmq/.erlang.cookie ${controller_ips[1]}:/tmp
+scp -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -p /var/lib/rabbitmq/.erlang.cookie ${controller_ips[2]}:/tmp
+....
+
+target=$PHD_ENV_nodes2
+....
+
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+cat > /etc/rabbitmq/rabbitmq-env.conf << EOF
+NODE_IP_ADDRESS=${controller_ips[1]}
+EOF
+
+cp /tmp/.erlang.cookie  /var/lib/rabbitmq/.erlang.cookie
+chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie
+....
+
+target=$PHD_ENV_nodes3
+....
+
+IFS=', ' read -a controller_ips <<< "${PHD_VAR_network_ips_controllers}"
+
+cat > /etc/rabbitmq/rabbitmq-env.conf << EOF
+NODE_IP_ADDRESS=${controller_ips[2]}
+EOF
+
+cp /tmp/.erlang.cookie  /var/lib/rabbitmq/.erlang.cookie
+chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie
+....
+
+target=all
+....
+IFS=', ' read -a nodes <<< "${PHD_VAR_network_hosts_rabbitmq}"
+
+cat > /etc/rabbitmq/rabbitmq.config << EOF
+
+[
+    {rabbit, [
+    {cluster_nodes, {['rabbit@${nodes[0]}', 'rabbit@${nodes[1]}', 'rabbit@${nodes[2]}'], disc}},
+    {cluster_partition_handling, ignore},
+    {default_user, <<"guest">>},
+    {default_pass, <<"guest">>},
+    {tcp_listen_options, [binary,
+        {packet, raw},
+        {reuseaddr, true},
+        {backlog, 128},
+        {nodelay, true},
+        {exit_on_close, false},
+        {keepalive, true}]}
+    ]},
+    {kernel, [
+        {inet_dist_listen_max, 44001},
+        {inet_dist_listen_min, 44001}
+    ]}
+].
+
+EOF
+
+cat > /etc/sysctl.d/tcpka.conf << EOF
+net.ipv4.tcp_keepalive_intvl = 1
+net.ipv4.tcp_keepalive_probes = 5
+net.ipv4.tcp_keepalive_time = 5
+EOF
+
+sysctl -p /etc/sysctl.d/tcpka.conf
+
+firewall-cmd --add-port=5672/tcp 
+firewall-cmd --add-port=4369/tcp
+firewall-cmd --add-port=5672/tcp --permanent
+firewall-cmd --add-port=4369/tcp --permanent
+firewall-cmd --add-port=44001/tcp
+firewall-cmd --add-port=44001/tcp --permanent
+systemctl enable rabbitmq-server
+systemctl start rabbitmq-server
+....
+
+target=$PHD_ENV_nodes1
+....
+rabbitmqctl set_policy HA '^(?!amq\.).*' '{"ha-mode": "all"}'
+....

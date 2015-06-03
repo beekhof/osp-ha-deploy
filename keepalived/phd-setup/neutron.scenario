@@ -1,0 +1,209 @@
+# This file can be used directly by 'phd', see 'build-all.sh' in this
+# directory for how it can be invoked.  The only requirement is a list
+# of nodes you'd like it to modify.
+#
+# The scope of each command-block is controlled by the preceeding
+# 'target' line. 
+#
+# - target=all
+#   The commands are executed on evey node provided
+#
+# - target=local
+#   The commands are executed from the node hosting phd. When not
+#   using phd, they should be run from some other independant host
+#   (such as the puppet master)
+#
+# - target=$PHD_ENV_nodes{N}
+#   The commands are executed on the Nth node provided.
+#   For example, to run on only the first node would be target=$PHD_ENV_nodes1
+#
+# Tasks to be performed at this step include:
+# - Installing Neutron
+# - Configuring Neutron server, FWaaS, LBaaS and Neutron agents
+# - Starting Neutron services, opening firewall rules
+# - Creating an external network using a provider network
+
+#################################
+# Scenario Requirements Section #
+#################################
+= VARIABLES =
+
+PHD_VAR_network_nic_internal
+PHD_VAR_network_nic_external
+PHD_VAR_network_hosts_vip
+PHD_VAR_network_ips_controllers
+PHD_VAR_network_hosts_rabbitmq
+PHD_VAR_network_hosts_memcache
+PHD_VAR_network_neutron_externalgateway
+PHD_VAR_network_neutron_externalnetwork
+PHD_VAR_network_neutron_allocpoolstart
+PHD_VAR_network_neutron_allocpoolend
+
+#################################
+# Scenario Requirements Section #
+#################################
+= REQUIREMENTS =
+nodes: 1
+
+######################
+# Deployment Scripts #
+######################
+= SCRIPTS =
+
+target=all
+....
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+
+yum install -y openstack-neutron openstack-neutron-openvswitch openstack-neutron-ml2 openstack-utils openstack-selinux
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host ${myip}
+openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri http://${PHD_VAR_network_hosts_vip}:35357/
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
+openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
+openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:neutrontest@${PHD_VAR_network_hosts_vip}:3306/neutron
+openstack-config --set /etc/neutron/neutron.conf database max_retries -1
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://${PHD_VAR_network_hosts_vip}:8774/v2
+openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
+
+. /root/keystonerc_admin
+service_tenant_id=$(openstack project show services -f value -c id | head -n 1)
+
+# The tenant_id below is the services tenant ID
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id ${service_tenant_id}
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username compute
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_password novatest
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.ml2.plugin.Ml2Plugin
+openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router
+openstack-config --set /etc/neutron/neutron.conf DEFAULT router_scheduler_driver neutron.scheduler.l3_agent_scheduler.ChanceScheduler
+openstack-config --set /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network 2
+openstack-config --set /etc/neutron/neutron.conf DEFAULT api_workers 2
+openstack-config --set /etc/neutron/neutron.conf DEFAULT rpc_workers 2
+openstack-config --set /etc/neutron/neutron.conf DEFAULT l3_ha True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT min_l3_agents_per_router 2
+openstack-config --set /etc/neutron/neutron.conf DEFAULT max_l3_agents_per_router 2
+
+
+ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers local,gre,flat,vxlan,vlan
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks \*
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_gre tunnel_id_ranges 10:10000
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 10:10000
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vxlan_group 224.0.0.1
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
+openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver 
+
+yum -y install openstack-neutron-lbaas
+openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router,lbaas
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutron_lbaas.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver
+openstack-config --set /etc/neutron/lbaas_agent.ini haproxy user_group haproxy 
+
+yum -y install openstack-neutron-fwaas
+openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router,firewall,lbaas
+openstack-config --set /etc/neutron/fwaas_driver.ini fwaas enabled True
+openstack-config --set /etc/neutron/fwaas_driver.ini fwaas driver neutron_fwaas.services.firewall.drivers.linux.iptables_fwaas.IptablesFwaasDriver
+
+....
+
+target=$PHD_ENV_nodes1
+....
+neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugin.ini upgrade head
+....
+
+target=all
+....
+systemctl start neutron-server
+systemctl enable neutron-server
+firewall-cmd --add-port=9696/tcp
+firewall-cmd --add-port=9696/tcp --permanent
+
+systemctl enable openvswitch
+systemctl start openvswitch
+ovs-vsctl add-br br-int
+ovs-vsctl add-br br-${PHD_VAR_network_nic_external}
+ovs-vsctl add-port br-${PHD_VAR_network_nic_external} ${PHD_VAR_network_nic_external}
+
+# OpenvSwitch agent
+myip=$(ip a |grep ${PHD_VAR_network_nic_internal} | grep inet | awk '{print $2}' | awk -F/ '{print $1}' | head -n 1)
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent tunnel_types vxlan
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent vxlan_udp_port 4789
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip ${myip}
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs bridge_mappings physnet1:br-${PHD_VAR_network_nic_external}
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs network_vlan_ranges physnet1
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver 
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
+
+# Metadata agent
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_strategy keystone
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_url http://${PHD_VAR_network_hosts_vip}:35357/v2.0
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_host ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_region regionOne
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_tenant_name services
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_user neutron
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_password neutrontest
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_ip ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_port 8775
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret metatest
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_workers 4
+openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_backlog 2048
+
+# DHCP agent
+openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_delete_namespaces False
+openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dnsmasq_config_file /etc/neutron/dnsmasq-neutron.conf
+echo "dhcp-option-force=26,1400" > /etc/neutron/dnsmasq-neutron.conf
+chown root:neutron /etc/neutron/dnsmasq-neutron.conf
+chmod 644 /etc/neutron/dnsmasq-neutron.conf
+
+# L3 agent
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT handle_internal_only_routers True
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT send_arp_for_ha 3
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT router_delete_namespaces False
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT metadata_ip ${PHD_VAR_network_hosts_vip}
+openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge
+
+# Start services
+# Workaround for bz#1188198
+mkdir -p /etc/systemd/system/neutron-server.service.d
+cat > /etc/systemd/system/neutron-server.service.d/restart.conf << EOF
+[Service]
+Restart=on-failure
+EOF
+systemctl daemon-reload
+
+systemctl start neutron-openvswitch-agent
+systemctl start neutron-dhcp-agent
+systemctl start neutron-l3-agent
+systemctl start neutron-metadata-agent
+systemctl start neutron-lbaas-agent
+systemctl enable neutron-openvswitch-agent
+systemctl enable neutron-dhcp-agent
+systemctl enable neutron-l3-agent
+systemctl enable neutron-metadata-agent
+systemctl enable neutron-ovs-cleanup
+systemctl enable neutron-lbaas-agent
+firewall-cmd --add-port=4789/udp
+firewall-cmd --add-port=4789/udp --permanent
+....
+
+target=$PHD_ENV_nodes1
+....
+. /root/keystonerc_admin
+neutron net-create public --provider:network_type flat --provider:physical_network physnet1 --router:external
+neutron subnet-create --gateway ${PHD_VAR_network_neutron_externalgateway} --allocation-pool start=${PHD_VAR_network_neutron_allocpoolstart},end=${PHD_VAR_network_neutron_allocpoolend} --disable-dhcp --name public_subnet public ${PHD_VAR_network_neutron_externalnetwork}
+....
+
