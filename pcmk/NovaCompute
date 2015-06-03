@@ -155,13 +155,17 @@ nova_start() {
 	rc=$?
     done
 
-    python -c "import os; from novaclient import client as nova_client; nova = nova_client.Client('2', os.environ.get('OCF_RESKEY_user_name'), os.environ.get('OCF_RESKEY_password'), os.environ.get('OCF_RESKEY_tenant_name'), os.environ.get('OCF_RESKEY_auth_url')); nova.services.enable(os.environ.get('service_host'), 'nova-compute');"
+##   TEMPORARY disable call to "service enable" that seems to create
+##   issues and it is unnecessary since fence_compute doesn't disable
+##   the service
 
-    rc=$?
-    if [ $rc != 0 ]; then
-	ocf_exit_reason "nova.services.enable failed $rc"
-	exit $OCF_NOT_RUNNING
-    fi
+#    python -c "import os; from novaclient import client as nova_client; nova = nova_client.Client('2', os.environ.get('OCF_RESKEY_user_name'), os.environ.get('OCF_RESKEY_password'), os.environ.get('OCF_RESKEY_tenant_name'), os.environ.get('OCF_RESKEY_auth_url')); nova.services.enable(os.environ.get('service_host'), 'nova-compute');"
+
+#    rc=$?
+#    if [ $rc != 0 ]; then
+#	ocf_exit_reason "nova.services.enable failed $rc"
+#	exit $OCF_NOT_RUNNING
+#    fi
 
     return $OCF_SUCCESS
 }
@@ -183,13 +187,16 @@ nova_stop() {
 nova_monitor() {
     pid=`nova_pid`
     if [ "x$pid" != x ]; then
-	state=$(fence_compute ${fence_options} -o status -n $NOVA_HOST | grep Status)
-	if [ "x$state" = "xStatus: ON" ]; then
+	## TEMPORARY disable call to fence_compute to avoid noise on first
+	## first startup due to nova-compute not being fast enough to populate
+	## the db and fence_compute checking if node exists and it's enabled
+	#state=$(fence_compute ${fence_options} -o status -n $NOVA_HOST | grep Status)
+	#if [ "x$state" = "xStatus: ON" ]; then
 	    return $OCF_SUCCESS
-	else
-	    ocf_exit_reason "Nova status: $state"
-	    return $OCF_ERR_GENERIC
-	fi
+	#else
+	#    ocf_exit_reason "Nova status: $state"
+	#    return $OCF_ERR_GENERIC
+	#fi
     fi
 
     return $OCF_NOT_RUNNING
