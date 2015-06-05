@@ -3,6 +3,8 @@ Introduction
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/glance.scenario).
+
 Install software
 ----------------
 

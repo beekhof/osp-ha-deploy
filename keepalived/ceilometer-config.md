@@ -5,6 +5,8 @@ In terms of high availability, the Ceilometer central agent deserves special att
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/ceilometer.scenario).
+
 Install software
 ----------------
 

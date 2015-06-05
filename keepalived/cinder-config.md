@@ -5,6 +5,8 @@ Cinder will be configured in this example to use the NFS backend driver. Instruc
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/cinder.scenario).
+
 Install software
 ----------------
 

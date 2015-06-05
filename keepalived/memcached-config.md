@@ -7,6 +7,8 @@ Memcached is a general-purpose distributed memory caching system. It is used to 
 
 The following commands will be executed on all controller nodes.
 
+You can find a phd scenario file [here](phd-setup/memcached.scenario).
+
 Install and enable memcached
 ----------------------------
 

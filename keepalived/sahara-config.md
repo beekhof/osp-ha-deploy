@@ -5,6 +5,8 @@ Introduction
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/sahara.scenario).
+
 Install software
 ----------------
 

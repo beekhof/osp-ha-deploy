@@ -9,6 +9,8 @@ It is important to note that, while Galera supports multi-master access, there a
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/galera.scenario).
+
 Install software
 ----------------
 

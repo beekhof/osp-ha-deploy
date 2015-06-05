@@ -5,6 +5,8 @@ A load-balancing proxy is used to provide scalability and load balancing for Ope
 
 The following commands will be executed on all controller nodes.
 
+You can find a phd scenario file [here](phd-setup/lb.scenario).
+
 Install packages
 ----------------
 

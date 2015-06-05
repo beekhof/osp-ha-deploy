@@ -9,6 +9,8 @@ RabbitMQ can create a native cluster, by grouping several nodes and replicating 
 
 The following commands will be executed on all controller nodes, unless stated otherwise.
 
+You can find a phd scenario file [here](phd-setup/rabbitmq.scenario).
+
 Install package
 ---------------
 

@@ -10,6 +10,8 @@ There are two services that require special attention for a highly available arc
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/neutron.scenario).
+
 Install software
 ----------------
 

@@ -5,6 +5,8 @@ We need to have an additional disk, `/dev/vdb` in our test available for Swift u
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/swift.scenario).
+
 Install software
 ----------------
 

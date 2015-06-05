@@ -5,6 +5,8 @@ MongoDB can provide high availability through the use of replica sets. A replica
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/mongodb.scenario).
+
 Install packages
 ----------------
 

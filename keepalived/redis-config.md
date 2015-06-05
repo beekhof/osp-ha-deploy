@@ -5,6 +5,8 @@ Redis in a key-value cache and store, used by Ceilometer with the [tooz](https:/
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
+You can find a phd scenario file [here](phd-setup/redis.scenario).
+
 Install redis
 -------------
 

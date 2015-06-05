@@ -69,6 +69,11 @@ If the installed system cannot access the gateway, be sure there is a “GATEWAY
 
 **Note:** It is very important to make sure that NTP is correctly configured on all nodes. Failure to do so can cause environment instability.
 
+The following phd scenario files have been created:
+
+-   A file with the [VM creation and initial setup](phd-setup/hypervisors.scenario)
+-   A file with some [basic system preparation tasks](phd-setup/serverprep.scenario)
+
 #### Configuration steps
 
 **NOTE:** before moving on, please remember that the following instructions have been created for the above-mentioned scenario (3 controller nodes, with a specific network setup). If you are using this guide to implement your own environment, pay close attention to any IP substitution and other changes that may apply to your environment. Also, do not forget to set sensible passwords.
@@ -95,3 +100,5 @@ The configuration steps can be divided into:
     -   [Horizon](horizon-config.md)
     -   [Trove](trove-config.md)
     -   [Sahara](sahara-config.md)
+
+On each section, a link to a [phd-based](https://github.com/davidvossel/phd) scenario file is provided, as a reference.

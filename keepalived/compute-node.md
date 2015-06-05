@@ -7,6 +7,8 @@ The compute node implementation is relatively straightforward, compared to the c
 -   Nova compute
 -   Ceilometer compute agent
 
+You can find a phd scenario file [here](phd-setup/compute.scenario).
+
 Environment description
 -----------------------
 
