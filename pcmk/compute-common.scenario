@@ -60,7 +60,7 @@ systemctl stop libvirtd
 systemctl disable libvirtd
 
 # NOTE: vmnet is the interface connected to the internal network.
-openstack-config    --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(ip    addr show dev vmnet0 scope global | grep inet | sed -e 's#.*inet ##g' -e    's#/.*##g')
+openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(ip addr show dev vmnet0 scope global | grep inet | sed -e 's#.*inet ##g' -e 's#/.*##g')
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
 
 # NOTE: same consideration as nova configuration applies here. They need to match.
@@ -109,9 +109,7 @@ openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_tenant_nam
 openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_user compute
 openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_password novatest
 
-
 openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
-openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host vip-keystone
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
 openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
@@ -121,21 +119,19 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
 
-
-
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
 
 openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent tunnel_types  vxlan
 openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent vxlan_udp_port 4789
-openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
-openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_id_ranges 1:1000
-openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tenant_network_type vxlan
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_id_ranges 1:1000
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tenant_network_type vxlan
 
-openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
-openstack-config --set  /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
 openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip $(ip addr show dev vmnet0  scope global | grep inet | sed -e 's#.*inet ##g' -e 's#/.*##g')
 
-openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini  securitygroup firewall_driver  neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
 
 openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
 
@@ -143,7 +139,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT instance_usage_audit True
 openstack-config --set /etc/nova/nova.conf DEFAULT instance_usage_audit_period hour
 openstack-config --set /etc/nova/nova.conf DEFAULT notify_on_state_change vm_and_task_state
 openstack-config --set /etc/nova/nova.conf DEFAULT notification_driver nova.openstack.common.notifier.rpc_notifier
-sed  -i -e  's#nova.openstack.common.notifier.rpc_notifier#nova.openstack.common.notifier.rpc_notifier\nnotification_driver  = ceilometer.compute.nova_notifier#g' /etc/nova/nova.conf
+sed -i -e 's#nova.openstack.common.notifier.rpc_notifier#nova.openstack.common.notifier.rpc_notifier\nnotification_driver = ceilometer.compute.nova_notifier#g' /etc/nova/nova.conf
 
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_host vip-keystone
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_port 35357
@@ -152,7 +148,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
 
-openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers ${PHD_VAR_network_hosts_memcache}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
 
@@ -164,7 +160,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_us
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ceilometertest
 
-openstack-config --set /etc/ceilometer/ceilometer.conf database connection      mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
+openstack-config --set /etc/ceilometer/ceilometer.conf database connection mongodb://${PHD_VAR_network_hosts_mongodb}:27017/ceilometer?replicaSet=ceilometer
 openstack-config --set /etc/ceilometer/ceilometer.conf database connection max_retries -1
 
 # keep last 5 days data only (value is in secs)
