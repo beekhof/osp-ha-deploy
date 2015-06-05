@@ -64,7 +64,7 @@ yum update -y
 yum erase -y chrony
 rm -f /etc/chrony*
 
-yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump ntp ntpdate
+yum install -y pacemaker fence-agents resource-agents pcs libvirt qemu-kvm bind-utils net-tools tcpdump ntp ntpdate sos
 
 # The cluster shouldn't need NTP configured, but without it the
 # network goes bye-bye when using DHCP
