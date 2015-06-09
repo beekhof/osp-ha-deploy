@@ -71,19 +71,6 @@ nodes: 4
 target=all
 ....
 
-if [ $(host $(hostname -s) | awk '{print $4}') = $(host $PHD_ENV_nodes1 | awk '{print $4}') ]; then
-    : Everyone except the first node needs to run the commands below
-    exit 0
-fi
-
-if grep -q srv /etc/fstab; then 
-    echo /srv is already defined; 
-else
-    mkdir -p /srv
-    echo "${PHD_VAR_network_internal}.1:/srv       /srv                    nfs     defaults,v3     0 0" >> /etc/fstab
-fi  
-mount -a
-
 # Not required on the gateway, but wont hurt either
 
 yum install -y fence-virtd fence-virtd-multicast fence-virtd-libvirt
@@ -166,6 +153,9 @@ net-tools
 tcpdump
 wget
 sos
+nfs-utils
+ntp
+ntpdate
 %end
 
 %post
