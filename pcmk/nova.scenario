@@ -93,11 +93,11 @@ target=$PHD_ENV_nodes1
 ....
 su nova -s /bin/sh -c "nova-manage db sync"
 
-pcs resource create nova-consoleauth systemd:openstack-nova-consoleauth  op monitor start-delay=10s --clone
-pcs resource create nova-novncproxy systemd:openstack-nova-novncproxy op monitor start-delay=10s --clone
-pcs resource create nova-api systemd:openstack-nova-api op monitor start-delay=10s --clone
-pcs resource create nova-scheduler systemd:openstack-nova-scheduler op monitor start-delay=10s --clone
-pcs resource create nova-conductor systemd:openstack-nova-conductor op monitor start-delay=10s --clone
+pcs resource create nova-consoleauth systemd:openstack-nova-consoleauth --clone interleave=true
+pcs resource create nova-novncproxy systemd:openstack-nova-novncproxy --clone interleave=true
+pcs resource create nova-api systemd:openstack-nova-api --clone interleave=true
+pcs resource create nova-scheduler systemd:openstack-nova-scheduler --clone interleave=true
+pcs resource create nova-conductor systemd:openstack-nova-conductor --clone interleave=true
 
 pcs constraint order start nova-consoleauth-clone then nova-novncproxy-clone
 pcs constraint colocation add nova-novncproxy-clone with nova-consoleauth-clone

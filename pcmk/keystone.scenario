@@ -95,7 +95,7 @@ target=$PHD_ENV_nodes1
 ....
 su keystone -s /bin/sh -c "keystone-manage -v -d db_sync"
 
-pcs resource create keystone systemd:openstack-keystone --clone
+pcs resource create keystone systemd:openstack-keystone --clone interleave=true
 
 if [ $PHD_VAR_deployment = collapsed ]; then
 

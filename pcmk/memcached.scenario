@@ -37,5 +37,5 @@ yum install -y memcached
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create memcached systemd:memcached --clone
+pcs resource create memcached systemd:memcached --clone interleave=true
 ....

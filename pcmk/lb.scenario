@@ -196,7 +196,7 @@ fi
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create lb-haproxy systemd:haproxy op monitor start-delay=10s --clone
+pcs resource create lb-haproxy systemd:haproxy --clone
 
 
 # The VIPs changed recently 
