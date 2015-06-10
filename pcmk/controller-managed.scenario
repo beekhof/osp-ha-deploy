@@ -55,7 +55,18 @@ cp $PHD_VAR_osp_configdir/pcmk-authkey /etc/pacemaker/authkey
 target=$PHD_ENV_nodes1
 ....
 # Take down the ODP control plane
-pcs resource disable keystone
+pcs resource disable keystone --wait=240
+
+# Take advantage of the fact that control nodes will already be part of the cluster
+# At this step, we need to teach the cluster about the compute nodes
+#
+# This requires running commands on the cluster based on the names of the compute nodes
+
+controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
+
+for controller in ${controllers}; do
+    pcs property set --node ${controller} osprole=controller
+done
 
 # Force services to run only on nodes with osprole = controller
 #
@@ -63,7 +74,7 @@ pcs resource disable keystone
 # nodes. This helps reduce noise and collisions with services that fill the same role
 # on compute nodes.
 
-for i in $(cibadmin -Q --xpath //primitive --node-path | tr ' ' '\n' | awk -F "id='" '{print $2}' | awk -F "'" '{print $1}' | uniq | grep -v "\-fence") ; do pcs constraint location $i rule resource-discovery=exclusive score=0 osprole eq controller ; done
+for i in $(cibadmin -Q --xpath //primitive --node-path | tr ' ' '\n' | awk -F "id='" '{print $2}' | awk -F "'" '{print $1}' | uniq | grep -v "fence") ; do pcs constraint location $i rule resource-discovery=exclusive score=0 osprole eq controller ; done
 
 # Now (because the compute nodes have roles assigned to them and keystone is
 # stopped) it is safe to define the services that will run on the compute nodes
@@ -84,10 +95,11 @@ pcs constraint location ceilometer-compute-clone rule resource-discovery=exclusi
 #
 # Depending on how your environment is set up, you may need to supply
 # these details as parameters to the nova-compute resource instead
-pcs resource create nova-compute ocf:openstack:NovaCompute user_name=admin tenant_name=admin password=keystonetest domain=${PHD_VAR_network_domain} --clone interleave=true notify=true --disabled --force
-pcs resource op add nova-compute notify timeout=600s
-
+# NOTE: we are poor kids and have no shared storage.. me wants crying biscuit
+pcs resource create nova-compute ocf:openstack:NovaCompute auth_url=http://vip-keystone:35357/v2.0/ username=admin password=keystonetest tenant_name=admin domain=${PHD_VAR_network_domain} no_shared_storage=1 --clone interleave=true notify=true --disabled --force
 pcs constraint location nova-compute-clone rule resource-discovery=exclusive score=0 osprole eq compute
+pcs constraint order start nova-conductor-clone then nova-compute-clone require-all=false
+pcs resource op add nova-compute notify timeout=600s
 
 pcs constraint order start neutron-server-clone then neutron-openvswitch-agent-compute-clone require-all=false
 
@@ -102,15 +114,6 @@ pcs constraint order start ceilometer-notification-clone then ceilometer-compute
 pcs constraint order start ceilometer-compute-clone then nova-compute-clone
 pcs constraint colocation add nova-compute-clone with ceilometer-compute-clone
 
-pcs constraint order start nova-conductor-clone then nova-compute-clone require-all=false
-
-# Take advantage of the fact that control nodes will already be part of the cluster
-# At this step, we need to teach the cluster about the compute nodes
-#
-# This requires running commands on the cluster based on the names of the compute nodes
-
-controllers=$(cibadmin -Q -o nodes | grep uname | sed s/.*uname..// | awk -F\" '{print $1}')
-
 #pcs stonith create fence-compute fence_apc ipaddr=east-apc login=apc passwd=apc pcmk_host_map="east-01:2;east-02:3;east-03:4;east-04:5;east-05:6;east-06:7;east-07:9;east-08:10;east-09:11;east-10:12;east-11:13;east-12:14;east-13:15;east-14:18;east-15:17;east-16:19;" --force
 pcs stonith create fence-compute fence_apc_snmp ipaddr=apc-ap7941-l2h3.mgmt.lab.eng.bos.redhat.com power_wait=10 pcmk_host_map="mrg-07:10;mrg-08:12;mrg-09:14"
 
@@ -120,7 +123,6 @@ for node in ${PHD_ENV_nodes}; do
 
     for controller in ${controllers}; do
 	if [ ${short_node} = ${controller} ]; then
-	    pcs property set --node ${short_node} osprole=controller
 	    found=1
 	fi
     done
@@ -131,14 +133,8 @@ for node in ${PHD_ENV_nodes}; do
 
 	pcs resource create ${short_node} ocf:pacemaker:remote
 	pcs property set --node ${short_node} osprole=compute
-
-	# This step will /entirely/ depend on the hardware you have
-	# If you have IPMI, it might be like so:
-	#   pcs stonith create fence-compute-${short_node} fence_ipmilan login="root" passwd="supersecret" ipaddr="192.168.1.1" pcmk_host_list="$node"
-	# Personally, I have an APC switch that can control all the compute nodes at once (so I created it outside of this loop already)
     fi
 done
-
 
 pcs resource enable keystone
 pcs resource enable neutron-openvswitch-agent-compute
