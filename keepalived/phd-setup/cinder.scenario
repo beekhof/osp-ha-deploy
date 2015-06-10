@@ -83,8 +83,8 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volu
 target=$PHD_ENV_nodes1
 ....
 su cinder -s /bin/sh -c "cinder-manage db sync"
-systemctl start openstack-cinder-api
-systemctl enable openstack-cinder-api
+systemctl start openstack-cinder-volume
+systemctl enable openstack-cinder-volume
 ....
 
 target=all
