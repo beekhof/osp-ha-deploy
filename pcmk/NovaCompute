@@ -288,8 +288,6 @@ nova_validate() {
 
     if [ -n "${OCF_RESKEY_no_shared_storage}" ]; then
 	if ocf_is_true "${OCF_RESKEY_no_shared_storage}"; then
-	    ocf_exit_reason "THE HELL?"
-	   exit $OCF_ERR_CONFIGURED
 	    fence_options="${fence_options} --no-shared-storage"
 	fi
     fi
