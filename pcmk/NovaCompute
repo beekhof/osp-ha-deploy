@@ -83,7 +83,7 @@ Note that with Keystone V3 tenant names are only unique within a domain.
 <content type="string" default="" />
 </parameter>
 
-<parameter name="domain" unique="0" required="1">
+<parameter name="domain" unique="0" required="0">
 <longdesc lang="en">
 DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN
 </longdesc>
