@@ -282,12 +282,9 @@ nova_validate() {
 
     fence_options="${fence_options} -t ${OCF_RESKEY_tenant_name}"
 
-    if [ -z "${OCF_RESKEY_domain}" ]; then
-	   ocf_exit_reason "domain name not configured"
-	   exit $OCF_ERR_CONFIGURED
+    if [ -n "${OCF_RESKEY_domain}" ]; then
+	fence_options="${fence_options} -d ${OCF_RESKEY_domain}"
     fi
-
-    fence_options="${fence_options} -d ${OCF_RESKEY_domain}"
 
     if [ -n "${OCF_RESKEY_no_shared_storage}" ]; then
 	if ocf_is_true "${OCF_RESKEY_no_shared_storage}"; then
