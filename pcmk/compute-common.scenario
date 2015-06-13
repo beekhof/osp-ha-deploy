@@ -33,6 +33,7 @@ PHD_VAR_network_hosts_memcache
 PHD_VAR_network_hosts_mongodb
 PHD_VAR_network_hosts_rabbitmq
 PHD_VAR_network_internal
+PHD_VAR_osp_configdir
 
 ######################
 # Deployment Scripts #
@@ -42,6 +43,10 @@ PHD_VAR_network_internal
 target=all
 ....
 yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached wget openstack-neutron
+
+# we will use this one as instance shared storage
+mkdir -p ${PHD_VAR_osp_configdir}/instances
+chown nova:nova ${PHD_VAR_osp_configdir}/instances
 
 systemctl disable firewalld
 systemctl stop firewalld

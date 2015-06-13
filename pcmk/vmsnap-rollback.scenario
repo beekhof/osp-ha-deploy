@@ -117,6 +117,9 @@ for vm in $vmlist; do
 			glance)
 				rm -rf $PHD_VAR_osp_configdir/glance
 			;;
+			compute)
+				rm -rf $PHD_VAR_osp_configdir/instances/*
+			;;
 		esac
 	done
 

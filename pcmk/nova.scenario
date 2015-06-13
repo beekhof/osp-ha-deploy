@@ -76,9 +76,12 @@ openstack-config --set /etc/nova/nova.conf neutron admin_auth_url http://vip-key
 openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova.virt.libvirt.vif.LibvirtHybridOVSBridgeDriver
 
-openstack-config --set /etc/nova/nova.conf DEFAULT notify_api_faults False
-openstack-config --set /etc/nova/nova.conf DEFAULT vif_plugging_is_fatal True
-openstack-config --set /etc/nova/nova.conf DEFAULT vif_plugging_timeout 300
+
+# those entries were workaround for https://bugs.launchpad.net/neutron/+bug/1464178
+# that breaks neutron and evacuation
+# openstack-config --set /etc/nova/nova.conf DEFAULT notify_api_faults False
+# openstack-config --set /etc/nova/nova.conf DEFAULT vif_plugging_is_fatal True
+# openstack-config --set /etc/nova/nova.conf DEFAULT vif_plugging_timeout 300
 
 openstack-config --set /etc/nova/nova.conf conductor use_local false
 

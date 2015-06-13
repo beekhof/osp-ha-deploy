@@ -28,6 +28,7 @@ nodes: 1
 = VARIABLES =
 
 PHD_VAR_env_password
+PHD_VAR_network_internal
 
 ######################
 # Deployment Scripts #
@@ -61,6 +62,7 @@ if [ $? != 0 ]; then
     # TODO: Add SBD support
     pcs property set stonith-enabled=false
 
+    pcs resource create nova-compute-fs Filesystem  device="${PHD_VAR_network_internal}.1:$PHD_VAR_osp_configdir/instances" directory="/var/lib/nova/instances" fstype="nfs" options="v3" op start timeout=240 --group computenode
     pcs resource create neutron-openvswitch-agent systemd:neutron-openvswitch-agent  --group computenode
     pcs resource create libvirtd systemd:libvirtd  --group computenode
     pcs resource create ceilometer-compute systemd:openstack-ceilometer-compute --group computenode
