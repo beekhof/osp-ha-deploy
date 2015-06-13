@@ -55,13 +55,6 @@ if [ ! -e $PHD_VAR_osp_configdir/pcmk-authkey ]; then
 fi
 
 # Until this makes it upstream
-#
-# The important part is to get this onto the /controller/ nodes, not
-# the compute nodes. It wont hurt there though. 
-wget -O /usr/sbin/fence_compute https://github.com/beekhof/osp-ha-deploy/raw/master/pcmk/fence_compute
-chmod a+x /usr/sbin/fence_compute 
-
-# Until this makes it upstream
 mkdir -p /usr/lib/ocf/resource.d/openstack/
 wget -O /usr/lib/ocf/resource.d/openstack/NovaCompute https://github.com/beekhof/osp-ha-deploy/raw/master/pcmk/NovaCompute
 chmod a+x /usr/lib/ocf/resource.d/openstack/NovaCompute
