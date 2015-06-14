@@ -52,6 +52,9 @@ target=all
 
 yum install -y openstack-neutron openstack-neutron-openvswitch openstack-neutron-ml2 
 
+# HACK OF DOOM WHILE WAITING FOR PACKAGES
+wget -O /usr/lib/python2.7/site-packages/neutron/plugins/ml2/drivers/type_tunnel.py http://www.kronosnet.org/demorepo/type_tunnel.py
+
 openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
