@@ -146,6 +146,7 @@ pcs resource enable keystone
 pcs resource enable neutron-openvswitch-agent-compute
 pcs resource enable libvirtd-compute
 pcs resource enable ceilometer-compute
+pcs resource enable nova-compute-fs
 pcs resource enable nova-compute
 
 ....
