@@ -42,7 +42,7 @@ PHD_VAR_osp_configdir
 
 target=all
 ....
-yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached wget openstack-neutron
+yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute python-memcached openstack-neutron
 
 # we will use this one as instance shared storage
 mkdir -p ${PHD_VAR_osp_configdir}/instances

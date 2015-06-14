@@ -53,7 +53,7 @@ nodes: 9
 target=all
 ....
 
-yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-release-latest.noarch.rpm
+yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-release-latest.noarch.rpm wget
 
 rhos-release 7
 
