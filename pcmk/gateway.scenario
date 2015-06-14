@@ -55,7 +55,6 @@ if [ -e /etc/resolv.conf.backup ]; then
     cp /etc/resolv.conf.backup /etc/resolv.conf
 fi
 
-yum install -y nfs-utils
 echo "/srv ${PHD_VAR_network_internal}.0/255.255.255.0(rw,sync,no_root_squash,subtree_check,fsid=10)" > /etc/exports
 systemctl enable nfs-server
 systemctl start nfs-server
