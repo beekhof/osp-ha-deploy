@@ -45,9 +45,9 @@ meta_data() {
 <version>1.0</version>
 
 <longdesc lang="en">
-OpenStack Nova Compute Server.
+Facility for tacking a list of compute nodes and reliably evacuating the ones that fence_evacuate has flagged.
 </longdesc>
-<shortdesc lang="en">OpenStack Nova Compute Server</shortdesc>
+<shortdesc lang="en">Evacuator for OpenStack Nova Compute Server</shortdesc>
 
 <parameters>
 
@@ -129,7 +129,7 @@ sigterm_handler() {
 	return
 }
 
-nova_usage() {
+evacuate_usage() {
 	cat <<END
 usage: $0 {start|stop|monitor|validate-all|meta-data}
 
@@ -137,89 +137,83 @@ Expects to have a fully populated OCF RA-compliant environment set.
 END
 }
 
-nova_pid() {
-    ps axf | grep python.*nova-compute | grep -v grep | awk '{print $1}'
+evacuate_stop() {
+    rm -f $statefile
+    return $OCF_SUCCESS
 }
 
-nova_start() {
-    nova_monitor
-    if [ $? = $OCF_SUCCESS ]; then
-	return $OCF_SUCCESS
-    fi
+evacuate_start() {
+    touch $statefile
+    evacuate_monitor
+    return $?
+}
 
-    export LIBGUESTFS_ATTACH_METHOD=appliance
-    su nova -s /bin/sh -c /usr/bin/nova-compute &
+handle_evacuations() {
+    while [ $# -gt 0 ]; do
+	node=$1 
+	state=$2
+	shift; shift;
+	need_evacuate=0
 
-    rc=$OCF_NOT_RUNNING
-    ocf_log info "Waiting for nova to start"
-    while [ $rc != $OCF_SUCCESS ]; do
-	nova_monitor
-	rc=$?
+	case $state in
+	    "") ;;
+	    no)  ocf_log debug "$node is either fine or already handled";;
+	    yes) need_evacuate=1;; 
+	    *@*)
+		where=$(echo $state | awk -F@ '{print $1}')
+		when=$(echo $state | awk -F@ '{print $2}')
+		now=$(date +%s)
+
+		if [ $(($now - $when)) -gt 60 ]; then
+		    ocf_log info "Processing partial evacuation of $node by $where at $when"		
+		    need_evacuate=1
+		else
+		    # Give some time for any in-flight evacuations to either complete or fail
+		    # Nova won't react well if there are two overlapping requests 
+		    ocf_log info "Deferring processing partial evacuation of $node by $where at $when"
+		fi
+		;;
+	esac
+
+	if [ $need_evacuate = 1 ]; then
+	    ocf_log notice "Initiating evacuation of $node"
+	    attrd_updater -p -n evacute -Q -N ${node} -v $(uname -n)@$(date +%s)
+	    # fence_compute stores the plug + domain in attrd so we need to strip it from here
+	    if [ -n "${OCF_RESKEY_domain}" ]; then
+		fencenode=$(echo $node | sed -e 's#\.'${OCF_RESKEY_domain}'##g')
+	    fi
+	    fence_compute ${fence_options} -o reboot -n $fencenode
+	    attrd_updater -p -n evacute -Q -N ${node} -v no
+	    ocf_log notice "Completed evacuation of $node"
+	fi
     done
 
-##   TEMPORARY disable call to "service enable" that seems to create
-##   issues and it is unnecessary since fence_compute doesn't disable
-##   the service
-
-#    if [ "x${OCF_RESKEY_domain}" != x ]; then
-#	export service_host="${NOVA_HOST}.${OCF_RESKEY_domain}"
-#    else
-#	export service_host="${NOVA_HOST}"
-#    fi
-
-#    python -c "import os; from novaclient import client as nova_client; nova = nova_client.Client('2', os.environ.get('OCF_RESKEY_username'), os.environ.get('OCF_RESKEY_password'), os.environ.get('OCF_RESKEY_tenant_name'), os.environ.get('OCF_RESKEY_auth_url')); nova.services.enable(os.environ.get('service_host'), 'nova-compute');"
-
-#    rc=$?
-#    if [ $rc != 0 ]; then
-#	ocf_exit_reason "nova.services.enable failed $rc"
-#	exit $OCF_NOT_RUNNING
-#    fi
-
     return $OCF_SUCCESS
 }
 
-nova_stop() {
-    pid=$(nova_pid)
-    if [ "x$pid" != x ]; then
-	su nova -c "kill -TERM $pid" -s /bin/bash	
+evacuate_monitor() {
+    if [ ! -f "$statefile" ]; then
+	return $OCF_NOT_RUNNING
     fi
 
-    while [ "x$pid" != x ]; do
-	sleep 1
-	pid=$(nova_pid)
-    done
-    
+    handle_evacuations $(attrd_updater -n evacute -A | tr '="' '  ' | awk '{print $4" "$6}')
     return $OCF_SUCCESS
 }
 
-nova_monitor() {
-    pid=$(nova_pid)
-    if [ "x$pid" != x ]; then
-	## TEMPORARY disable call to fence_compute to avoid noise on first
-	## first startup due to nova-compute not being fast enough to populate
-	## the db and fence_compute checking if node exists and it's enabled
-	#state=$(fence_compute ${fence_options} -o status -n $NOVA_HOST | grep Status)
-	#if [ "x$state" = "xStatus: ON" ]; then
-	    return $OCF_SUCCESS
-	#else
-	#    ocf_exit_reason "Nova status: $state"
-	#    return $OCF_ERR_GENERIC
-	#fi
-    fi
-
-    return $OCF_NOT_RUNNING
-}
-
-nova_notify() {
-    return $OCF_SUCCESS
-}
-
-nova_validate() {
+evacuate_validate() {
     rc=$OCF_SUCCESS
     fence_options=""
 
     check_binary openstack-config
-    check_binary nova-compute
+    check_binary fence_compute
+
+    # Is the state directory writable? 
+    state_dir=$(dirname $statefile)
+    touch "$state_dir/$$"
+    if [ $? != 0 ]; then
+	return $OCF_ERR_ARGS
+    fi
+    rm -f "$state_dir/$$"
 
     if [ ! -f /etc/nova/nova.conf ]; then
 	   ocf_exit_reason "/etc/nova/nova.conf not found"
@@ -309,24 +303,20 @@ nova_validate() {
     return $rc
 }
 
+statefile="${HA_RSCTMP}/${OCF_RESOURCE_INSTANCE}.active"
+
 case $__OCF_ACTION in
+start)		evacuate_validate; evacuate_start;;
+stop)		evacuate_stop;;
+monitor)	set -x; evacuate_validate; evacuate_monitor; set +x;;
 meta-data)	meta_data
 		exit $OCF_SUCCESS
 		;;
-usage|help)	nova_usage
+usage|help)	evacuate_usage
 		exit $OCF_SUCCESS
 		;;
-esac
-
-nova_validate
-
-case $__OCF_ACTION in
-start)		nova_start;;
-stop)		nova_stop;;
-monitor)	nova_monitor;;
-notify)		nova_notify;;
 validate-all)	exit $OCF_SUCCESS;;
-*)		nova_usage
+*)		evacuate_usage
 		exit $OCF_ERR_UNIMPLEMENTED
 		;;
 esac
