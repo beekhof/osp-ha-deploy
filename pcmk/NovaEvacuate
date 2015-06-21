@@ -83,14 +83,6 @@ Note that with Keystone V3 tenant names are only unique within a domain.
 <content type="string" default="" />
 </parameter>
 
-<parameter name="domain" unique="0" required="0">
-<longdesc lang="en">
-DNS domain in which hosts live, useful when the cluster uses short names and nova uses FQDN
-</longdesc>
-<shortdesc lang="en">DNS domain</shortdesc>
-<content type="string" default="" />
-</parameter>
-
 <parameter name="endpoint_type" unique="0" required="0">
 <longdesc lang="en">
 Nova API location (internal, public or admin URL)
@@ -138,12 +130,12 @@ END
 }
 
 evacuate_stop() {
-    rm -f $statefile
+    rm -f "$statefile"
     return $OCF_SUCCESS
 }
 
 evacuate_start() {
-    touch $statefile
+    touch "$statefile"
     evacuate_monitor
     return $?
 }
@@ -178,11 +170,7 @@ handle_evacuations() {
 	if [ $need_evacuate = 1 ]; then
 	    ocf_log notice "Initiating evacuation of $node"
 	    attrd_updater -p -n evacute -Q -N ${node} -v $(uname -n)@$(date +%s)
-	    # fence_compute stores the plug + domain in attrd so we need to strip it from here
-	    if [ -n "${OCF_RESKEY_domain}" ]; then
-		fencenode=$(echo $node | sed -e 's#\.'${OCF_RESKEY_domain}'##g')
-	    fi
-	    fence_compute ${fence_options} -o reboot -n $fencenode
+	    fence_compute ${fence_options} -o reboot -n $node
 	    attrd_updater -p -n evacute -Q -N ${node} -v no
 	    ocf_log notice "Completed evacuation of $node"
 	fi
@@ -204,21 +192,16 @@ evacuate_validate() {
     rc=$OCF_SUCCESS
     fence_options=""
 
-    check_binary openstack-config
     check_binary fence_compute
 
     # Is the state directory writable? 
     state_dir=$(dirname $statefile)
     touch "$state_dir/$$"
     if [ $? != 0 ]; then
+	ocf_exit_reason "Invalid state directory: $state_dir"
 	return $OCF_ERR_ARGS
     fi
     rm -f "$state_dir/$$"
-
-    if [ ! -f /etc/nova/nova.conf ]; then
-	   ocf_exit_reason "/etc/nova/nova.conf not found"
-	   exit $OCF_ERR_CONFIGURED
-    fi
 
     if [ -z "${OCF_RESKEY_auth_url}" ]; then
 	   ocf_exit_reason "auth_url not configured"
@@ -248,10 +231,6 @@ evacuate_validate() {
 
     fence_options="${fence_options} -t ${OCF_RESKEY_tenant_name}"
 
-    if [ -n "${OCF_RESKEY_domain}" ]; then
-	fence_options="${fence_options} -d ${OCF_RESKEY_domain}"
-    fi
-
     if [ -n "${OCF_RESKEY_no_shared_storage}" ]; then
 	if ocf_is_true "${OCF_RESKEY_no_shared_storage}"; then
 	    fence_options="${fence_options} --no-shared-storage"
@@ -267,34 +246,6 @@ evacuate_validate() {
 	    ;;
 	esac
 	fence_options="${fence_options} -e ${OCF_RESKEY_endpoint_type}"
-    fi
-
-    # we take a chance here and hope that host is either not configured
-    # or configured in nova.conf
-
-    NOVA_HOST=$(openstack-config --get /etc/nova/nova.conf DEFAULT host 2>/dev/null)
-    if [ $? = 1 ]; then
-	if [ "x${OCF_RESKEY_domain}" != x ]; then
-	    NOVA_HOST=$(uname -n | awk -F. '{print $1}')
-	else
-	    NOVA_HOST=$(uname -n)
-	fi
-    fi
-
-    # We only need to check a configured value, calculated ones are fine
-    openstack-config --get /etc/nova/nova.conf DEFAULT host 2>/dev/null
-    if [ $? = 0 ]; then
-	if [ "x${OCF_RESKEY_domain}" != x ]; then
-	    short_host=$(uname -n | awk -F. '{print $1}')
-	    if [ "x$NOVA_HOST" != "x${short_host}" ]; then
-		ocf_exit_reason "Invalid Nova host name, must be ${short_host} in order for instance recovery to function"
-		rc=$OCF_ERR_CONFIGURED
-	    fi
-
-	elif [ "x$NOVA_HOST" != "x$(uname -n)" ]; then
-            ocf_exit_reason "Invalid Nova host name, must be $(uname -n) in order for instance recovery to function"
-	    rc=$OCF_ERR_CONFIGURED
-	fi
     fi
 
     if [ $rc != $OCF_SUCCESS ]; then
