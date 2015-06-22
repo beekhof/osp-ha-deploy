@@ -80,10 +80,8 @@ echo $PHD_VAR_network_clock > /etc/ntp/step-tickers
 echo "SYNC_HWCLOCK=yes" >> /etc/sysconfig/ntpdate
 
 systemctl enable ntpdate
-systemctl start ntpdate
 
 systemctl enable ntpd
-systemctl start ntpd
 
 sed -i -e 's/=enforcing/=disabled/g' /etc/sysconfig/selinux
 sed -i -e 's/=enforcing/=disabled/g' /etc/selinux/config
