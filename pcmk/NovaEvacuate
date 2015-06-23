@@ -259,7 +259,7 @@ statefile="${HA_RSCTMP}/${OCF_RESOURCE_INSTANCE}.active"
 case $__OCF_ACTION in
 start)		evacuate_validate; evacuate_start;;
 stop)		evacuate_stop;;
-monitor)	set -x; evacuate_validate; evacuate_monitor; set +x;;
+monitor)	evacuate_validate; evacuate_monitor;;
 meta-data)	meta_data
 		exit $OCF_SUCCESS
 		;;
