@@ -57,7 +57,7 @@ yum install -y http://rhos-release.virt.bos.redhat.com/repos/rhos-release/rhos-r
 
 rhos-release 7
 
-wget -O /etc/yum.repos.d/demo.repo http://www.kronosnet.org/demorepo/demo.repo
+wget -O /etc/yum.repos.d/test.repo http://www.kronosnet.org/testrepo/test.repo
 
 yum clean all
 yum update -y
