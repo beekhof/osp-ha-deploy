@@ -107,10 +107,22 @@ Disable shared storage recovery for instances. Use at your own risk!
 <content type="boolean" default="0" />
 </parameter>
 
+<parameter name="evacuation_delay" unique="0" required="0">
+<longdesc lang="en">
+How long to wait for nova to finish evacuating instances elsewhere
+before starting nova-compute.  Only used when the agent detects
+evacuations might be in progress.
+
+You may need to increase the start timeout when increasing this value.
+</longdesc>
+<shortdesc lang="en">Delay to allow evacuations time to complete</shortdesc>
+<content type="integer" default="120" />
+</parameter>
+
 </parameters>
 
 <actions>
-<action name="start"        timeout="120" />
+<action name="start"        timeout="600" />
 <action name="stop"         timeout="300" />
 <action name="monitor"      timeout="20" interval="10" depth="0"/>
 <action name="validate-all" timeout="20" />
@@ -145,6 +157,26 @@ nova_start() {
     nova_monitor
     if [ $? = $OCF_SUCCESS ]; then
 	return $OCF_SUCCESS
+    fi
+
+    state=$(attrd_updater -p -n evacute -N ${NOVA_HOST} | sed -e 's/.*value=//' | tr -d '"' )
+    if [ "x$state" = x ]; then
+	: never been fenced
+
+    elif [ "x$state" = xno ]; then
+	: has been evacuated, however it could have been 1s ago
+	ocf_log info "Pausing to give evacuations from ${NOVA_HOST} time to complete"
+	sleep ${OCF_RESKEY_evacuation_delay}
+
+    else
+	ocf_log info "Waiting for pending evacuations from ${NOVA_HOST}"
+	while [ "x$state" != "xno" ]; do
+	    state=$(attrd_updater -p -n evacute -N ${NOVA_HOST} | sed -e 's/.*value=//' | tr -d '"' )
+	    sleep 5
+	done
+
+	ocf_log info "Pausing to give evacuations from ${NOVA_HOST} time to complete"
+	sleep ${OCF_RESKEY_evacuation_delay}
     fi
 
     export LIBGUESTFS_ATTACH_METHOD=appliance
@@ -309,6 +341,7 @@ nova_validate() {
     return $rc
 }
 
+: ${OCF_RESKEY_evacuation_delay=120}
 case $__OCF_ACTION in
 meta-data)	meta_data
 		exit $OCF_SUCCESS
@@ -318,12 +351,10 @@ usage|help)	nova_usage
 		;;
 esac
 
-nova_validate
-
 case $__OCF_ACTION in
-start)		nova_start;;
+start)		nova_validate; nova_start;;
 stop)		nova_stop;;
-monitor)	nova_monitor;;
+monitor)	nova_validate; nova_monitor;;
 notify)		nova_notify;;
 validate-all)	exit $OCF_SUCCESS;;
 *)		nova_usage
