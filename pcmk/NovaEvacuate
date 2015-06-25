@@ -102,9 +102,9 @@ Disable shared storage recovery for instances. Use at your own risk!
 </parameters>
 
 <actions>
-<action name="start"        timeout="120" />
-<action name="stop"         timeout="300" />
-<action name="monitor"      timeout="20" interval="10" depth="0"/>
+<action name="start"        timeout="20" />
+<action name="stop"         timeout="20" />
+<action name="monitor"      timeout="600" interval="10" depth="0"/>
 <action name="validate-all" timeout="20" />
 <action name="meta-data"    timeout="5" />
 </actions>
@@ -136,8 +136,17 @@ evacuate_stop() {
 
 evacuate_start() {
     touch "$statefile"
-    evacuate_monitor
+    # Do not invole monitor here so that the start timeout can be low
     return $?
+}
+
+update_evacuation() {
+    attrd_updater -p -n evacute -Q -N ${1} -v ${2}
+    arc=$?
+    if [ ${arc} != 0 ]; then
+	ocf_log warn "Can not set evacuation state of ${1} to ${2}: ${arc}"
+    fi
+    return ${arc}
 }
 
 handle_evacuations() {
@@ -168,11 +177,37 @@ handle_evacuations() {
 	esac
 
 	if [ $need_evacuate = 1 ]; then
+	    found=0
 	    ocf_log notice "Initiating evacuation of $node"
-	    attrd_updater -p -n evacute -Q -N ${node} -v $(uname -n)@$(date +%s)
+
+	    for known in $(fence_compute ${fence_options} -o list | tr -d ','); do
+		if [ ${known} = ${node} ]; then
+		    found=1
+		    break
+		fi
+	    done
+
+	    if [ $found = 0 ]; then
+		ocf_log info "Nova does not know about ${node}"
+		# Dont mark as no because perhaps nova is unavailable right now
+		continue
+	    fi
+
+	    update_evacuation ${node} "$(uname -n)@$(date +%s)"
+	    if [ $? != 0 ]; then
+		return $OCF_SUCCESS
+	    fi
+
 	    fence_compute ${fence_options} -o reboot -n $node
-	    attrd_updater -p -n evacute -Q -N ${node} -v no
-	    ocf_log notice "Completed evacuation of $node"
+	    rc=$?
+
+	    if [ $rc = 0 ]; then
+		update_evacuation ${node} no
+		ocf_log notice "Completed evacuation of $node"
+	    else
+		ocf_log warn "Evacuation of $node failed: $rc"
+		update_evacuation ${node} yes
+	    fi
 	fi
     done
 
