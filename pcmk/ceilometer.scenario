@@ -89,7 +89,7 @@ pcs resource create ceilometer-notification systemd:openstack-ceilometer-notific
 
 pcs constraint order promote redis-master then start vip-redis
 pcs constraint colocation add vip-redis with master redis-master
-pcs constraint order start vip-redis then ceilometer-central-clone
+pcs constraint order start vip-redis then ceilometer-central-clone kind=Optional
 pcs constraint order start ceilometer-central-clone then ceilometer-collector-clone
 pcs constraint order start ceilometer-collector-clone then ceilometer-api-clone
 pcs constraint colocation add ceilometer-api-clone with ceilometer-collector-clone 
