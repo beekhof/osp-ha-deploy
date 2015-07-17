@@ -55,6 +55,7 @@ openstack-config --set /etc/heat/heat.conf ec2authtoken auth_uri http://vip-keys
 openstack-config --set /etc/heat/heat.conf DEFAULT memcache_servers   ${PHD_VAR_network_hosts_memcache}
 openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/heat/heat.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 
 openstack-config --set /etc/heat/heat.conf heat_api bind_host $(ip addr show dev eth1 scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')

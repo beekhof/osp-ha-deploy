@@ -55,6 +55,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_
 openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 openstack-config --set /etc/ceilometer/ceilometer.conf coordination backend_url 'redis://vip-redis:6379'
 

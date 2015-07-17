@@ -69,6 +69,7 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT memcache_servers  ${PHD_V
 
 openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 # rdo${PHD_VAR_osp_major}-cinder isn't the name of a real host or an IP
 # Its the name which we should advertise ourselves as and for A/P it should be the same everywhere

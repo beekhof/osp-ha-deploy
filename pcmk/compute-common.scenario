@@ -80,6 +80,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 openstack-config --set /etc/nova/nova.conf DEFAULT memcache_servers  ${PHD_VAR_network_hosts_memcache}
 openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 # FIX ME: nova doesn't like hostnames anymore?
 # openstack-config --set /etc/nova/nova.conf DEFAULT metadata_host vip-nova
@@ -124,6 +125,7 @@ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri
 
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
 
@@ -157,7 +159,7 @@ openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_
 openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers ${PHD_VAR_network_hosts_memcache}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true
-
+openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 openstack-config --set /etc/ceilometer/ceilometer.conf publisher telemetry_secret ceilometersecret
 

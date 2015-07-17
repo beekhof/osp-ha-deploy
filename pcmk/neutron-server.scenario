@@ -66,6 +66,7 @@ openstack-config --set /etc/neutron/neutron.conf database max_retries -1
 
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts ${PHD_VAR_network_hosts_rabbitmq}
 openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
+openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit heartbeat_timeout_threshold 60
 
 openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
 
