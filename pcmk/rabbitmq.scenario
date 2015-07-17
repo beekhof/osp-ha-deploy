@@ -68,5 +68,5 @@ cat $PHD_VAR_osp_configdir/rabbitmq_erlang_cookie > /var/lib/rabbitmq/.erlang.co
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create rabbitmq-server rabbitmq-cluster set_policy='HA ^(?!amq\.).* {"ha-mode":"all"}' --clone ordered=true interleave=true
+pcs resource create rabbitmq-server rabbitmq-cluster set_policy='HA ^(?!amq\.).* {"ha-mode":"all"}' meta notify=true --clone ordered=true interleave=true
 ....
