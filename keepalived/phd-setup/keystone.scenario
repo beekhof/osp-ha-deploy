@@ -176,6 +176,7 @@ chown keystone:keystone /var/log/keystone/keystone.log
 
 target=all
 ....
+echo "1 * * * * keystone keystone-manage token_flush >>/var/log/keystone/keystone-tokenflush.log 2>&1" >> /etc/crontab
 firewall-cmd --add-port=5000/tcp
 firewall-cmd --add-port=5000/tcp --permanent
 firewall-cmd --add-port=35357/tcp
