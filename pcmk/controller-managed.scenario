@@ -158,7 +158,10 @@ case ${PHD_VAR_network_hosts_gateway} in
     ;;
 esac
 
-pcs stonith create fence-nova fence_compute auth-url=http://vip-keystone:35357/v2.0/ login=admin passwd=keystonetest tenant-name=admin domain=${PHD_VAR_network_domain} record-only=1 --force
+pcs stonith create fence-nova fence_compute auth-url=http://vip-keystone:35357/v2.0/ login=admin passwd=keystonetest tenant-name=admin domain=${PHD_VAR_network_domain} record-only=1 action=off --force
+
+# while this is set in basic.cluster, it looks like OSPd doesn't set it.
+pcs resource defaults resource-stickiness=INFINITY
 
 # allow compute nodes to rejoin the cluster automatically
 # 1m might be a bit aggressive tho
