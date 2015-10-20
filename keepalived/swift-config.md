@@ -53,10 +53,12 @@ Start account, container and object services, open firewall ports
 Configure swift proxy and object expirer
 ----------------------------------------
 
-    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant_name services
-    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
-    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken admin_password swifttest
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_plugin password
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken username swift
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken password swifttest
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken project_name services
     openstack-config --set /etc/swift/proxy-server.conf filter:cache memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
     openstack-config --set /etc/swift/proxy-server.conf DEFAULT bind_ip 192.168.1.22X
     openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211

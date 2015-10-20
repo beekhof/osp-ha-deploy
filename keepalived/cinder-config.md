@@ -18,10 +18,12 @@ Configure
     openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:cindertest@controller-vip.example.com/cinder
     openstack-config --set /etc/cinder/cinder.conf database max_retries -1
     openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_tenant_name services
-    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_user cinder
-    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_password cindertest
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken username cinder
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken password cindertest
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken project_name services
     openstack-config --set /etc/cinder/cinder.conf DEFAULT notification_driver messaging
     openstack-config --set /etc/cinder/cinder.conf DEFAULT control_exchange cinder
     openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host controller-vip.example.com
