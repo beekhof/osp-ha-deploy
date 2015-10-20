@@ -39,10 +39,10 @@ On the detailed installation notes, remember to substitute any occurrence of 192
 #### Single vs multiple VIPs
 
 Please note that the current document uses a single virtual IP for the whole stack of OpenStack API services. It is also possible to use multiple virtual IPs, one per API service. Using multiple virtual IPs will allow for load distribution between the three HAProxy instances. In contrast, the requirements for available IP addresses increase, and the initial configuration can be slightly more complex if performed manually.
-
+ 
 #### Base operating system installation
 
-All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then running the enabling the required software channels.
+All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then enabling the required software channels.
 
 -   For RDO Kilo, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
 -   For the [Red Hat Enterprise Linux OpenStack Platform](http://www.redhat.com/openstack), run the following commands to enable the required repositories:
