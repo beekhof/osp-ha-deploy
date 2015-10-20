@@ -14,8 +14,6 @@ Install software
 
     yum -y install keepalived psmisc
 
-**Note:** keepalived \>= 1.2.13 is required to avoid bugs in the L3 HA setup (see [this bug](https://bugzilla.redhat.com/show_bug.cgi?id=1187500) for details). This package is planned to be available in Red Hat Enterprise Linux 7.1 and CentOS 7.1.
-
 Create configuration file
 -------------------------
 
@@ -39,6 +37,8 @@ On all nodes:
         track_script {
             chk_haproxy
         }
+        # Avoid failback
+        nopreempt
     }
 
     vrrp_sync_group VG1
@@ -47,16 +47,6 @@ On all nodes:
         }
     EOF
 
-Set priority for nodes 2 and 3
-------------------------------
-
-On node 2:
-
-    sed --in-place 's/priority 101/priority 102/g' /etc/keepalived/keepalived.conf
-
-On node 3:
-
-    sed --in-place 's/priority 101/priority 103/g' /etc/keepalived/keepalived.conf
 
 Open firewall rules and start services
 --------------------------------------

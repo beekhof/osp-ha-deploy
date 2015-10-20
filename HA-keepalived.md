@@ -5,10 +5,12 @@ This document aims at defining a high level architecture for a highly available 
 
 The document can be used to create a highly available architecture for:
 
--   [RDO Kilo](http://openstack.redhat.com) - still pre-release
--   [Red Hat Enterprise Linux Openstack Platform 7](http://www.redhat.com/openstack), when available
+-   [RDO Liberty](http://www.rdoproject.org)
+-   [Red Hat Enterprise Linux Openstack Platform 8](http://www.redhat.com/openstack), when available
 
-If you are looking for the Juno edition, check out the [Juno-RDO6 branch](../Juno-RDO6/HA-keepalived.md).
+**Note**: Instructions for Liberty are still work in progress.
+
+If you are looking for the Kilo edition, check out the [Kilo-RDO7 branch](../Kilo-RDO7/HA-keepalived.md).
 
 Most of the time the instructions will apply to both distributions. If there is any difference, it will be specified throughout the document.
 

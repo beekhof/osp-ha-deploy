@@ -42,7 +42,7 @@ Please note that the current document uses a single virtual IP for the whole sta
 
 #### Base operating system installation
 
-All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then running the enabling the required software channels.
+All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then enabling the required software channels.
 
 -   For RDO Kilo, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
 -   For the [Red Hat Enterprise Linux OpenStack Platform](http://www.redhat.com/openstack), run the following commands to enable the required repositories:
