@@ -107,7 +107,7 @@ The detailed high availability strategy for the OpenStack services is defined in
 
 **Notes:**
 
-1.  There are known issues with cinder-volume that recommend setting it as active-passive for now, see <https://review.openstack.org/#/c/101237> and <https://bugzilla.redhat.com/show_bug.cgi?id=1193229>
+1.  There are known issues with cinder-volume that recommend setting it as active-passive for now, see <https://blueprints.launchpad.net/cinder/+spec/cinder-volume-active-active-support>
 2.  While there will be multiple Neutron LBaaS agents running, each agent will manage a set of load balancers, that cannot be failed over to another node.
 
 Architecture limitations
@@ -121,7 +121,7 @@ In case of a network partitioning, there is a chance that two or more nodes runn
 
 ### Cinder-volume as a single point of failure
 
-There are currently concerns over the cinder-volume service ability to run as a fully active-active service. During the Liberty timeframe, this is being worked on, see [1](https://github.com/Akrog/test-cinder-atomic-states). Thus, cinder-volume will only be running on one of the controller nodes, even if it will be configured on all nodes. In case of a failure in the node running cinder-volume, it should be started in a surviving controller node.
+There are currently concerns over the cinder-volume service ability to run as a fully active-active service. During the Mitaka timeframe, this is being worked on, see [1](https://blueprints.launchpad.net/cinder/+spec/cinder-volume-active-active-support). Thus, cinder-volume will only be running on one of the controller nodes, even if it will be configured on all nodes. In case of a failure in the node running cinder-volume, it should be started in a surviving controller node.
 
 ### Neutron-lbaas-agent as a single point of failure
 
