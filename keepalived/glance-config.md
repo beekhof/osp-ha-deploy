@@ -70,7 +70,6 @@ Test
 On any node:
 
     . /root/keystonerc_admin
-
-    glance image-create --name "cirros" --is-public true --disk-format qcow2 --container-format bare --location http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
-
+    wget http://download.cirros-cloud.net/0.3.3/cirros-0.3.3-x86_64-disk.img
+    glance image-create --name "cirros" --disk-format qcow2 --container-format bare --file cirros-0.3.3-x86_64-disk.img --visibility public
     glance image-list
