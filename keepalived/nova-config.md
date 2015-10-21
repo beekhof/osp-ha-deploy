@@ -16,10 +16,10 @@ Configure Nova API
 ------------------
 
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address 192.168.1.22X
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 192.168.1.22X
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host 192.168.1.22X
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://controller-vip.example.com:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_host 192.168.1.22X
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://controller-vip.example.com:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address 192.168.1.22X
+    openstack-config --set /etc/nova/nova.conf vnc vncserver_listen 192.168.1.22X
     openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@controller-vip.example.com/nova
     openstack-config --set /etc/nova/nova.conf database max_retries -1
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
@@ -39,18 +39,24 @@ Configure Nova API
     openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
     openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
     openstack-config --set /etc/nova/nova.conf neutron url http://controller-vip.example.com:9696/
-    openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name services
-    openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
-    openstack-config --set /etc/nova/nova.conf neutron admin_password neutrontest
-    openstack-config --set /etc/nova/nova.conf neutron admin_auth_url http://controller-vip.example.com:35357/v2.0
+    openstack-config --set /etc/nova/nova.conf neutron project_domain_id default
+    openstack-config --set /etc/nova/nova.conf neutron project_name service
+    openstack-config --set /etc/nova/nova.conf neutron user_domain_id default
+    openstack-config --set /etc/nova/nova.conf neutron username neutron
+    openstack-config --set /etc/nova/nova.conf neutron password neutrontest
+    openstack-config --set /etc/nova/nova.conf neutron auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/nova/nova.conf neutron auth_plugin password
     openstack-config --set /etc/nova/nova.conf neutron region_name regionOne
 
     # REQUIRED FOR A/A scheduler
     openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_host_subset_size 30
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_tenant_name services
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_user compute
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_password novatest
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_plugin password
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken username compute
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken password novatest
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken project_name services
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_uri https://controller-vip.example.com:5000/
+
 
 Only run the following command if you are creating a test environment where your hypervisors will be virtual machines
 
