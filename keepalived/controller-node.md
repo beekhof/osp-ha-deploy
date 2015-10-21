@@ -44,7 +44,10 @@ Please note that the current document uses a single virtual IP for the whole sta
 
 All nodes start from a *minimal* CentOS 7 or RHEL 7 installation, then enabling the required software channels.
 
--   For RDO Kilo, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
+-   For RDO Liberty, follow the steps specified in the [RDO wiki](https://openstack.redhat.com/Repositories)
+
+**Note:** For now, use [this release RPM](http://buildlogs.centos.org/centos/7/cloud/openstack-liberty/centos-release-openstack-liberty-1-3.el7.noarch.rpm) to setup the required repositories.
+
 -   For the [Red Hat Enterprise Linux OpenStack Platform](http://www.redhat.com/openstack), run the following commands to enable the required repositories:
 
 <pre>subscription-manager register --username=${RHSMUSER} --password=${RHSMPASS} 
