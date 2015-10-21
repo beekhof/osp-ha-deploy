@@ -14,7 +14,7 @@ Configure Nova API
 ------------------
 
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
-    openstack-config --set /etc/nova/nova.conf vnc novncproxy_host 192.168.1.22X
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host 192.168.1.22X
     openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://controller-vip.example.com:6080/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address 192.168.1.22X
     openstack-config --set /etc/nova/nova.conf vnc vncserver_listen 192.168.1.22X
