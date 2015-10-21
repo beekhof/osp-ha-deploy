@@ -1,7 +1,7 @@
 Introduction
 ------------
 
-In terms of high availability, the Ceilometer central agent deserves special attention. This agent had to run in a single node until the Juno release cycle, since there was no way to coordinate multiple agents and ensure they would not duplicate metrics. Now, multiple central agent instances can run in parallel with workload partitioning among these running instances, using the tooz library with a Redis backend for coordination. See [here](http://docs.openstack.org/admin-guide-cloud/content/section_telemetry-cetral-compute-agent-ha.html) for additional information.
+In terms of high availability, the Ceilometer central agent deserves special attention. This agent had to run in a single node until the Juno release cycle, since there was no way to coordinate multiple agents and ensure they would not duplicate metrics. Now, multiple central agent instances can run in parallel with workload partitioning among these running instances, using the tooz library with a Redis backend for coordination. See [here](http://docs.openstack.org/admin-guide-cloud/telemetry-data-collection.html#support-for-ha-deployment) for additional information.
 
 The following commands will be executed on all controller nodes, unless otherwise stated.
 
@@ -10,17 +10,18 @@ You can find a phd scenario file [here](phd-setup/ceilometer.scenario).
 Install software
 ----------------
 
-    yum install -y openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
+    yum install -y openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient python-redis
 
-**Note:** python-tooz 0.13.2 or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1203706). This should be fixed by the Kilo GA date.
 
 Configure ceilometer
 --------------------
 
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_tenant_name services
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken username ceilometer
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken password ceilometertest
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken project_name services
     openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
     openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true

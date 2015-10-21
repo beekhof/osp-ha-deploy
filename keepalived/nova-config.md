@@ -10,8 +10,6 @@ Install software
 
     yum install -y openstack-nova-console openstack-nova-novncproxy openstack-utils openstack-nova-api openstack-nova-conductor openstack-nova-scheduler python-cinderclient python-memcached
 
-**Note:** python-websockify 0.6.0 or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1200701). This should be fixed by the Kilo GA date.
-
 Configure Nova API
 ------------------
 
