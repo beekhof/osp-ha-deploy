@@ -28,11 +28,12 @@ Configure Sahara
     openstack-config --set /etc/sahara/sahara.conf oslo_messaging_rabbit rabbit_ha_queues true
     openstack-config --set /etc/sahara/sahara.conf DEFAULT notification_topics notifications
     openstack-config --set /etc/sahara/sahara.conf database connection mysql://sahara:saharatest@controller-vip.example.com/sahara
-    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/v2.0
-    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken admin_user sahara
-    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken admin_password saharatest
-    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken admin_tenant_name services
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken username sahara
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken password saharatest
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken project_name services
     openstack-config --set /etc/sahara/sahara.conf DEFAULT log_file /var/log/sahara/sahara.log
 
 Manage DB
