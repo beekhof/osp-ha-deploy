@@ -27,25 +27,23 @@ Take note of the token ID issued, then:
     openstack --os-token=${TOKEN_ID} --os-url=http://controller-vip.example.com:5000/v3 --os-identity-api-version=3 user create --password heattest --domain heat --description "Manages users and projects created by heat" heat_domain_admin
     openstack --os-token=${TOKEN_ID} --os-url=http://controller-vip.example.com:5000/v3 --os-identity-api-version=3 role add --user heat_domain_admin --domain heat admin
 
-Take note of the id for the domain you just created, and then run the following commands.
-
 On all nodes:
 
     openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin_password heattest
     openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin heat_domain_admin
-    openstack-config --set /etc/heat/heat.conf DEFAULT stack_user_domain_id ${HEAT_DOMAIN_ID}
+    openstack-config --set /etc/heat/heat.conf DEFAULT stack_user_domain_name heat
 
 Configure Heat
 --------------
 
     openstack-config --set /etc/heat/heat.conf database connection mysql://heat:heattest@controller-vip.example.com/heat
     openstack-config --set /etc/heat/heat.conf database max_retries -1
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_tenant_name services
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_user heat
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_password heattest
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken service_host controller-vip.example.com
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri http://controller-vip.example.com:35357/v2.0
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken username heat
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken password heattest
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken project_name services
     openstack-config --set /etc/heat/heat.conf keystone_authtoken keystone_ec2_uri http://controller-vip.example.com:35357/v2.0
     openstack-config --set /etc/heat/heat.conf ec2authtoken auth_uri http://controller-vip.example.com:5000/v2.0
     openstack-config --set /etc/heat/heat.conf DEFAULT memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
