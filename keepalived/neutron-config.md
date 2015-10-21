@@ -22,26 +22,25 @@ Configure Neutron server
 
     openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host 192.168.1.22X
     openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken identity_uri http://controller-vip.example.com:35357/
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken username neutron
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken password neutrontest
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken project_name services
     openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:neutrontest@controller-vip.example.com:3306/neutron
     openstack-config --set /etc/neutron/neutron.conf database max_retries -1
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://controller-vip.example.com:8774/v2
-    openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
-
-    . /root/keystonerc_admin
-    services_tenant_id=$(openstack project show services -f value -c id | head -n 1)
-
-    # The tenant_id below is the services tenant ID
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id ${services_tenant_id}
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username compute
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_password novatest
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_auth_url http://controller-vip.example.com:35357/v2.0
+    openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
+    openstack-config --set /etc/neutron/neutron.conf nova project_domain_id default
+    openstack-config --set /etc/neutron/neutron.conf nova project_name service
+    openstack-config --set /etc/neutron/neutron.conf nova user_domain_id default
+    openstack-config --set /etc/neutron/neutron.conf nova password novatest
+    openstack-config --set /etc/neutron/neutron.conf nova username compute
+    openstack-config --set /etc/neutron/neutron.conf nova auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/neutron/neutron.conf nova auth_plugin password
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes True
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes True
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.ml2.plugin.Ml2Plugin
@@ -114,16 +113,16 @@ OpenvSwitch configuration
 OpenvSwitch agent
 -----------------
 
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent tunnel_types vxlan
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent vxlan_udp_port 4789
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip 192.168.1.22X
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs bridge_mappings physnet1:br-eth0
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs network_vlan_ranges physnet1
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver 
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent vxlan_udp_port 4789
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip 192.168.1.22X
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs enable_tunneling True
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs integration_bridge br-int
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs tunnel_bridge br-tun
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs bridge_mappings physnet1:br-eth0
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs network_vlan_ranges physnet1
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver 
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population False
 
 Metadata agent
 --------------
@@ -145,7 +144,6 @@ DHCP agent
 ----------
 
     openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
-    openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_delete_namespaces False
     openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dnsmasq_config_file /etc/neutron/dnsmasq-neutron.conf
 
 The following will prevent issues from happening when the network card MTU is 1500. If we are using jumbo frames, it should not be required. Be aware that this only helps on certain operating systems with a well-behaving DHCP client. Windows is known to ignore it.
@@ -160,7 +158,6 @@ L3 agent
     openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
     openstack-config --set /etc/neutron/l3_agent.ini DEFAULT handle_internal_only_routers True
     openstack-config --set /etc/neutron/l3_agent.ini DEFAULT send_arp_for_ha 3
-    openstack-config --set /etc/neutron/l3_agent.ini DEFAULT router_delete_namespaces False
     openstack-config --set /etc/neutron/l3_agent.ini DEFAULT metadata_ip controller-vip.example.com
     openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge
 
