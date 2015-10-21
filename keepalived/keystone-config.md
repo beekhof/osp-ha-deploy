@@ -34,18 +34,18 @@ ln /usr/share/keystone/keystone.wsgi /var/www/cgi-bin/keystone/main
 restorecon -R /var/www/cgi-bin/keystone /etc/httpd 
 
 cat > /etc/httpd/conf.d/10-keystone_wsgi_admin.conf << EOF
-&lt;VirtualHost *:35357>
+<VirtualHost *:35357>
   ServerName hacontrollerX
   ## Vhost docroot
   DocumentRoot "/var/www/cgi-bin/keystone"
 
   ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
 
-  &lt;Directory "/var/www/cgi-bin/keystone">
+  <Directory "/var/www/cgi-bin/keystone">
     Options Indexes FollowSymLinks MultiViews
     AllowOverride None
     Require all granted
-  &lt;/Directory>
+  </Directory>
 
   ## Logging
   ErrorLog "/var/log/httpd/keystone_wsgi_admin_error.log"
@@ -54,22 +54,22 @@ cat > /etc/httpd/conf.d/10-keystone_wsgi_admin.conf << EOF
   WSGIDaemonProcess keystone_admin group=keystone processes=1 threads=1 user=keystone
   WSGIProcessGroup keystone_admin
   WSGIScriptAlias / "/var/www/cgi-bin/keystone/admin"
-&lt;/VirtualHost>
+</VirtualHost>
 EOF
 
 cat > /etc/httpd/conf.d/10-keystone_wsgi_main.conf << EOF
-&lt;VirtualHost *:5000>
+<VirtualHost *:5000>
   ServerName hacontrollerX
   ## Vhost docroot
   DocumentRoot "/var/www/cgi-bin/keystone"
 
   ## Directories, there should at least be a declaration for /var/www/cgi-bin/keystone
 
-  &lt;Directory "/var/www/cgi-bin/keystone">
+  <Directory "/var/www/cgi-bin/keystone">
     Options Indexes FollowSymLinks MultiViews
     AllowOverride None
     Require all granted
-  &lt;/Directory>
+  </Directory>
 
   ## Logging
   ErrorLog "/var/log/httpd/keystone_wsgi_main_error.log"
@@ -78,7 +78,7 @@ cat > /etc/httpd/conf.d/10-keystone_wsgi_main.conf << EOF
   WSGIDaemonProcess keystone_main group=keystone processes=1 threads=1 user=keystone
   WSGIProcessGroup keystone_main
   WSGIScriptAlias / "/var/www/cgi-bin/keystone/main"
-&lt;/VirtualHost>
+</VirtualHost>
 EOF
 
 
