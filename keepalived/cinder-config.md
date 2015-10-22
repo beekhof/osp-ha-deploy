@@ -32,7 +32,7 @@ Configure
     openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_listen 192.168.1.22X
     openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_ha_queues true
-    openstack-config --set /etc/cinder/cinder.conf DEFAULT encryption_auth_url http://controller-vip.example.com:5000/v3
+    openstack-config --set /etc/cinder/cinder.conf keymgr encryption_auth_url http://controller-vip.example.com:5000/v3
 
 **Note:** We are setting a single "host" entry for all nodes, this is related to the A/P issues with cinder-volume.
 
