@@ -64,14 +64,6 @@ Configure Heat
     openstack-config --set /etc/heat/heat.conf DEFAULT enable_cloud_watch_lite false
 
 
-
-
-identity_uri = http://controller-vip.example.com:35357
-admin_tenant_name = services
-admin_user = heat
-admin_password = heattest
-
-
 Manage DB
 ---------
 
