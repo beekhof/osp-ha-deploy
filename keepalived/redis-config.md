@@ -15,13 +15,12 @@ Install redis
 Configure bind IP, set master and slaves
 ----------------------------------------
 
-On node 1:
+On all nodes:
 
     sed --in-place 's/bind 127.0.0.1/bind 127.0.0.1 192.168.1.X/' /etc/redis.conf
 
 On node2 and 3:
 
-    sed --in-place 's/bind 127.0.0.1/bind 127.0.0.1 192.168.1.X/' /etc/redis.conf
     echo slaveof ''<hacontroller1 IP>'' 6379 >> /etc/redis.conf 
 
 Configure Sentinel, used for master failover
