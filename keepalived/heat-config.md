@@ -45,6 +45,10 @@ Configure Heat
     openstack-config --set /etc/heat/heat.conf keystone_authtoken password heattest
     openstack-config --set /etc/heat/heat.conf keystone_authtoken project_name services
     openstack-config --set /etc/heat/heat.conf keystone_authtoken keystone_ec2_uri http://controller-vip.example.com:35357/v2.0
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken identity_uri http://controller-vip.example.com:35357
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_tenant_name services
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_user heat
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_password heattest
     openstack-config --set /etc/heat/heat.conf ec2authtoken auth_uri http://controller-vip.example.com:5000/v2.0
     openstack-config --set /etc/heat/heat.conf DEFAULT memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
     openstack-config --set /etc/heat/heat.conf heat_api bind_host 192.168.1.22X
@@ -58,6 +62,15 @@ Configure Heat
     openstack-config --set /etc/heat/heat.conf DEFAULT rpc_backend rabbit
     openstack-config --set /etc/heat/heat.conf DEFAULT notification_driver heat.openstack.common.notifier.rpc_notifier
     openstack-config --set /etc/heat/heat.conf DEFAULT enable_cloud_watch_lite false
+
+
+
+
+identity_uri = http://controller-vip.example.com:35357
+admin_tenant_name = services
+admin_user = heat
+admin_password = heattest
+
 
 Manage DB
 ---------
