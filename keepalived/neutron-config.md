@@ -35,7 +35,7 @@ Configure Neutron server
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
     openstack-config --set /etc/neutron/neutron.conf nova nova_region_name regionOne
     openstack-config --set /etc/neutron/neutron.conf nova project_domain_id default
-    openstack-config --set /etc/neutron/neutron.conf nova project_name service
+    openstack-config --set /etc/neutron/neutron.conf nova project_name services
     openstack-config --set /etc/neutron/neutron.conf nova user_domain_id default
     openstack-config --set /etc/neutron/neutron.conf nova password novatest
     openstack-config --set /etc/neutron/neutron.conf nova username compute

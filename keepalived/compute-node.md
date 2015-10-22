@@ -29,7 +29,7 @@ The following commands should be executed on each compute node to be added to th
 
 ### Install software
 
-    yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute openstack-neutron
+    yum install -y openstack-nova-compute openstack-utils python-cinder openstack-neutron-openvswitch openstack-ceilometer-compute openstack-neutron openstack-selinux
 
 ### Enable OpenvSwitch, start daemon and create integration bridge
 
@@ -40,9 +40,9 @@ The following commands should be executed on each compute node to be added to th
 ### Configure Nova compute
 
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address 192.168.1.22X
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://controller-vip.example.com:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address 192.168.1.22X
+    openstack-config --set /etc/nova/nova.conf vnc vncserver_listen 0.0.0.0
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://controller-vip.example.com:6080/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf database connection mysql://nova:novatest@controller-vip.example.com/nova
     openstack-config --set /etc/nova/nova.conf database max_retries -1
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
@@ -58,16 +58,22 @@ The following commands should be executed on each compute node to be added to th
     openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
     openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
     openstack-config --set /etc/nova/nova.conf neutron url http://controller-vip.example.com:9696/
-    openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name services
-    openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
-    openstack-config --set /etc/nova/nova.conf neutron admin_password neutrontest
-    openstack-config --set /etc/nova/nova.conf neutron admin_auth_url http://controller-vip.example.com:35357/v2.0
+    openstack-config --set /etc/nova/nova.conf neutron project_domain_id default
+    openstack-config --set /etc/nova/nova.conf neutron project_name services
+    openstack-config --set /etc/nova/nova.conf neutron user_domain_id default
+    openstack-config --set /etc/nova/nova.conf neutron username neutron
+    openstack-config --set /etc/nova/nova.conf neutron password neutrontest
+    openstack-config --set /etc/nova/nova.conf neutron auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/nova/nova.conf neutron auth_uri http://controller-vip.example.com:5000/
+    openstack-config --set /etc/nova/nova.conf neutron auth_plugin password
     openstack-config --set /etc/nova/nova.conf neutron region_name regionOne
     openstack-config --set /etc/nova/nova.conf libvirt nfs_mount_options v3
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_host controller-vip.example.com
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_tenant_name services
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_user compute
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken admin_password novatest
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_plugin password
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken username compute
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken password novatest
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken project_name services
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_uri http://controller-vip.example.com:5000/
 
 Only run the following command if you are creating a test environment where your hypervisors will be virtual machines.
 
@@ -76,23 +82,26 @@ Only run the following command if you are creating a test environment where your
 ### Configure Neutron on compute node
 
     openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host controller-vip.example.com
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name services
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password neutrontest
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken username neutron
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken password neutrontest
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken project_name services
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/neutron/neutron.conf oslo_messaging_rabbit rabbit_ha_queues true
     openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent tunnel_types vxlan
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent vxlan_udp_port 4789
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_id_ranges 1:1000
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tenant_network_type vxlan
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip 192.168.1.22X
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-    openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent vxlan_udp_port 4789
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs enable_tunneling True
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs tunnel_id_ranges 1:1000
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs tenant_network_type vxlan
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs integration_bridge br-int
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs tunnel_bridge br-tun
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip 192.168.1.22X
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver 
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population False
+
 
 ### Configure Ceilometer on compute node
 
@@ -101,12 +110,12 @@ Only run the following command if you are creating a test environment where your
     openstack-config --set /etc/nova/nova.conf DEFAULT notify_on_state_change vm_and_task_state
     openstack-config --set /etc/nova/nova.conf DEFAULT notification_driver nova.openstack.common.notifier.rpc_notifier
     sed  -i -e  's/nova.openstack.common.notifier.rpc_notifier/nova.openstack.common.notifier.rpc_notifier\nnotification_driver  = ceilometer.compute.nova_notifier/g' /etc/nova/nova.conf
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_host controller-vip.example.com
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_port 35357
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_protocol http
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_tenant_name services
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_user ceilometer
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken admin_password ceilometertest
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_plugin password
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken username ceilometer
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken password ceilometertest
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken project_name services
     openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
     openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/ceilometer/ceilometer.conf oslo_messaging_rabbit rabbit_ha_queues true

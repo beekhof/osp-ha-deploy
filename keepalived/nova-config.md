@@ -38,11 +38,12 @@ Configure Nova API
     openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret metatest
     openstack-config --set /etc/nova/nova.conf neutron url http://controller-vip.example.com:9696/
     openstack-config --set /etc/nova/nova.conf neutron project_domain_id default
-    openstack-config --set /etc/nova/nova.conf neutron project_name service
+    openstack-config --set /etc/nova/nova.conf neutron project_name services
     openstack-config --set /etc/nova/nova.conf neutron user_domain_id default
     openstack-config --set /etc/nova/nova.conf neutron username neutron
     openstack-config --set /etc/nova/nova.conf neutron password neutrontest
     openstack-config --set /etc/nova/nova.conf neutron auth_url http://controller-vip.example.com:35357/
+    openstack-config --set /etc/nova/nova.conf neutron auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/nova/nova.conf neutron auth_plugin password
     openstack-config --set /etc/nova/nova.conf neutron region_name regionOne
 
