@@ -26,6 +26,7 @@ Configure Apache web server for Keystone
 **NOTE:** running Keystone under eventlet has been deprecated as of the Kilo release. Support for utilizing eventlet will be removed as of the M-release. Thus, instructions are provided to run Keystone under the Apache web server, as a WSGI process.
 
 On all nodes:
+
     cp /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
     sed -i -e 's/apache2/httpd/g'   /etc/httpd/conf.d/wsgi-keystone.conf
     sed -i -e 's/VirtualHost \*/VirtualHost 192.168.1.22X/g' /etc/httpd/conf.d/wsgi-keystone.conf 
