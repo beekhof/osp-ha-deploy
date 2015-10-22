@@ -25,7 +25,7 @@ Configure Trove
     openstack-config --set /etc/trove/trove.conf DEFAULT rpc_backend rabbit
     openstack-config --set /etc/trove/trove.conf database connection  mysql://trove:trovetest@controller-vip.example.com/trove
     openstack-config --set /etc/trove/trove.conf database max_retries -1
-    openstack-config --set /etc/trove/trove.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/trove/trove.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/trove/trove.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/trove/trove.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/trove/trove.conf keystone_authtoken username trove
@@ -41,7 +41,7 @@ Configure Trove
     openstack-config --set /etc/trove/trove-conductor.conf DEFAULT rpc_backend rabbit
     openstack-config --set /etc/trove/trove-conductor.conf database connection  mysql://trove:trovetest@controller-vip.example.com/trove
     openstack-config --set /etc/trove/trove-conductor.conf database max_retries -1
-    openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/trove/trove-conductor.conf keystone_authtoken username trove
@@ -60,7 +60,7 @@ Configure Trove
     openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT log_file trove-taskmanager.log
     openstack-config --set /etc/trove/trove-taskmanager.conf database connection  mysql://trove:trovetest@controller-vip.example.com/trove
     openstack-config --set /etc/trove/trove-taskmanager.conf database max_retries -1
-    openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/trove/trove-taskmanager.conf keystone_authtoken username trove

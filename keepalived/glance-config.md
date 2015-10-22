@@ -16,7 +16,7 @@ Configure glance-api and glance-registry
     openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:glancetest@controller-vip.example.com/glance
     openstack-config --set /etc/glance/glance-api.conf database max_retries -1
     openstack-config --set /etc/glance/glance-api.conf paste_deploy flavor keystone
-    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/glance/glance-api.conf keystone_authtoken username glance
@@ -30,7 +30,7 @@ Configure glance-api and glance-registry
     openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:glancetest@controller-vip.example.com/glance
     openstack-config --set /etc/glance/glance-registry.conf database max_retries -1
     openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
-    openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken username glance

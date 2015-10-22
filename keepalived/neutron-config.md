@@ -22,7 +22,7 @@ Configure Neutron server
 
     openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host 192.168.1.22X
     openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/neutron/neutron.conf keystone_authtoken username neutron

@@ -53,7 +53,7 @@ Configure Nova API
     openstack-config --set /etc/nova/api-paste.ini filter:authtoken username compute
     openstack-config --set /etc/nova/api-paste.ini filter:authtoken password novatest
     openstack-config --set /etc/nova/api-paste.ini filter:authtoken project_name services
-    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/nova/api-paste.ini filter:authtoken auth_uri http://controller-vip.example.com:5000/
 
 
 Only run the following command if you are creating a test environment where your hypervisors will be virtual machines

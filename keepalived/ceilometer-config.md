@@ -16,7 +16,7 @@ Install software
 Configure ceilometer
 --------------------
 
-    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken username ceilometer

@@ -18,7 +18,7 @@ Configure
     openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:cindertest@controller-vip.example.com/cinder
     openstack-config --set /etc/cinder/cinder.conf database max_retries -1
     openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/cinder/cinder.conf keystone_authtoken username cinder
@@ -32,6 +32,7 @@ Configure
     openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_listen 192.168.1.22X
     openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_hosts hacontroller1,hacontroller2,hacontroller3
     openstack-config --set /etc/cinder/cinder.conf oslo_messaging_rabbit rabbit_ha_queues true
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT encryption_auth_url http://controller-vip.example.com:5000/v3
 
 **Note:** We are setting a single "host" entry for all nodes, this is related to the A/P issues with cinder-volume.
 

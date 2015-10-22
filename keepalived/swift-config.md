@@ -53,7 +53,7 @@ Start account, container and object services, open firewall ports
 Configure swift proxy and object expirer
 ----------------------------------------
 
-    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_plugin password
     openstack-config --set /etc/swift/proxy-server.conf filter:authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/swift/proxy-server.conf filter:authtoken username swift

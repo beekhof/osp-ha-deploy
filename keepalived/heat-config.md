@@ -38,7 +38,7 @@ Configure Heat
 
     openstack-config --set /etc/heat/heat.conf database connection mysql://heat:heattest@controller-vip.example.com/heat
     openstack-config --set /etc/heat/heat.conf database max_retries -1
-    openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri https://controller-vip.example.com:5000/
+    openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri http://controller-vip.example.com:5000/
     openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_plugin password
     openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_url http://controller-vip.example.com:35357/
     openstack-config --set /etc/heat/heat.conf keystone_authtoken username heat
