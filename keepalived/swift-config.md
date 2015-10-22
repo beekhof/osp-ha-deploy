@@ -64,13 +64,6 @@ Configure swift proxy and object expirer
     openstack-config --set /etc/swift/object-expirer.conf filter:cache memcache_servers hacontroller1:11211,hacontroller2:11211,hacontroller3:11211
     openstack-config --set /etc/swift/object-expirer.conf object-expirer concurrency 100
 
-Configure hash path suffix
---------------------------
-
-On node 1:
-
-    openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix $(openssl rand -hex 10)
-
 Set Ceilometer hook
 -------------------
 
@@ -82,6 +75,13 @@ On node 1:
     [pipeline:main]
     pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
     EOF
+
+Configure hash path suffix
+--------------------------
+
+On node 1:
+
+    openstack-config --set /etc/swift/swift.conf swift-hash swift_hash_path_suffix $(openssl rand -hex 10)
 
 Create rings
 ------------
