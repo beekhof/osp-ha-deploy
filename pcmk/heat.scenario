@@ -78,20 +78,20 @@ target=$PHD_ENV_nodes1
 ....
 su heat -s /bin/sh -c "heat-manage db_sync"
 
-pcs resource create heat-api systemd:openstack-heat-api --clone interleave=true
-pcs resource create heat-api-cfn systemd:openstack-heat-api-cfn  --clone interleave=true
-pcs resource create heat-api-cloudwatch systemd:openstack-heat-api-cloudwatch --clone interleave=true
-pcs resource create heat-engine systemd:openstack-heat-engine --clone interleave=true
+pcs resource create openstack-heat-api systemd:openstack-heat-api --clone interleave=true
+pcs resource create openstack-heat-api-cfn systemd:openstack-heat-api-cfn  --clone interleave=true
+pcs resource create openstack-heat-api-cloudwatch systemd:openstack-heat-api-cloudwatch --clone interleave=true
+pcs resource create openstack-heat-engine systemd:openstack-heat-engine --clone interleave=true
 
-pcs constraint order start heat-api-clone then heat-api-cfn-clone
-pcs constraint colocation add heat-api-cfn-clone with heat-api-clone
-pcs constraint order start heat-api-cfn-clone then heat-api-cloudwatch-clone
-pcs constraint colocation add heat-api-cloudwatch-clone with heat-api-cfn-clone
-pcs constraint order start heat-api-cloudwatch-clone then heat-engine-clone
-pcs constraint colocation add heat-engine-clone with heat-api-cloudwatch-clone
+pcs constraint order start openstack-heat-api-clone then openstack-heat-api-cfn-clone
+pcs constraint colocation add openstack-heat-api-cfn-clone with openstack-heat-api-clone
+pcs constraint order start openstack-heat-api-cfn-clone then openstack-heat-api-cloudwatch-clone
+pcs constraint colocation add openstack-heat-api-cloudwatch-clone with openstack-heat-api-cfn-clone
+pcs constraint order start openstack-heat-api-cloudwatch-clone then openstack-heat-engine-clone
+pcs constraint colocation add openstack-heat-engine-clone with openstack-heat-api-cloudwatch-clone
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    pcs constraint order start ceilometer-notification-clone then heat-api-clone
+    pcs constraint order start openstack-ceilometer-notification-clone then openstack-heat-api-clone
 fi
 ....
 

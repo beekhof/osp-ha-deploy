@@ -106,16 +106,16 @@ chown glance:nobody /var/lib/glance
 # Now populate the database
 su glance -s /bin/sh -c "glance-manage db_sync"
 
-pcs resource create glance-registry systemd:openstack-glance-registry --clone interleave=true
-pcs resource create glance-api systemd:openstack-glance-api --clone interleave=true
+pcs resource create openstack-glance-registry systemd:openstack-glance-registry --clone interleave=true
+pcs resource create openstack-glance-api systemd:openstack-glance-api --clone interleave=true
 
-pcs constraint order start glance-fs-clone then glance-registry-clone
-pcs constraint colocation add glance-registry-clone with glance-fs-clone
-pcs constraint order start glance-registry-clone then glance-api-clone
-pcs constraint colocation add glance-api-clone with glance-registry-clone
+pcs constraint order start openstack-glance-fs-clone then openstack-glance-registry-clone
+pcs constraint colocation add openstack-glance-registry-clone with openstack-glance-fs-clone
+pcs constraint order start openstack-glance-registry-clone then openstack-glance-api-clone
+pcs constraint colocation add openstack-glance-api-clone with openstack-glance-registry-clone
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-   pcs constraint order start keystone-clone then glance-registry-clone
+   pcs constraint order start openstack-keystone-clone then openstack-glance-registry-clone
 fi
 ....
 

@@ -45,7 +45,7 @@ yum install -y mariadb-galera-server xinetd rsync
 
 if [ $PHD_VAR_deployment = collapsed ]; then
    # Allowing the proxy to perform health checks on galera while we're initializing it is... problematic. 
-   pcs resource disable lb-haproxy
+   pcs resource disable haproxy
 fi
 
 cat > /etc/sysconfig/clustercheck << EOF
@@ -136,7 +136,7 @@ pcs resource create galera galera enable_creation=true wsrep_cluster_address="gc
 
 if [ $PHD_VAR_deployment = collapsed ]; then
    # Now we can re-enable the proxy
-   pcs resource enable lb-haproxy
+   pcs resource enable haproxy
 fi
 
 # wait for galera to start and become promoted

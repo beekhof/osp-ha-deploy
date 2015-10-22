@@ -196,7 +196,7 @@ fi
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create lb-haproxy systemd:haproxy --clone
+pcs resource create haproxy systemd:haproxy --clone
 
 
 # The VIPs changed recently 
@@ -241,8 +241,8 @@ if [ $PHD_VAR_deployment = collapsed ]; then
 		: No VIP constraints needed for $section
 		;;
 	    *)
-		pcs constraint order start vip-${section} then lb-haproxy-clone kind=Optional
-    		pcs constraint colocation add vip-${section} with lb-haproxy-clone
+		pcs constraint order start vip-${section} then haproxy-clone kind=Optional
+		pcs constraint colocation add vip-${section} with haproxy-clone
 		;;
 	esac
     done
