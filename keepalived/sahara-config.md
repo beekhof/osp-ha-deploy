@@ -34,6 +34,9 @@ Configure Sahara
     openstack-config --set /etc/sahara/sahara.conf keystone_authtoken username sahara
     openstack-config --set /etc/sahara/sahara.conf keystone_authtoken password saharatest
     openstack-config --set /etc/sahara/sahara.conf keystone_authtoken project_name services
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken admin_tenant_name services
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken admin_user sahara
+    openstack-config --set /etc/sahara/sahara.conf keystone_authtoken admin_password saharatest
     openstack-config --set /etc/sahara/sahara.conf DEFAULT log_file /var/log/sahara/sahara.log
 
 Manage DB
