@@ -103,12 +103,38 @@ OpenvSwitch configuration
 
     systemctl enable openvswitch
     systemctl start openvswitch
-    ovs-vsctl add-br br-int
-    ovs-vsctl add-br br-eth0
 
 **Note:** we have seeing issues when trying to configure an IP on br-eth0 (specially ARP problems), so it is not recommended.
 
-    ovs-vsctl add-port br-eth0 eth0
+Assuming eth0 is your interface attached to the external network, create two files in _/etc/sysconfig/network-scripts/_ as follows (change MTU if you need):
+    
+		cat <<EOF > /etc/sysconfig/network-scripts/ifcfg-eth0
+		DEVICE=eth0
+		ONBOOT=yes
+		DEVICETYPE=ovs
+		TYPE=OVSPort
+		OVS_BRIDGE=br-eth0
+		ONBOOT=yes
+		BOOTPROTO=none
+		VLAN=yes
+		MTU="9000"
+		NM_CONTROLLED=no
+		EOF
+
+		cat <<EOF > /etc/sysconfig/network-scripts/ifcfg-br-eth0
+		DEVICE=br-eth0
+		DEVICETYPE=ovs
+		OVSBOOTPROTO=none
+		TYPE=OVSBridge
+		ONBOOT=yes
+		BOOTPROTO=static
+		MTU="9000"
+		NM_CONTROLLED=no
+		EOF
+
+Restart the network for the changes to take effect.
+    
+    systemctl restart network
 
 OpenvSwitch agent
 -----------------
