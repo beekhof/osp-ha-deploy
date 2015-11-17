@@ -3,7 +3,7 @@
 # of nodes you'd like it to modify.
 #
 # The scope of each command-block is controlled by the preceeding
-# 'target' line. 
+# 'target' line.
 #
 # - target=all
 #   The commands are executed on evey node provided
@@ -80,31 +80,31 @@ target=$PHD_ENV_nodes1
 
 pcs resource create redis redis wait_last_known_master=true --master meta notify=true ordered=true interleave=true
 pcs resource create vip-redis IPaddr2 ip=${PHD_VAR_network_internal}.217
-pcs resource create ceilometer-central systemd:openstack-ceilometer-central --clone interleave=true
-pcs resource create ceilometer-collector systemd:openstack-ceilometer-collector --clone interleave=true
-pcs resource create ceilometer-api systemd:openstack-ceilometer-api --clone interleave=true
-pcs resource create ceilometer-delay Delay startdelay=10 --clone interleave=true
-pcs resource create ceilometer-alarm-evaluator systemd:openstack-ceilometer-alarm-evaluator --clone interleave=true
-pcs resource create ceilometer-alarm-notifier systemd:openstack-ceilometer-alarm-notifier --clone interleave=true
-pcs resource create ceilometer-notification systemd:openstack-ceilometer-notification  --clone interleave=true
+pcs resource create openstack-ceilometer-central systemd:openstack-ceilometer-central --clone interleave=true
+pcs resource create openstack-ceilometer-collector systemd:openstack-ceilometer-collector --clone interleave=true
+pcs resource create openstack-ceilometer-api systemd:openstack-ceilometer-api --clone interleave=true
+pcs resource create delay Delay startdelay=10 --clone interleave=true
+pcs resource create openstack-ceilometer-alarm-evaluator systemd:openstack-ceilometer-alarm-evaluator --clone interleave=true
+pcs resource create openstack-ceilometer-alarm-notifier systemd:openstack-ceilometer-alarm-notifier --clone interleave=true
+pcs resource create openstack-ceilometer-notification systemd:openstack-ceilometer-notification  --clone interleave=true
 
 pcs constraint order promote redis-master then start vip-redis
 pcs constraint colocation add vip-redis with master redis-master
-pcs constraint order start vip-redis then ceilometer-central-clone kind=Optional
-pcs constraint order start ceilometer-central-clone then ceilometer-collector-clone
-pcs constraint order start ceilometer-collector-clone then ceilometer-api-clone
-pcs constraint colocation add ceilometer-api-clone with ceilometer-collector-clone 
-pcs constraint order start ceilometer-api-clone then ceilometer-delay-clone
-pcs constraint colocation add ceilometer-delay-clone with ceilometer-api-clone
-pcs constraint order start ceilometer-delay-clone then ceilometer-alarm-evaluator-clone
-pcs constraint colocation add ceilometer-alarm-evaluator-clone with ceilometer-delay-clone
-pcs constraint order start ceilometer-alarm-evaluator-clone then ceilometer-alarm-notifier-clone
-pcs constraint colocation add ceilometer-alarm-notifier-clone with ceilometer-alarm-evaluator-clone
-pcs constraint order start ceilometer-alarm-notifier-clone then ceilometer-notification-clone
-pcs constraint colocation add ceilometer-notification-clone with ceilometer-alarm-notifier-clone
+pcs constraint order start vip-redis then openstack-ceilometer-central-clone kind=Optional
+pcs constraint order start openstack-ceilometer-central-clone then openstack-ceilometer-collector-clone
+pcs constraint order start openstack-ceilometer-collector-clone then openstack-ceilometer-api-clone
+pcs constraint colocation add openstack-ceilometer-api-clone with openstack-ceilometer-collector-clone
+pcs constraint order start openstack-ceilometer-api-clone then delay-clone
+pcs constraint colocation add openstack-ceilometer-delay-clone with openstack-ceilometer-api-clone
+pcs constraint order start openstack-ceilometer-delay-clone then openstack-ceilometer-alarm-evaluator-clone
+pcs constraint colocation add openstack-ceilometer-alarm-evaluator-clone with openstack-ceilometer-delay-clone
+pcs constraint order start openstack-ceilometer-alarm-evaluator-clone then openstack-ceilometer-alarm-notifier-clone
+pcs constraint colocation add openstack-ceilometer-alarm-notifier-clone with openstack-ceilometer-alarm-evaluator-clone
+pcs constraint order start openstack-ceilometer-alarm-notifier-clone then openstack-ceilometer-notification-clone
+pcs constraint colocation add openstack-ceilometer-notification-clone with openstack-ceilometer-alarm-notifier-clone
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    pcs constraint order start mongodb-clone then ceilometer-central-clone
-    pcs constraint order start keystone-clone then ceilometer-central-clone
+    pcs constraint order start mongod-clone then openstack-ceilometer-central-clone
+    pcs constraint order start openstack-keystone-clone then openstack-ceilometer-central-clone
 fi
 ....

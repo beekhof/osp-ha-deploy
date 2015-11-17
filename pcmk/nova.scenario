@@ -102,25 +102,25 @@ target=$PHD_ENV_nodes1
 ....
 su nova -s /bin/sh -c "nova-manage db sync"
 
-pcs resource create nova-consoleauth systemd:openstack-nova-consoleauth --clone interleave=true
-pcs resource create nova-novncproxy systemd:openstack-nova-novncproxy --clone interleave=true
-pcs resource create nova-api systemd:openstack-nova-api --clone interleave=true
-pcs resource create nova-scheduler systemd:openstack-nova-scheduler --clone interleave=true
-pcs resource create nova-conductor systemd:openstack-nova-conductor --clone interleave=true
+pcs resource create openstack-nova-consoleauth systemd:openstack-nova-consoleauth --clone interleave=true
+pcs resource create openstack-nova-novncproxy systemd:openstack-nova-novncproxy --clone interleave=true
+pcs resource create openstack-nova-api systemd:openstack-nova-api --clone interleave=true
+pcs resource create openstack-nova-scheduler systemd:openstack-nova-scheduler --clone interleave=true
+pcs resource create openstack-nova-conductor systemd:openstack-nova-conductor --clone interleave=true
 
-pcs constraint order start nova-consoleauth-clone then nova-novncproxy-clone
-pcs constraint colocation add nova-novncproxy-clone with nova-consoleauth-clone
+pcs constraint order start openstack-nova-consoleauth-clone then openstack-nova-novncproxy-clone
+pcs constraint colocation add openstack-nova-novncproxy-clone with openstack-nova-consoleauth-clone
 
-pcs constraint order start nova-novncproxy-clone then nova-api-clone
-pcs constraint colocation add nova-api-clone with nova-novncproxy-clone
+pcs constraint order start openstack-nova-novncproxy-clone then openstack-nova-api-clone
+pcs constraint colocation add openstack-nova-api-clone with openstack-nova-novncproxy-clone
 
-pcs constraint order start nova-api-clone then nova-scheduler-clone
-pcs constraint colocation add nova-scheduler-clone with nova-api-clone
+pcs constraint order start openstack-nova-api-clone then openstack-nova-scheduler-clone
+pcs constraint colocation add openstack-nova-scheduler-clone with openstack-nova-api-clone
 
-pcs constraint order start nova-scheduler-clone then nova-conductor-clone
-pcs constraint colocation add nova-conductor-clone with nova-scheduler-clone
+pcs constraint order start openstack-nova-scheduler-clone then openstack-nova-conductor-clone
+pcs constraint colocation add openstack-nova-conductor-clone with openstack-nova-scheduler-clone
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-    pcs constraint order start keystone-clone then nova-consoleauth-clone
+    pcs constraint order start openstack-keystone-clone then openstack-nova-consoleauth-clone
 fi
 ....

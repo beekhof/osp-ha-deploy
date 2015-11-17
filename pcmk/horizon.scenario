@@ -85,5 +85,5 @@ EOF
 
 target=$PHD_ENV_nodes1
 ....
-pcs resource create horizon apache --clone interleave=true
+pcs resource create httpd apache --clone interleave=true
 ....

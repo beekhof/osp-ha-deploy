@@ -98,7 +98,7 @@ if ! pcs resource show swift-fs > /dev/null 2>&1; then
     pcs constraint colocation add swift-object-clone with swift-container-clone
     pcs constraint order start swift-container-clone then swift-object-clone
     if [ $PHD_VAR_deployment = collapsed ]; then
-	pcs constraint order start keystone-clone then swift-account-clone
+	pcs constraint order start openstack-keystone-clone then swift-account-clone
    fi
 fi
 ....

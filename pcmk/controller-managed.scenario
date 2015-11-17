@@ -71,7 +71,7 @@ for i in glance-api-clone neutron-metadata-agent-clone nova-conductor-clone; do
 done
 
 # Take down the ODP control plane
-pcs resource disable keystone --wait=240
+pcs resource disable openstack-keystone --wait=240
 
 # Take advantage of the fact that control nodes will already be part of the cluster
 # At this step, we need to teach the cluster about the compute nodes
@@ -187,10 +187,10 @@ for node in ${PHD_ENV_nodes}; do
     fi
 done
 
-pcs resource enable keystone
+pcs resource enable openstack-keystone
 pcs resource enable neutron-openvswitch-agent-compute
 pcs resource enable libvirtd-compute
-pcs resource enable ceilometer-compute
+pcs resource enable openstack-ceilometer-compute
 pcs resource enable nova-compute-fs
 pcs resource enable nova-compute
 

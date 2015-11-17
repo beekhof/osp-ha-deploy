@@ -96,7 +96,7 @@ target=$PHD_ENV_nodes1
 ....
 su keystone -s /bin/sh -c "keystone-manage -v -d db_sync"
 
-pcs resource create keystone systemd:openstack-keystone --clone interleave=true
+pcs resource create openstack-keystone systemd:openstack-keystone --clone interleave=true
 
 if [ $PHD_VAR_deployment = collapsed ]; then
 
@@ -104,10 +104,10 @@ if [ $PHD_VAR_deployment = collapsed ]; then
     # things in a particular order and require services to be active
     # on the same hosts.  We do this with constraints.
 
-    pcs constraint order start lb-haproxy-clone then keystone-clone
-    pcs constraint order promote galera-master then keystone-clone
-    pcs constraint order start rabbitmq-server-clone then keystone-clone
-    pcs constraint order start memcached-clone then keystone-clone
+    pcs constraint order start haproxy-clone then openstack-keystone-clone
+    pcs constraint order promote galera-master then openstack-keystone-clone
+    pcs constraint order start rabbitmq-clone then openstack-keystone-clone
+    pcs constraint order start memcached-clone then openstack-keystone-clone
 fi
 
 export OS_TOKEN=${PHD_VAR_secrets_keystone_secret}

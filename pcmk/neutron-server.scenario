@@ -149,6 +149,6 @@ systemctl stop neutron-server
 pcs resource create neutron-server systemd:neutron-server op start timeout=90 --clone interleave=true
 
 if [ $PHD_VAR_deployment = collapsed ]; then
-   pcs constraint order start keystone-clone then neutron-server-clone
+   pcs constraint order start openstack-keystone-clone then neutron-server-clone
 fi
 ....
