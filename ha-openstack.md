@@ -418,11 +418,11 @@ This will take a bare metal installation of your favorite OS (surely CentOS 7.2)
 1. deploy the undercloud (TripleO uses a pre-rolled OpenStack image as a means for deploying and updating the user facing installation of OpenStack aka. the overcloud) 
 1. deploy the overcloud for you to investigate and compare your existing architecture against
 
+You should digest the entire [README](https://github.com/openstack/tripleo-quickstart/blob/master/README.rst), however the quick version for the purposes of seeing this HA architecture in action is:
 
-    git clone git@github.com:openstack/tripleo-quickstart.git
-    cd tripleo-quickstart
-    ./quickstart.sh -b -n -w $PWD -c config/general_config/ha.yml  -p quickstart-extras.yml -r quickstart-extras-requirements.txt --tags all -R newton -T all ${the_machine_you_wish_to_install_to}
-
+        git clone git@github.com:openstack/tripleo-quickstart.git
+        cd tripleo-quickstart
+        ./quickstart.sh -b -n -w $PWD -c config/general_config/ha.yml  -p quickstart-extras.yml -r quickstart-extras-requirements.txt --tags all -R newton -T all ${the_machine_you_wish_to_install_to}
 
 For those that would prefer not to deal with TripleO, you can see
 roughly what TripleO does by examining the pseudo code for manually:
