@@ -1,11 +1,12 @@
 # Highly Available Openstack Deployments
 
-Looking for the Juno (RDO6) edition?
-Check out the [Juno-RDO6 branch](../Juno-RDO6/ha-openstack.md)
-instead.
+The current target for this document is RDO 10, based on
+the OpenStack Newton release.
 
-The current target for this document is pre-release RDO 7, based on
-the OpenStack Kilo release.
+Looking for an edition prior to Newton (RDO10)?
+
+Check out the [Juno-RDO6](../Juno-RDO6/ha-openstack.md) or
+[Mitaka-RDO9](../Mitaka-RDO9/ha-openstack.md) branches instead.
 
 ## Purpose of this Document
 
@@ -38,102 +39,69 @@ In this document, all components are currently modelled as
 active/active with the exception of:
 
 - cinder-volume
-- qpid (optional)
 
 Implementation details are contained in scripts linked to from the main document.
 Read them carefully before considering to run them in your own environment. 
 
-## Disclaimer 
+## Historical Context
 
-- The referenced scripts contain many comments and warnings - READ THEM CAREFULLY.
-- There are probably 2^8 other ways to deploy this same scenario. This is only one of them.
-- Due to limited number of available physical LAN connections in the test setup, the instance IP traffic overlaps with the internal/management network.
-- Distributed/Shared storage is provided via NFS from the commodity server due to lack of dedicated CEPH servers. Any other kind of storage supported by OpenStack would work just fine.
-- Bare metal could be used in place of any or all guests.
-- Most of the scripts contain shell expansion to automatically fill in some values.  Use your common sense when parsing data. Example:
+In the previous OpenStack HA architectures used by Red Hat, SuSE and
+others, Systemd is the entity in charge of starting and stopping most
+OpenStack services. Pacemaker exists as a layer on top, signalling
+when this should happen, but Systemd is the part making it happen.
 
-  `openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(ip addr show dev vmnet0 scope global | grep inet | sed -e 's#.*inet ##g' -e    's#/.*##g')`
+This is a valuable contribution for active/passive (A/P) services and
+those that require all their dependancies be available during their
+startup and shutdown sequences. However as OpenStack has matured, more
+and more components are able to operate in an unconstrained
+active/active capacity with little regard for the startup/shutdown
+order of their peers or dependancies - making them well suited to be
+managed exclusively by Systemd.
 
-  means that we want the IP address from vmnet0 as vncserver_proxyclient_address.
+## Overall Design
 
-## Bugs
+With Newton, OpenStack has reached the point where it is now a good
+idea to limit Pacemaker’s involvement to core services like Galera and
+Rabbit as well as the few remaining OpenStack services, such as
+cinder-volume, that run A/P.
 
-- **python-tooz 0.13.2** or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1203706).
-- **python-websockify 0.6.0** or later is required (https://bugzilla.redhat.com/show_bug.cgi?id=1200701).
+This will be particularly useful as we look towards a containerised
+future. It both allows OpenStack to play nicely with the current
+generation of container managers which lack Orchestration
+capabilities, as well as reducing recovery and down time by allowing
+for the maximum possible parallelism.
 
-These should be fixed by the Kilo GA date.
+Any objections to this architecture usually fall into one of three
+main categories:
 
-### TODO
+1. The use of Pacemaker as an alerting mechanism
+1. The idea that Pacemaker provides better monitoring of systemd services
+1. A believe that active/passive installations are suprior
 
-- Missing how-to move a service from cluster X to cluster Y
-- nova network HA
-- Compute nodes managed by pacemaker_remoted
-- Remove all artificial sleep and use pcs --wait once 7.1 is out of the door
-- Improve nova-compute test section with CLI commands
-- re-check keystone -> other services start order require-all=false option
-- Variables for *_passwd
+If these concerns apply to you then, as the founding author of
+Pacemaker, I would like to direct your attention to my
+[post](http://blog.clusterlabs.org/blog/2016/next-openstack-ha-arch)
+which will attempt to disuade you of their relevance.
 
-# Hardware / VM deployment
+This reference design is based around a single cluster of 3 or more
+nodes on which every component is running.
+   
+This scenario can be visualized as below:
+    
+  ![Collapsed deployment architecture](Cluster-deployment-collapsed.png)
 
-## Requirements
+With the advent of composable roles however, it is certainly possible
+to dedicate a subset of nodes for one or more components that are
+expected to be a bottleneck.
 
-A minimum of 5 machines are required to deploy this setup:
-
-- 1 commodity server (can be a VM) to deploy nfs-server, dhcp, dns
-- 1 bare metal node to be used a compute node
-- 3 controller nodes
-
-  The linked scripts assume the controller nodes are bare-metal and will create one or more VMs (dependng on the deployment type) to run on top of them.
-  You could equally just use the bare metal directly.
+It is also possible that these dedicated nodes run extra copies of
+those service, in addition to the ones on a fully symmetrical core set
+of nodes.
 
 ## Assumptions
 
-- To provide additional isolation, every component runs in its own virtual machine
-- All APIs are exposed only in the internal LAN
-- neutron-agents are directly connected to the external LAN
-- nova and horizon are exposed to the external LAN via an extra haproxy instance
-- Compute nodes have a management connection to the external LAN but it is not used by OpenStack and hence not reproduced in the diagram. This will be used when adding nova network setup.
-- Here is a [list of variables](pcmk/ha-collapsed.variables) used when executing the referenced scripts.  Modify them to your needs.
-
-In this document we describe two deployment extremes:
-
-1.  __Segregated__
-    
-    In this configuration, each service runs in a dedicated cluster of
-    3 or more nodes.
-    
-    The benefits to this approach are the physical isolation between
-    components and the ability to add capacity to specific components.
-
-    This scenario can be visualized as below, where each box below
-    represents a cluster of three or more guests. 
-    
-    ![Segregated deployment architecture](Cluster-deployment-segregated.png)
-
-1.  __Collapsed__ 
-    
-    In this configuration, there is a single cluster of 3 or more
-    nodes on which every component is running.
-    
-    This scenario has the advantage of requiring far fewer, if more
-    powerful, machines.  Additionally, being part of a single cluster
-    allows us to accurately model the ordering dependancies between
-    components.
-
-    This scenario can be visualized as below. 
-    
-    ![Collapsed deployment architecture](Cluster-deployment-collapsed.png)
-
-1.  __Mixed__ (not documented) 
-
-    While not something we document here, it is certainly possible to
-    follow a segregated approach for one or more components that are
-    expected to be a bottleneck and use a collapsed apprach for the
-    remainder.
-
-
-Regardless of which scenario you choose, it is required that the
-clusters contain at least three nodes so that we take advantage of
+It is required that the clusters contain at least three nodes so that
+we take advantage of
 [quorum](http://en.wikipedia.org/wiki/Quorum_(Distributed_Systems))
 
 Quorum becomes important when a failure causes the cluster to split in
@@ -158,49 +126,7 @@ to set up as a [gateway](pcmk/gateway.scenario) that will provide DNS
 and DHCP for the guests containing the OpenStack services and expose
 the required nova and horizon APIs to the external network.
 
-## Implementation - Segregated
-
-Start by creating a minimal CentOS installation on at least three nodes.
-No OpenStack services or HA will be running here.
-
-For each service we create a virtual cluster, with one member running
-on each of the physical hosts.  Each virtual cluster must contain at
-members, one per physical host, for the reasons stated above.
-
-Once the machines have been installed, [prepare them](pcmk/baremetal.scenario) 
-for hosting OpenStack.
-
-Next we must [create the image](pcmk/virt-hosts.scenario) for the
-guests that will host the OpenStack services and clone it.  Once the
-image has been created, we can prepare the hosting nodes and
-[clone](pcmk/virt-hosts.scenario) it.
-
-## Implementation - Collapsed
-
-Start by creating a minimal CentOS installation on at least three nodes.
-No OpenStack services or HA will be running here.
-
-We create a single virtual cluster, with one member running on each of
-the physical hosts.  The virtual cluster must contain at least three
-members, one per physical host, for the reasons stated above.
-
-Once the machines have been installed, [prepare them](pcmk/baremetal.scenario) 
-for hosting OpenStack.
-
-Next we must [create the image](pcmk/virt-hosts.scenario) for the
-guests that will host the OpenStack services and clone it.  Once the
-image has been created, we can prepare the hosting nodes and
-[clone](pcmk/virt-hosts.scenario) it.
-
-# Deploy OpenStack HA controllers
-
-This how-to is divided in 2 sections. The first section is used to
-deploy all core non-OpenStack services, the second section all
-OpenStack services.
-
-Pacemaker is used to drive all services.
-
-## Installing core non-Openstack services
+## Solution Components
 
 ### Cluster Manager
 
@@ -258,16 +184,7 @@ cluster manager:
 
 
 For this reason, the use of a cluster manager like
-[Pacemaker](http://clusterlabs.org) is highly recommended.  The [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions are required for
-every cluster.
-
-When performing an collapsed deployment, there is only one cluster
-and now is the time to follow the [basic cluster setup](pcmk/basic-cluster.scenario)
-instructions.
-
-When performing an segregated deployment, this step will need to be
-performed before configuring each component.
+[Pacemaker](http://clusterlabs.org) is highly recommended.
 
 ### Proxy server
 
@@ -332,13 +249,6 @@ Qpid however operates in a active/passive configuration, no built-in
 clustering, so in it's case the `stick-table` option ensures that all
 requests go to the active instance.
 
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy the [load balancer](pcmk/lb.scenario) to
-the previously created guests.
-
 ### Replicated Database
 
 Most OpenStack components require access to a database.
@@ -366,16 +276,6 @@ Although galera supports active/active configurations, we recommend
 active/passive (enforced by the load balancer) in order to avoid lock
 contention.
 
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `Galera`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy galera](pcmk/galera.scenario) into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/galera-test.sh) from one of the nodes.
-
 ### Database Cache
 
 Memcached is a general-purpose distributed memory caching system. It
@@ -387,14 +287,6 @@ __Note__: Access to memcached is not handled by HAproxy because
 replicated access is currently only in an experimental state.  Instead
 consumers must be supplied with the full list of hosts running
 memcached.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `memcached`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy memcached](pcmk/memcached.scenario) into
-it.
 
 ### Message Bus
 
@@ -446,78 +338,18 @@ In this case that is a problem though, because:
 The [resolution](https://review.openstack.org/#/c/146047/) is already
 understood and just needs to make its way through review.
 
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `RabbitMQ`.
+## Core OpenStack services
 
-After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy [rabbitmq](pcmk/rabbitmq.scenario) into it.
+In contrast to earlier versions of this guide, with the exception of
+Cinder Volume, there are no specific instructions with regards to the
+installation core OpenStack services beyond:
 
-To verify the installation was successful, perform the following [test
-actions](pcmk/rabbitmq-test.sh) from one of the nodes.
+1. Ensuring services that make use of RabbitMQ list all configured servers
+1. Accessing Galera and all OpenStack peer APIs (keystone, etc) via the HAProxy and the VIPs 
 
-### NoSQL Database (optional)
-
-If you plan to install `ceilometer` or `heat`, you will need a NoSQL
-database such as mongodb.
-
-MongoDB is a cross-platform document-oriented database that eschews
-the traditional table-based relational database structure in favor of
-JSON-like documents with dynamic schemas, making the integration of
-data in certain types of applications easier and faster.
-
-__Note__: Access to mongodb is not handled by HAproxy [because TODO].
-Instead ceilometer must be supplied with the full list of hosts running mongodb.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `mongodb`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy mongodb](pcmk/mongodb.scenario) into it.
-
-## Installing Openstack services
-### Keystone
-
-Keystone is an OpenStack project that provides Identity, Token,
-Catalog and Policy services for use specifically by projects in the
-OpenStack family. It implements OpenStack's Identity API and acts as a
-common authentication system across the cloud operating system and can
-integrate with existing backend directory services.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `keystone`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy keystone](pcmk/keystone.scenario) into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/keystone-test.sh) from one of the nodes.
-
-### Glance
-
-The Glance project provides a service where users can upload and
-discover data assets that are meant to be used with other
-services. This currently includes images and metadata definitions.
-
-Glance image services include discovering, registering, and retrieving
-virtual machine images.
-
-Glance allows these images to be used as templates when deploying new
-virtual machine instances. It can also be used to store and catalog
-multiple backups. The Image Service can store disk and server images
-in a variety of back-ends, however we will only consider NFS here.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `glance`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy glance](pcmk/glance.scenario) into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/glance-test.sh) from one of the nodes.
+In all other respects, one should follow standard practices for
+installing packages and instructing the system to start them at boot
+time.
 
 ### Cinder
 
@@ -572,210 +404,53 @@ Bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=1193229) and
 there is a [psuedo roadmap](https://etherpad.openstack.org/p/cinder-kilo-stabilisation-work)
 for addressing them upstream.
 
-In this guide we configure the NFS backend, however many others exist.
+# Implementation
 
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `cinder`.
+The best way to visualize the result of this architecture is to make
+use of
+[tripleo-quickstart](https://github.com/openstack/tripleo-quickstart/blob/master/README.rst)
+which implements the described architecture.
 
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy cinder](pcmk/cinder.scenario) into it.  
+This will take a bare metal installation of your favorite OS (surely CentOS 7.2) and:
 
-To verify the installation was successful, perform the following [test
-actions](pcmk/cinder-test.sh) from one of the nodes.
+1. create a 'stack' user
+1. create several VMs representing the undercloud, control plane and computes
+1. deploy the undercloud (TripleO uses a pre-rolled OpenStack image as a means for deploying and updating the user facing installation of OpenStack aka. the overcloud) 
+1. deploy the overcloud for you to investigate and compare your existing architecture against
 
-### Swift ACO (optional)
 
-Swift is a highly available, distributed, eventually consistent
-object/blob store. Organizations can use Swift to store lots of data
-efficiently, safely, and cheaply.
+    git clone git@github.com:openstack/tripleo-quickstart.git
+    cd tripleo-quickstart
+    ./quickstart.sh -b -n -w $PWD -c config/general_config/ha.yml  -p quickstart-extras.yml -r quickstart-extras-requirements.txt --tags all -R newton -T all ${the_machine_you_wish_to_install_to}
 
-As mentioned earlier, limitations in Corosync prevent us from
-combining more than 16 machines into a logic unit. In the case of
-Swift, although this is fine for the proxy, it is often insufficient
-for the ACO nodes.
 
-There are plans to make use of something called `pacemaker-remote` to
-allow the cluster to manage more than 16 worker nodes, but until this
-is properly documented we must make use of a work-around.
+For those that would prefer not to deal with TripleO, you can see
+roughly what TripleO does by examining the pseudo code for manually:
 
-If you expect to have more than 16 ACO nodes, creating each as a
-[single node cluster](pcmk/basic-cluster.scenario) - independant of all the
-others. This avoids the 16 node limit while still making sure the
-individual `swift` daemons are being monitored and recovered as
-necessary.
+1. configuring a basic [pacemaker cluster](pcmk/basic-cluster.scenario)
+1. deploying the [load balancer](pcmk/lb.scenario)
+1. deploying [galera](pcmk/galera.scenario)
+1. deploying [memcached](pcmk/memcached.scenario)
+1. deploying [rabbitmq](pcmk/rabbitmq.scenario)
+1. deploying [cinder volume](pcmk/cinder.scenario)
 
-Once you have a set of functional single-node clusters, you can then
-[deploy swift ACOs](pcmk/swift-aco.scenario) into them.
+Here is a [list of variables](pcmk/ha-collapsed.variables) used when
+executing the referenced scripts.  Modify them to your needs.
 
-Alternatively, [deploy swift ACOs](pcmk/swift-aco.scenario) into the
-existing _collapsed_ cluster.
+## Disclaimer 
 
-### Swift Proxy (optional)
+- The referenced scripts contain many comments and warnings - READ THEM CAREFULLY.
+- There are probably 2^8 other ways to deploy this same scenario. This is only one of them.
+- Due to limited number of available physical LAN connections in the test setup, the instance IP traffic overlaps with the internal/management network.
+- Distributed/Shared storage is provided via NFS from the commodity server due to lack of dedicated CEPH servers. Any other kind of storage supported by OpenStack would work just fine.
+- Bare metal could be used in place of any or all guests.
+- Most of the scripts contain shell expansion to automatically fill in some values.  Use your common sense when parsing data. Example:
 
-The Proxy Server is responsible for tying together the rest of the
-Swift architecture. For each request, it will look up the location of
-the account, container, or object in the ring (see below) and route
-the request accordingly.
+  `openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $(ip addr show dev vmnet0 scope global | grep inet | sed -e 's#.*inet ##g' -e    's#/.*##g')`
 
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain the swift proxy.
+  means that we want the IP address from vmnet0 as vncserver_proxyclient_address.
 
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy swift](pcmk/swift.scenario) into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/swift-test.sh) from one of the nodes.
-
-### Networking
-
-Neutron and Nova are two commonly deployed projects that can provide
-'network connectivity as a service' between interface devices (e.g.,
-vNICs) managed by other OpenStack services (e.g., nova).
-
-Both manage networks and IP addresses, allowing users to define,
-separate, and join networks on demand.
-
-`nova-network` is the legacy networking implementation that was
-limited in terms of functionality but has historically been more
-reliable but than Neutron.
-
-Neutron has matured to the point that `nova-network` is now rarely
-chosen for new deployments.
-
-For completeness, we document the installation of both however Neutron
-is the recommended option unless you need `nova-network`'s multi-host
-mode which allows every compute node to be used as the gateway to an
-external network instead of having to route all traffic from every
-compute node through a single network node.
-
-It is also important to note that we do NOT document how to deploy
-`nova-network` in HA fashion.
-
-#### Neutron
-
-The Neutron API includes support for Layer 2 (L2) networking as well
-as an extension for layer 3 (L3) router construction that enables
-routing between L2 networks and gateways to external networks. Its
-architecture supports numerous virtual networking technologies as well
-as native Linux networking mechanisms including Open vSwitch and Linux
-Bridge.
-
-There are 2 methods to deploy neutron-agents:
-
-1. fully active/active where neutron-agents run on all 3 nodes
-1. active/passive where the agents are running only on one node at a time
-
-Depending on the method selected, both `neutron-server` and
-`neutron-agents` will require different configurations.  The only real
-requirement is that you choose the same availability approach for
-both.
-
-Additionally, we use the ML2 plugin. Other supported plugins can be
-used but please consult the OSP documentation on how to configure/deploy
-them.
-
-__Server__
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain the `neutron` server.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy the [neutron server](pcmk/neutron-server.scenario) 
-components into it.
-
-__Agents__
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain the `neutron` agent.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then deploy the [neutron
-agent](pcmk/neutron-agents.scenario) components into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/neutron-test.sh) from one of the nodes.
-
-### Nova (non-compute)
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `nova`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy nova](pcmk/nova.scenario) into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/nova-test.sh) from one of the nodes.
-
-### Ceilometer (optional)
-
-The Ceilometer project aims to deliver a unique point of contact for
-billing systems to acquire all of the measurements they need to
-establish customer billing, across all current OpenStack core
-components with work underway to support future OpenStack components.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `ceilometer`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy ceilometer](pcmk/ceilometer.scenario) into
-it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/ceilometer-test.sh) from one of the nodes.
-
-### Heat (optional)
-
-Heat is a service to orchestrate the complete life-cycle of composite
-cloud applications using the AWS CloudFormation template format,
-through both an OpenStack-native ReST API and a
-CloudFormation-compatible Query API.
-
-The templates define what resources to deploy rather than how to
-deploy them.  This is similar to the approach used by popular
-configuration tools such as Puppet, Ansible, and Chef.
-
-However where configuration tools focus on the configuration of a
-system, Heat focuses on resource provision and relies on cloud-init
-scripting to handle system configuration. A template may create and
-configure a large list of resources thus supporting complex
-application stacks.
-
-`heat` autoscale functionality requires ceilometer to be active prior
-to `heat` and `OS::Ceilometer::Alarm` in `heat` templates.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `heat`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy heat](pcmk/heat.scenario) into it.
-
-To verify the installation was successful, perform the following [test
-actions](pcmk/heat-test.sh) from one of the nodes. NOTE that heat test
-requires functional compute nodes.
-
-### Horizon
-
-Horizon is the dashboard behind OpenStack that provides administrators
-and users a graphical interface to access, provision and automate
-cloud-based resources. Ir provides system administrators a view of
-what is going on in the cloud, and to manage it as necessary. The
-dashboard runs via httpd service.
-
-If you are performing a segregated deployment, follow the [basic
-cluster setup](pcmk/basic-cluster.scenario) instructions to set up a
-cluster on the guests intended to contain `horizon`.
-
-After verifying the (collapsed or newly created) cluster is
-functional, you can then [deploy horizon](pcmk/horizon.scenario) into it.
-
-# Compute nodes 
+# Compute Nodes 
 
 We will usually need more than 16 compute nodes
 which is beyond Corosync's ability to manage. So in order monitor the
@@ -879,12 +554,7 @@ them](pcmk/baremetal.scenario) for hosting OpenStack.
 
 Next, you can configure them as [compute nodes](pcmk/compute-common.scenario).
 
-In the _collapsed_ scenario we now add them to the cluster as [partial
-members](pcmk/compute-managed.scenario).
-
-For a _segregated_ deployment, we now add them to the cluster we
-created for _Nova (non-compute)_, again as [partial
-members](pcmk/compute-managed.scenario)
+We now add them to the cluster as [partial members](pcmk/compute-managed.scenario).
 
 Once the compute nodes are configured as remote, they can be added
 to the [controller backplane](pcmk/controller-managed.scenario)
@@ -894,30 +564,6 @@ to the [controller backplane](pcmk/controller-managed.scenario)
 > managed by nova.  This might warrant a host-evacuate.
 >
 > Traditionally, HA systems would fence the node at this point.
-
-
-# Adding and Removing Nodes
-
-## Adding a New Node 
-
-Adding an additional node should be a matter of:
-
-1. Deciding what services will run on the node.
-
-   This will depend on whether you have a collapsed or segregated
-   deployment (or somewhere in-between).
-
-1. Locating the relevant scenario files
-
-1. Performing only the actions listed in sections with `target=all`
-
-## Removing a Node
-
-This is simply a matter of shutting down the cluster on the target
-node and removing it from the cluster configuration.  This can be
-achieved with `pcs`:
-
-    pcs node remove ${nodename}
 
 
 
