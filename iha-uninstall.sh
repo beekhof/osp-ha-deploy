@@ -4,8 +4,13 @@ set -ex
 
 source stackrc
 
-COMPUTES=$(nova list | grep novacompute | awk -F\| '{ print $3}' | tr '\n' ' ')
-CONTROLLERS=$(nova list | grep controller | awk -F\| '{ print $3}'  | tr '\n' ' ')
+# If your machines don't conform to this structure, try calling the script like this:
+#  COMPUTE_PATTERN=mycompute ./iha-uninstall.sh upgrade
+: ${COMPUTE_PATTERN=novacompute}
+: ${CONTROLLER_PATTERN=controller}
+
+COMPUTES=$(nova list | grep ${COMPUTE_PATTERN} | awk -F\| '{ print $3}' | tr '\n' ' ')
+CONTROLLERS=$(nova list | grep ${CONTROLLER_PATTERN} | awk -F\| '{ print $3}'  | tr '\n' ' ')
 
 FIRST_COMPUTE=$(echo $COMPUTES | awk '{print $1}')
 FIRST_CONTROLLER=$(echo $CONTROLLERS | awk '{print $1}')
@@ -35,8 +40,8 @@ pcs property set maintenance-mode=false --wait
 
 EOF
 
-    scp $helper ${FIRST_CONTROLLER}:
-    ssh ${FIRST_CONTROLLER} -- sudo bash $helper
+    scp $helper heat-admin@${FIRST_CONTROLLER}:
+    ssh heat-admin@${FIRST_CONTROLLER} -- sudo bash $helper
 fi
 
 helper=iha-helper-reenable.sh
@@ -47,5 +52,5 @@ for service in neutron-openvswitch-agent openstack-ceilometer-compute openstack-
 done
 EOF
 
-for node in $COMPUTES; do scp $helper ${node}: ; ssh ${node} -- sudo bash $helper ; done
+for node in $COMPUTES; do scp $helper heat-admin@${node}: ; ssh heat-admin@${node} -- sudo bash $helper ; done
 
